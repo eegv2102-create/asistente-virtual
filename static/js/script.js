@@ -65,16 +65,50 @@ const speakText = text => {
 };
 
 const pauseSpeech = () => {
+    const btnPauseSpeech = getElement('#btn-pause-speech');
+    const btnResumeSpeech = getElement('#btn-resume-speech');
     if (currentAudio instanceof Audio) {
         currentAudio.pause();
         mostrarNotificacion('Voz pausada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = true;
+            btnResumeSpeech.disabled = false;
+        }
     } else if ('speechSynthesis' in window && currentAudio) {
         speechSynthesis.pause();
         mostrarNotificacion('Voz pausada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = true;
+            btnResumeSpeech.disabled = false;
+        }
+    }
+};
+
+const resumeSpeech = () => {
+    const btnPauseSpeech = getElement('#btn-pause-speech');
+    const btnResumeSpeech = getElement('#btn-resume-speech');
+    if (currentAudio instanceof Audio) {
+        currentAudio.play();
+        mostrarNotificacion('Voz reanudada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = false;
+            btnResumeSpeech.disabled = true;
+        }
+    } else if ('speechSynthesis' in window && currentAudio && speechSynthesis.paused) {
+        speechSynthesis.resume();
+        mostrarNotificacion('Voz reanudada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = false;
+            btnResumeSpeech.disabled = true;
+        }
     }
 };
 
 const stopSpeech = () => {
+    const btnStartVoice = getElement('#btn-start-voice');
+    const btnStopVoice = getElement('#btn-stop-voice');
+    const btnPauseSpeech = getElement('#btn-pause-speech');
+    const btnResumeSpeech = getElement('#btn-resume-speech');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
     }
@@ -86,13 +120,11 @@ const stopSpeech = () => {
         try {
             recognition.stop();
             isListening = false;
-            const btnStartVoice = getElement('#btn-start-voice');
-            const btnStopVoice = getElement('#btn-stop-voice');
-            const btnPauseSpeech = getElement('#btn-pause-speech');
-            if (btnStartVoice && btnStopVoice && btnPauseSpeech) {
+            if (btnStartVoice && btnStopVoice && btnPauseSpeech && btnResumeSpeech) {
                 btnStartVoice.disabled = false;
                 btnStopVoice.disabled = true;
                 btnPauseSpeech.disabled = true;
+                btnResumeSpeech.disabled = true;
             }
             mostrarNotificacion('Voz y reconocimiento detenidos', 'info');
         } catch (error) {
@@ -513,6 +545,7 @@ const cargarAnalytics = () => {
             }
         });
 };
+
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
@@ -521,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnStartVoice: getElement('#btn-start-voice'),
         btnStopVoice: getElement('#btn-stop-voice'),
         btnPauseSpeech: getElement('#btn-pause-speech'),
+        btnResumeSpeech: getElement('#btn-resume-speech'),
         chatbox: getElement('#chatbox'),
         toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
         modoBtn: getElement('#modo-btn'),
@@ -530,6 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
         newChatBtn: getElement('#new-chat-btn'),
         recommendBtn: getElement('#recommend-btn'),
         menuToggle: getElement('.menu-toggle'),
+        menuToggleRight: getElement('.menu-toggle-right'),
         searchBtn: getElement('#search-btn'),
         searchInput: getElement('#search-input'),
         tabButtons: getElements('.tab-btn'),
@@ -634,9 +669,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.menuToggle) {
         elements.menuToggle.addEventListener('click', () => {
             const leftSection = getElement('.left-section');
-            const rightSection = getElement('.right-section');
-            if (leftSection && rightSection) {
+            if (leftSection) {
                 leftSection.classList.toggle('active');
+            }
+        });
+    }
+
+    if (elements.menuToggleRight) {
+        elements.menuToggleRight.addEventListener('click', () => {
+            const rightSection = getElement('.right-section');
+            if (rightSection) {
                 rightSection.classList.toggle('active');
             }
         });
@@ -674,6 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         elements.btnStartVoice.disabled = true;
                         elements.btnStopVoice.disabled = false;
                         elements.btnPauseSpeech.disabled = false;
+                        elements.btnResumeSpeech.disabled = true;
                         mostrarNotificacion('Escuchando...', 'info');
                     } catch (error) {
                         mostrarNotificacion(`Error al iniciar voz: ${error.message}`, 'error');
@@ -681,6 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         elements.btnStartVoice.disabled = false;
                         elements.btnStopVoice.disabled = true;
                         elements.btnPauseSpeech.disabled = true;
+                        elements.btnResumeSpeech.disabled = true;
                     }
                 }
             });
@@ -694,11 +738,16 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnPauseSpeech.addEventListener('click', pauseSpeech);
         }
 
+        if (elements.btnResumeSpeech) {
+            elements.btnResumeSpeech.addEventListener('click', resumeSpeech);
+        }
+
         recognition.onstart = () => {
             isListening = true;
             elements.btnStartVoice.disabled = true;
             elements.btnStopVoice.disabled = false;
             elements.btnPauseSpeech.disabled = false;
+            elements.btnResumeSpeech.disabled = true;
             mostrarNotificacion('Reconocimiento de voz iniciado', 'info');
         };
 
@@ -714,6 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnStartVoice.disabled = false;
             elements.btnStopVoice.disabled = true;
             elements.btnPauseSpeech.disabled = true;
+            elements.btnResumeSpeech.disabled = true;
             mostrarNotificacion(`Transcripción: ${transcript}`, 'info');
         };
 
@@ -738,6 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnStartVoice.disabled = false;
             elements.btnStopVoice.disabled = true;
             elements.btnPauseSpeech.disabled = true;
+            elements.btnResumeSpeech.disabled = true;
         };
 
         recognition.onend = () => {
@@ -745,6 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnStartVoice.disabled = false;
             elements.btnStopVoice.disabled = true;
             elements.btnPauseSpeech.disabled = true;
+            elements.btnResumeSpeech.disabled = true;
         };
 
         if (elements.voiceBtn) {
@@ -770,6 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.btnStartVoice) elements.btnStartVoice.disabled = true;
         if (elements.btnStopVoice) elements.btnStopVoice.disabled = true;
         if (elements.btnPauseSpeech) elements.btnPauseSpeech.disabled = true;
+        if (elements.btnResumeSpeech) elements.btnResumeSpeech.disabled = true;
         mostrarNotificacion('Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge para esta función.', 'error');
     }
 

@@ -91,13 +91,13 @@ body {
     font-family: 'Open Sans', Arial, sans-serif;
     margin: 0;
     height: 100vh;
-    overflow: auto; /* Cambiado de hidden a auto para permitir desplazamiento */
+    overflow: auto;
     transition: var(--transition);
 }
 
 .container {
     width: 100%;
-    max-width: 1000px;
+    max-width: 1200px;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -128,7 +128,7 @@ h3 {
 
 .main-layout {
     display: grid;
-    grid-template-columns: 50px 1fr 180px;
+    grid-template-columns: 50px 1fr 200px;
     gap: 2px;
     flex: 1;
     height: calc(100vh - 50px);
@@ -151,8 +151,8 @@ h3 {
     top: 0;
     height: 100%;
     z-index: 20;
-    transition: transform 0.3s ease; /* Añadido para transiciones suaves en móviles */
-    transform: translateX(0); /* Estado inicial */
+    transition: transform 0.3s ease;
+    transform: translateX(0);
 }
 
 .left-section button, .nivel-btn {
@@ -191,9 +191,9 @@ h3 {
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: 5px 8px;
+    padding: 6px 10px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 11px;
     max-width: 120px;
     text-align: center;
     opacity: 0;
@@ -218,9 +218,9 @@ h3 {
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: 5px 8px;
+    padding: 6px 10px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 11px;
     max-width: 150px;
     text-align: center;
     opacity: 0;
@@ -236,7 +236,7 @@ h3 {
     visibility: visible;
 }
 
-#btn-pause-speech {
+#btn-pause-speech, #btn-resume-speech {
     z-index: 30;
 }
 
@@ -478,7 +478,7 @@ h3 {
 
 .bot img {
     max-width: 100%;
-    height: auto; /* Añadido para optimizar imágenes en móviles */
+    height: auto;
     border-radius: var(--radius);
     margin-top: var(--spacing);
     box-shadow: var(--shadow);
@@ -638,7 +638,7 @@ h3 {
     transform: scale(1.05);
 }
 
-#btn-start-voice, #btn-stop-voice, #btn-pause-speech {
+#btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
     width: auto;
     height: 30px;
     padding: 0 calc(var(--spacing) / 2);
@@ -648,13 +648,40 @@ h3 {
     justify-content: center;
 }
 
+#btn-resume-speech::after {
+    content: "Reanudar Voz de IA";
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    max-width: 150px;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition);
+    box-shadow: var(--shadow);
+    z-index: 5000;
+    white-space: nowrap;
+}
+
+#btn-resume-speech:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
 .right-section {
     display: flex;
     flex-direction: column;
     overflow: hidden;
     height: 100%;
-    transition: transform 0.3s ease; /* Añadido para transiciones suaves en móviles */
-    transform: translateX(0); /* Estado inicial */
+    transition: transform 0.3s ease;
+    transform: translateX(0);
 }
 
 .tab-buttons {
@@ -907,11 +934,10 @@ h3 {
     transform: scale(1.05);
 }
 
-.menu-toggle {
+.menu-toggle, .menu-toggle-right {
     display: none;
     position: fixed;
     top: calc(var(--spacing) * 1.5);
-    left: calc(var(--spacing) * 1.5);
     background: var(--button-bg);
     border: none;
     border-radius: 4px;
@@ -923,7 +949,15 @@ h3 {
     z-index: 40;
 }
 
-.menu-toggle:hover {
+.menu-toggle {
+    left: calc(var(--spacing) * 1.5);
+}
+
+.menu-toggle-right {
+    right: calc(var(--spacing) * 1.5);
+}
+
+.menu-toggle:hover, .menu-toggle-right:hover {
     background: var(--button-hover);
     transform: scale(1.05);
 }
@@ -949,21 +983,18 @@ h3 {
         display: none;
     }
 
-    .left-section.active, .right-section.active {
+    .left-section.active {
         display: flex;
         position: fixed;
         top: 50px;
         bottom: 0;
         width: 200px;
+        left: 0;
         z-index: 20;
         background: var(--bg);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
-        transition: transform 0.3s ease; /* Transición suave para paneles */
-    }
-
-    .left-section.active {
-        left: 0;
+        transition: transform 0.3s ease;
         transform: translateX(0);
     }
 
@@ -972,7 +1003,17 @@ h3 {
     }
 
     .right-section.active {
+        display: flex;
+        position: fixed;
+        top: 50px;
+        bottom: 0;
+        width: 200px;
         right: 0;
+        z-index: 20;
+        background: var(--bg);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        transition: transform 0.3s ease;
         transform: translateX(0);
     }
 
@@ -980,7 +1021,7 @@ h3 {
         transform: translateX(100%);
     }
 
-    .menu-toggle {
+    .menu-toggle, .menu-toggle-right {
         display: block;
     }
 
@@ -991,7 +1032,7 @@ h3 {
     .search-container {
         flex-direction: column;
         gap: calc(var(--spacing) / 3);
-        padding: calc(var(--spacing) * 0.75); /* Aumentado para mejor espaciado */
+        padding: calc(var(--spacing) * 0.75);
         border-bottom: 2px solid var(--border);
     }
 
@@ -1014,7 +1055,7 @@ h3 {
 
     .user, .bot {
         max-width: 85%;
-        font-size: 0.75rem; /* Cambiado a rem para mejor escalabilidad */
+        font-size: 0.75rem;
         padding: 10px 14px;
     }
 
@@ -1034,7 +1075,7 @@ h3 {
     }
 
     #chat-list li {
-        font-size: 0.7rem; /* Cambiado a rem para mejor escalabilidad */
+        font-size: 0.7rem;
         min-height: 40px;
         padding: calc(var(--spacing));
         margin: 0;
@@ -1042,24 +1083,36 @@ h3 {
     }
 
     #chat-list .rename-btn, #chat-list .delete-btn {
-        width: 24px; /* Aumentado para mejor usabilidad táctil */
+        width: 24px;
         height: 24px;
         font-size: 10px;
     }
 
     .message-container::-webkit-scrollbar, #chat-list::-webkit-scrollbar {
-        width: 6px; /* Aumentado para mejor interacción en móviles */
+        width: 6px;
         height: 6px;
     }
 
     .left-section button::after, .nivel-btn::after {
-        display: none; /* Deshabilitar tooltips en móviles */
+        display: none;
+    }
+}
+
+@media (min-width: 769px) {
+    .right-section {
+        display: flex !important;
+        transform: none !important;
+        position: relative !important;
+    }
+
+    .menu-toggle-right {
+        display: none;
     }
 }
 
 @media (max-width: 480px) {
     .container {
-        padding: calc(var(--spacing) * 0.75); /* Ajustado para mejor espaciado */
+        padding: calc(var(--spacing) * 0.75);
     }
 
     h2 {
@@ -1071,7 +1124,7 @@ h3 {
     }
 
     .user, .bot {
-        font-size: 0.7rem; /* Cambiado a rem para mejor escalabilidad */
+        font-size: 0.7rem;
         padding: 8px 12px;
     }
 
@@ -1081,11 +1134,11 @@ h3 {
     }
 
     .input-group input, .search-group input {
-        font-size: 10px; /* Aumentado para mejor legibilidad */
+        font-size: 10px;
     }
 
     .input-group button, .search-group button {
-        font-size: 10px; /* Aumentado para mejor legibilidad */
+        font-size: 10px;
         padding: calc(var(--spacing) / 2) calc(var(--spacing));
     }
 
@@ -1099,7 +1152,7 @@ h3 {
     }
 
     .search-container {
-        padding: calc(var(--spacing) * 0.75); /* Ajustado para mejor espaciado */
+        padding: calc(var(--spacing) * 0.75);
         border-bottom: 2px solid var(--border);
     }
 
@@ -1109,7 +1162,7 @@ h3 {
     }
 
     #chat-list li {
-        font-size: 0.65rem; /* Cambiado a rem para mejor escalabilidad */
+        font-size: 0.65rem;
         min-height: 35px;
         padding: calc(var(--spacing) / 1.5);
         margin: 0;
@@ -1117,13 +1170,13 @@ h3 {
     }
 
     #chat-list .rename-btn, #chat-list .delete-btn {
-        width: 24px; /* Aumentado para mejor usabilidad táctil */
+        width: 24px;
         height: 24px;
         font-size: 10px;
     }
 
     .message-container::-webkit-scrollbar, #chat-list::-webkit-scrollbar {
-        width: 6px; /* Aumentado para mejor interacción */
+        width: 6px;
         height: 6px;
     }
 }
