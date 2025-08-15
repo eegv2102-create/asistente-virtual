@@ -91,13 +91,13 @@ body {
     font-family: 'Open Sans', Arial, sans-serif;
     margin: 0;
     height: 100vh;
-    overflow: auto;
+    overflow: auto; /* Cambiado de hidden a auto para permitir desplazamiento */
     transition: var(--transition);
 }
 
 .container {
     width: 100%;
-    max-width: 1200px; /* Aumentado para pantallas grandes */
+    max-width: 1000px;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -128,7 +128,7 @@ h3 {
 
 .main-layout {
     display: grid;
-    grid-template-columns: 50px 1fr 200px; /* Aumentado ancho de right-section */
+    grid-template-columns: 50px 1fr 180px;
     gap: 2px;
     flex: 1;
     height: calc(100vh - 50px);
@@ -151,11 +151,11 @@ h3 {
     top: 0;
     height: 100%;
     z-index: 20;
-    transition: transform 0.3s ease;
-    transform: translateX(0);
+    transition: transform 0.3s ease; /* Añadido para transiciones suaves en móviles */
+    transform: translateX(0); /* Estado inicial */
 }
 
-.left-section button, .nivel-btn, .menu-tab-btn {
+.left-section button, .nivel-btn {
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -172,17 +172,17 @@ h3 {
     position: relative;
 }
 
-.left-section button:hover, .nivel-btn:hover, .menu-tab-btn:hover {
+.left-section button:hover, .nivel-btn:hover {
     background: var(--button-hover);
     transform: scale(1.1);
 }
 
-.left-section button:disabled, .nivel-btn:disabled, .menu-tab-btn:disabled {
+.left-section button:disabled, .nivel-btn:disabled {
     background: #666;
     cursor: not-allowed;
 }
 
-.left-section button::after, .nivel-btn::after, .menu-tab-btn::after {
+.left-section button::after, .nivel-btn::after {
     content: attr(data-tooltip);
     position: absolute;
     top: 50%;
@@ -191,9 +191,9 @@ h3 {
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: 6px 10px; /* Mejorado para mayor visibilidad */
+    padding: 5px 8px;
     border-radius: 4px;
-    font-size: 11px; /* Aumentado para mejor legibilidad */
+    font-size: 10px;
     max-width: 120px;
     text-align: center;
     opacity: 0;
@@ -204,7 +204,7 @@ h3 {
     white-space: nowrap;
 }
 
-.left-section button:hover::after, .nivel-btn:hover::after, .menu-tab-btn:hover::after {
+.left-section button:hover::after, .nivel-btn:hover::after {
     opacity: 1;
     visibility: visible;
 }
@@ -218,9 +218,9 @@ h3 {
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: 6px 10px;
+    padding: 5px 8px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 10px;
     max-width: 150px;
     text-align: center;
     opacity: 0;
@@ -236,11 +236,11 @@ h3 {
     visibility: visible;
 }
 
-#btn-pause-speech, #btn-resume-speech {
+#btn-pause-speech {
     z-index: 30;
 }
 
-.nivel-btn.active, .menu-tab-btn.active {
+.nivel-btn.active {
     background: var(--accent);
     transform: scale(1.15);
 }
@@ -260,17 +260,6 @@ h3 {
     height: 100%;
     overflow: hidden;
     z-index: 10;
-}
-
-.content-container {
-    display: none;
-    flex: 1;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.content-container.active {
-    display: flex;
 }
 
 .chat-content {
@@ -489,7 +478,7 @@ h3 {
 
 .bot img {
     max-width: 100%;
-    height: auto;
+    height: auto; /* Añadido para optimizar imágenes en móviles */
     border-radius: var(--radius);
     margin-top: var(--spacing);
     box-shadow: var(--shadow);
@@ -649,7 +638,7 @@ h3 {
     transform: scale(1.05);
 }
 
-#btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
+#btn-start-voice, #btn-stop-voice, #btn-pause-speech {
     width: auto;
     height: 30px;
     padding: 0 calc(var(--spacing) / 2);
@@ -659,40 +648,13 @@ h3 {
     justify-content: center;
 }
 
-#btn-resume-speech::after {
-    content: "Reanudar Voz de IA";
-    position: absolute;
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 11px;
-    max-width: 150px;
-    text-align: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity var(--transition);
-    box-shadow: var(--shadow);
-    z-index: 5000;
-    white-space: nowrap;
-}
-
-#btn-resume-speech:hover::after {
-    opacity: 1;
-    visibility: visible;
-}
-
 .right-section {
     display: flex;
     flex-direction: column;
     overflow: hidden;
     height: 100%;
-    transition: transform 0.3s ease;
-    transform: translateX(0);
+    transition: transform 0.3s ease; /* Añadido para transiciones suaves en móviles */
+    transform: translateX(0); /* Estado inicial */
 }
 
 .tab-buttons {
@@ -830,8 +792,8 @@ h3 {
 }
 
 #chat-list .rename-btn, #chat-list .delete-btn {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     border: none;
     background: var(--accent);
@@ -987,17 +949,21 @@ h3 {
         display: none;
     }
 
-    .left-section.active {
+    .left-section.active, .right-section.active {
         display: flex;
         position: fixed;
         top: 50px;
         bottom: 0;
         width: 200px;
-        left: 0;
         z-index: 20;
         background: var(--bg);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
+        transition: transform 0.3s ease; /* Transición suave para paneles */
+    }
+
+    .left-section.active {
+        left: 0;
         transform: translateX(0);
     }
 
@@ -1005,8 +971,13 @@ h3 {
         transform: translateX(-100%);
     }
 
+    .right-section.active {
+        right: 0;
+        transform: translateX(0);
+    }
+
     .right-section {
-        display: none !important; /* Oculta completamente en móviles */
+        transform: translateX(100%);
     }
 
     .menu-toggle {
@@ -1020,7 +991,7 @@ h3 {
     .search-container {
         flex-direction: column;
         gap: calc(var(--spacing) / 3);
-        padding: calc(var(--spacing) * 0.75);
+        padding: calc(var(--spacing) * 0.75); /* Aumentado para mejor espaciado */
         border-bottom: 2px solid var(--border);
     }
 
@@ -1043,7 +1014,7 @@ h3 {
 
     .user, .bot {
         max-width: 85%;
-        font-size: 0.75rem;
+        font-size: 0.75rem; /* Cambiado a rem para mejor escalabilidad */
         padding: 10px 14px;
     }
 
@@ -1058,11 +1029,12 @@ h3 {
     }
 
     .tab-btn {
-        display: none; /* Oculta pestañas originales en móviles */
+        font-size: 10px;
+        padding: calc(var(--spacing) / 2) var(--spacing);
     }
 
     #chat-list li {
-        font-size: 0.7rem;
+        font-size: 0.7rem; /* Cambiado a rem para mejor escalabilidad */
         min-height: 40px;
         padding: calc(var(--spacing));
         margin: 0;
@@ -1070,24 +1042,24 @@ h3 {
     }
 
     #chat-list .rename-btn, #chat-list .delete-btn {
-        width: 24px;
+        width: 24px; /* Aumentado para mejor usabilidad táctil */
         height: 24px;
         font-size: 10px;
     }
 
     .message-container::-webkit-scrollbar, #chat-list::-webkit-scrollbar {
-        width: 6px;
+        width: 6px; /* Aumentado para mejor interacción en móviles */
         height: 6px;
     }
 
-    .left-section button::after, .nivel-btn::after, .menu-tab-btn::after {
-        display: none;
+    .left-section button::after, .nivel-btn::after {
+        display: none; /* Deshabilitar tooltips en móviles */
     }
 }
 
 @media (max-width: 480px) {
     .container {
-        padding: calc(var(--spacing) * 0.75);
+        padding: calc(var(--spacing) * 0.75); /* Ajustado para mejor espaciado */
     }
 
     h2 {
@@ -1099,7 +1071,7 @@ h3 {
     }
 
     .user, .bot {
-        font-size: 0.7rem;
+        font-size: 0.7rem; /* Cambiado a rem para mejor escalabilidad */
         padding: 8px 12px;
     }
 
@@ -1109,11 +1081,11 @@ h3 {
     }
 
     .input-group input, .search-group input {
-        font-size: 10px;
+        font-size: 10px; /* Aumentado para mejor legibilidad */
     }
 
     .input-group button, .search-group button {
-        font-size: 10px;
+        font-size: 10px; /* Aumentado para mejor legibilidad */
         padding: calc(var(--spacing) / 2) calc(var(--spacing));
     }
 
@@ -1127,12 +1099,17 @@ h3 {
     }
 
     .search-container {
-        padding: calc(var(--spacing) * 0.75);
+        padding: calc(var(--spacing) * 0.75); /* Ajustado para mejor espaciado */
         border-bottom: 2px solid var(--border);
     }
 
+    .tab-btn {
+        font-size: 9px;
+        padding: calc(var(--spacing) / 2) calc(var(--spacing) / 1.5);
+    }
+
     #chat-list li {
-        font-size: 0.65rem;
+        font-size: 0.65rem; /* Cambiado a rem para mejor escalabilidad */
         min-height: 35px;
         padding: calc(var(--spacing) / 1.5);
         margin: 0;
@@ -1140,13 +1117,13 @@ h3 {
     }
 
     #chat-list .rename-btn, #chat-list .delete-btn {
-        width: 24px;
+        width: 24px; /* Aumentado para mejor usabilidad táctil */
         height: 24px;
         font-size: 10px;
     }
 
     .message-container::-webkit-scrollbar, #chat-list::-webkit-scrollbar {
-        width: 6px;
+        width: 6px; /* Aumentado para mejor interacción */
         height: 6px;
     }
 }

@@ -65,50 +65,16 @@ const speakText = text => {
 };
 
 const pauseSpeech = () => {
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
     if (currentAudio instanceof Audio) {
         currentAudio.pause();
         mostrarNotificacion('Voz pausada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = true;
-            btnResumeSpeech.disabled = false;
-        }
     } else if ('speechSynthesis' in window && currentAudio) {
         speechSynthesis.pause();
         mostrarNotificacion('Voz pausada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = true;
-            btnResumeSpeech.disabled = false;
-        }
-    }
-};
-
-const resumeSpeech = () => {
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
-    if (currentAudio instanceof Audio) {
-        currentAudio.play();
-        mostrarNotificacion('Voz reanudada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = false;
-            btnResumeSpeech.disabled = true;
-        }
-    } else if ('speechSynthesis' in window && currentAudio && speechSynthesis.paused) {
-        speechSynthesis.resume();
-        mostrarNotificacion('Voz reanudada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = false;
-            btnResumeSpeech.disabled = true;
-        }
     }
 };
 
 const stopSpeech = () => {
-    const btnStartVoice = getElement('#btn-start-voice');
-    const btnStopVoice = getElement('#btn-stop-voice');
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
     }
@@ -120,11 +86,13 @@ const stopSpeech = () => {
         try {
             recognition.stop();
             isListening = false;
-            if (btnStartVoice && btnStopVoice && btnPauseSpeech && btnResumeSpeech) {
+            const btnStartVoice = getElement('#btn-start-voice');
+            const btnStopVoice = getElement('#btn-stop-voice');
+            const btnPauseSpeech = getElement('#btn-pause-speech');
+            if (btnStartVoice && btnStopVoice && btnPauseSpeech) {
                 btnStartVoice.disabled = false;
                 btnStopVoice.disabled = true;
                 btnPauseSpeech.disabled = true;
-                btnResumeSpeech.disabled = true;
             }
             mostrarNotificacion('Voz y reconocimiento detenidos', 'info');
         } catch (error) {
@@ -545,7 +513,6 @@ const cargarAnalytics = () => {
             }
         });
 };
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
@@ -554,7 +521,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnStartVoice: getElement('#btn-start-voice'),
         btnStopVoice: getElement('#btn-stop-voice'),
         btnPauseSpeech: getElement('#btn-pause-speech'),
-        btnResumeSpeech: getElement('#btn-resume-speech'),
         chatbox: getElement('#chatbox'),
         toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
         modoBtn: getElement('#modo-btn'),
@@ -568,14 +534,11 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput: getElement('#search-input'),
         tabButtons: getElements('.tab-btn'),
         quizBtn: getElement('#quiz-btn'),
-        nivelBtns: getElements('.nivel-btn'),
-        menuTabButtons: getElements('.menu-tab-btn')
+        nivelBtns: getElements('.nivel-btn')
     };
 
     Object.entries(elements).forEach(([key, value]) => {
-        if (!value && key !== 'tabButtons' && key !== 'nivelBtns' && key !== 'menuTabButtons') {
-            console.warn(`Elemento ${key} no encontrado en el DOM`);
-        }
+        if (!value && key !== 'tabButtons' && key !== 'nivelBtns') console.warn(`Elemento ${key} no encontrado en el DOM`);
     });
 
     cargarAvatares();
@@ -671,8 +634,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.menuToggle) {
         elements.menuToggle.addEventListener('click', () => {
             const leftSection = getElement('.left-section');
-            if (leftSection) {
+            const rightSection = getElement('.right-section');
+            if (leftSection && rightSection) {
                 leftSection.classList.toggle('active');
+                rightSection.classList.toggle('active');
             }
         });
     }
@@ -709,7 +674,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         elements.btnStartVoice.disabled = true;
                         elements.btnStopVoice.disabled = false;
                         elements.btnPauseSpeech.disabled = false;
-                        elements.btnResumeSpeech.disabled = true;
                         mostrarNotificacion('Escuchando...', 'info');
                     } catch (error) {
                         mostrarNotificacion(`Error al iniciar voz: ${error.message}`, 'error');
@@ -717,7 +681,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         elements.btnStartVoice.disabled = false;
                         elements.btnStopVoice.disabled = true;
                         elements.btnPauseSpeech.disabled = true;
-                        elements.btnResumeSpeech.disabled = true;
                     }
                 }
             });
@@ -731,16 +694,11 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnPauseSpeech.addEventListener('click', pauseSpeech);
         }
 
-        if (elements.btnResumeSpeech) {
-            elements.btnResumeSpeech.addEventListener('click', resumeSpeech);
-        }
-
         recognition.onstart = () => {
             isListening = true;
             elements.btnStartVoice.disabled = true;
             elements.btnStopVoice.disabled = false;
             elements.btnPauseSpeech.disabled = false;
-            elements.btnResumeSpeech.disabled = true;
             mostrarNotificacion('Reconocimiento de voz iniciado', 'info');
         };
 
@@ -756,7 +714,6 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnStartVoice.disabled = false;
             elements.btnStopVoice.disabled = true;
             elements.btnPauseSpeech.disabled = true;
-            elements.btnResumeSpeech.disabled = true;
             mostrarNotificacion(`Transcripción: ${transcript}`, 'info');
         };
 
@@ -781,7 +738,6 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnStartVoice.disabled = false;
             elements.btnStopVoice.disabled = true;
             elements.btnPauseSpeech.disabled = true;
-            elements.btnResumeSpeech.disabled = true;
         };
 
         recognition.onend = () => {
@@ -789,7 +745,6 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.btnStartVoice.disabled = false;
             elements.btnStopVoice.disabled = true;
             elements.btnPauseSpeech.disabled = true;
-            elements.btnResumeSpeech.disabled = true;
         };
 
         if (elements.voiceBtn) {
@@ -815,7 +770,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.btnStartVoice) elements.btnStartVoice.disabled = true;
         if (elements.btnStopVoice) elements.btnStopVoice.disabled = true;
         if (elements.btnPauseSpeech) elements.btnPauseSpeech.disabled = true;
-        if (elements.btnResumeSpeech) elements.btnResumeSpeech.disabled = true;
         mostrarNotificacion('Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge para esta función.', 'error');
     }
 
@@ -827,19 +781,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const tabContent = getElement(`.${button.dataset.tab}`);
             if (tabContent) tabContent.classList.add('active');
             if (button.dataset.tab === 'historial') cargarAnalytics();
-        });
-    });
-
-    elements.menuTabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            elements.menuTabButtons.forEach(btn => btn.classList.remove('active'));
-            getElements('.content-container').forEach(container => container.classList.remove('active'));
-            button.classList.add('active');
-            const contentContainer = getElement(`.content-container[data-content="${button.dataset.tab}"]`);
-            if (contentContainer) contentContainer.classList.add('active');
-            if (button.dataset.tab === 'historial') cargarAnalytics();
-            const leftSection = getElement('.left-section');
-            if (leftSection) leftSection.classList.remove('active'); // Cerrar menú
         });
     });
 

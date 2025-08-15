@@ -32,55 +32,37 @@
                     <button class="nivel-btn active" data-nivel="intermedio" aria-label="Nivel Intermedio" data-tooltip="Intermedio">⭐</button>
                     <button class="nivel-btn" data-nivel="avanzado" aria-label="Nivel Avanzado" data-tooltip="Avanzado">🔥</button>
                 </div>
-                <!-- Nuevos botones para pestañas en móviles -->
-                <button class="menu-tab-btn active" data-tab="chat" aria-label="Pestaña de chat" data-tooltip="Chat">💬</button>
-                <button class="menu-tab-btn" data-tab="asistente" aria-label="Pestaña de asistente" data-tooltip="Asistente">🤖</button>
-                <button class="menu-tab-btn" data-tab="historial" aria-label="Pestaña de historial" data-tooltip="Historial">📜</button>
             </div>
-            <!-- Centro: contenido -->
-            <div class="center-section" role="region" aria-label="Área de contenido">
-                <div class="content-container active" data-content="chat">
-                    <div class="chat-content">
-                        <div class="search-container">
-                            <div class="search-group">
-                                <select id="tema-filter" aria-label="Filtrar por tema">
-                                    <option value="">Filtrar por tema</option>
-                                    <option value="poo">POO</option>
-                                    <option value="herencia">Herencia</option>
-                                    <option value="polimorfismo">Polimorfismo</option>
-                                    <option value="singleton">Singleton</option>
-                                    <option value="factory">Factory</option>
-                                </select>
-                                <input type="text" id="search-input" placeholder="Buscar tema..." aria-label="Buscar tema" lang="es" maxlength="100">
-                                <button id="search-btn" aria-label="Buscar tema" data-tooltip="Buscar">🔍</button>
-                            </div>
-                        </div>
-                        <div id="chatbox" aria-live="polite">
-                            <div class="message-container"></div>
-                        </div>
-                        <div class="input-group">
-                            <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
-                            <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz"><span class="voice-label">Iniciar</span> 🎤</button>
-                            <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz"><span class="voice-label">Detener</span> 🛑</button>
-                            <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸️</button>
-                            <button id="btn-resume-speech" aria-label="Reanudar voz del asistente" data-tooltip="Reanudar voz">▶️</button>
-                            <button id="send-btn" aria-label="Enviar mensaje">➤</button>
+            <!-- Centro: chat -->
+            <div class="center-section" role="region" aria-label="Área de chat">
+                <div class="chat-content">
+                    <div class="search-container">
+                        <div class="search-group">
+                            <select id="tema-filter" aria-label="Filtrar por tema">
+                                <option value="">Filtrar por tema</option>
+                                <option value="poo">POO</option>
+                                <option value="herencia">Herencia</option>
+                                <option value="polimorfismo">Polimorfismo</option>
+                                <option value="singleton">Singleton</option>
+                                <option value="factory">Factory</option>
+                            </select>
+                            <input type="text" id="search-input" placeholder="Buscar tema..." aria-label="Buscar tema" lang="es" maxlength="100">
+                            <button id="search-btn" aria-label="Buscar tema" data-tooltip="Buscar">🔍</button>
                         </div>
                     </div>
-                </div>
-                <div class="content-container" data-content="asistente">
-                    <h3>Selecciona tu Avatar</h3>
-                    <div class="avatar-options"></div>
-                    <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
-                    <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
-                    <div id="analytics-container"></div>
-                </div>
-                <div class="content-container" data-content="historial">
-                    <h3>Historial de Chats</h3>
-                    <ul id="chat-list"></ul>
+                    <div id="chatbox" aria-live="polite">
+                        <div class="message-container"></div>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
+                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz"><span class="voice-label">Iniciar</span> 🎤</button>
+                        <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz"><span class="voice-label">Detener</span> 🛑</button>
+                        <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸️</button>
+                        <button id="send-btn" aria-label="Enviar mensaje">➤</button>
+                    </div>
                 </div>
             </div>
-            <!-- Barra lateral derecha (solo para escritorio) -->
+            <!-- Barra lateral derecha -->
             <div class="right-section" role="region" aria-label="Configuración e historial">
                 <div class="tab-buttons">
                     <button class="tab-btn active" data-tab="asistente" aria-label="Pestaña de asistente">Asistente</button>
