@@ -1,6 +1,6 @@
 let vozActiva = true, isListening = false, recognition = null, voicesLoaded = false;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
-let currentAudio = null; // Variable para almacenar el audio activo
+let currentAudio = null;
 const { jsPDF } = window.jspdf;
 
 const getElement = selector => document.querySelector(selector);
@@ -14,10 +14,7 @@ if (isTouchDevice) {
 
 const mostrarNotificacion = (mensaje, tipo = 'info') => {
     const card = getElement('#notification-card');
-    if (!card) {
-        console.error('Elemento #notification-card no encontrado');
-        return;
-    }
+    if (!card) return;
     card.innerHTML = `
         <p>${mensaje}</p>
         <button onclick="this.parentElement.classList.remove('active')">Cerrar</button>
@@ -54,7 +51,7 @@ const speakText = text => {
                 let amplitude = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.beginPath();
-                ctx.arc(25, 25, amplitude / 10, 0, 2 * Math.PI);
+                ctx.arc(30, 30, amplitude / 10, 0, 2 * Math.PI);
                 ctx.fillStyle = 'red';
                 ctx.fill();
                 requestAnimationFrame(draw);
@@ -66,7 +63,7 @@ const speakText = text => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'es-ES';
         speechSynthesis.speak(utterance);
-        currentAudio = utterance; // Guardar utterance como audio activo
+        currentAudio = utterance;
     });
 };
 
@@ -109,10 +106,7 @@ const stopSpeech = () => {
 
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
-    if (!avatarContainer) {
-        console.error('Elemento .avatar-options no encontrado');
-        return;
-    }
+    if (!avatarContainer) return;
     try {
         const response = await fetch('/avatars');
         if (!response.ok) throw new Error('Error en la respuesta del servidor');
@@ -125,6 +119,7 @@ const cargarAvatares = async () => {
             img.dataset.avatar = avatar.avatar_id;
             img.alt = avatar.nombre;
             img.title = avatar.nombre;
+            img.loading = 'lazy';
             if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
             avatarContainer.appendChild(img);
             img.addEventListener('click', () => {
@@ -137,7 +132,6 @@ const cargarAvatares = async () => {
         });
     } catch (error) {
         mostrarNotificacion(`Error al cargar avatares: ${error.message}`, 'error');
-        console.error('Error al cargar avatares:', error);
     }
 };
 
@@ -159,12 +153,8 @@ const guardarMensaje = (pregunta, respuesta, video_url = null) => {
 
 const actualizarListaChats = () => {
     const chatList = getElement('#chat-list');
-    if (!chatList) {
-        console.error('Elemento #chat-list no encontrado');
-        return;
-    }
+    if (!chatList) return;
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    if (chatList.children.length === historial.length && !historial.some((chat, i) => chatList.children[i]?.dataset.index != i)) return;
     chatList.innerHTML = '';
     historial.forEach((chat, index) => {
         const li = document.createElement('li');
@@ -174,13 +164,11 @@ const actualizarListaChats = () => {
                             <button class="delete-btn" aria-label="Eliminar">🗑️</button>
                         </div>`;
         li.dataset.index = index;
-        li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`);
         chatList.appendChild(li);
         li.addEventListener('click', e => e.target.tagName !== 'BUTTON' && cargarChat(index));
         li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
         li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
     });
-    chatList.scrollTop = chatList.scrollHeight;
 };
 
 const cargarChat = index => {
@@ -188,10 +176,7 @@ const cargarChat = index => {
     const chat = historial[index];
     if (!chat) return;
     const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) {
-        console.error('Elemento .message-container no encontrado');
-        return;
-    }
+    if (!container) return;
     container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje">📋</button></div>`).join('');
     container.scrollTop = container.scrollHeight;
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
@@ -238,28 +223,19 @@ const nuevaConversacion = () => {
     mostrarNotificacion('Nuevo chat creado', 'success');
 };
 
-const limpiarChat = () => {
-    nuevaConversacion();
+const addCopyButtonListeners = () => {
+    getElements('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(btn.dataset.text).then(() => {
+                mostrarNotificacion('Mensaje copiado', 'success');
+            });
+        });
+    });
 };
-
-const cargarConversacionActual = () => {
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container || !currentConversation.mensajes?.length) return;
-    container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje">📋</button></div>`).join('');
-    container.scrollTop = container.scrollHeight;
-    if (window.Prism) Prism.highlightAll();
-    addCopyButtonListeners();
-};
-
-const exportarTxt = () => {
-    // ... (código original truncado) ...
-};
-
-// ... (el resto del script.js original, incluyendo eventos, voice, etc.) ...
 
 window.addEventListener('DOMContentLoaded', () => {
-    // ... (código original) ...
-    window.scrollTo(0, 0); // Resetear scroll/zoom en carga
-    // ... (resto) ...
+    cargarAvatares();
+    actualizarListaChats();
+    cargarConversacionActual();
+    window.scrollTo(0, 0);
 });

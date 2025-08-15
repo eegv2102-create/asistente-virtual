@@ -1,12 +1,12 @@
 :root {
     --shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.15);
     --radius: 0.8rem;
-    --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+    --transition: all 0.3s ease;
     --spacing: 0.6rem;
-    --font-base: 16px; /* Base para rem */
+    --font-base: 16px;
 }
 
-/* Modo Oscuro - Nivel Básico (Verde Suave) */
+/* Temas */
 .nivel-basico {
     --bg: #1A2B26;
     --text: #E0F2E9;
@@ -18,7 +18,6 @@
     --user-bg: #4CAF50;
     --bot-bg: #2E3C37;
 }
-/* Modo Oscuro - Nivel Intermedio (Azul Profundo) */
 .nivel-intermedio {
     --bg: #1A263A;
     --text: #E3F2FD;
@@ -30,7 +29,6 @@
     --user-bg: #FF9800;
     --bot-bg: #2A374D;
 }
-/* Modo Oscuro - Nivel Avanzado (Rojo Intenso) */
 .nivel-avanzado {
     --bg: #2A1A1A;
     --text: #FFE6E6;
@@ -42,7 +40,6 @@
     --user-bg: #FF5722;
     --bot-bg: #3A2727;
 }
-/* Modo Claro */
 .modo-claro.nivel-basico {
     --bg: #E8F5E9;
     --text: #1A3C1B;
@@ -81,24 +78,25 @@ body {
     background: var(--bg);
     color: var(--text);
     font-family: 'Open Sans', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
     height: 100vh;
     overflow: hidden;
-    transition: var(--transition);
-    font-size: var(--font-base); /* Base para rem */
+    font-size: var(--font-base);
+    box-sizing: border-box;
 }
 
 .container {
     width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
     height: 100vh;
     display: flex;
     flex-direction: column;
-    margin: 0 auto;
-    overflow: hidden;
-    max-width: 100vw;
 }
 
 h2 {
-    font-size: clamp(1rem, 3vw, 1.2rem);
+    font-size: clamp(1.2rem, 3vw, 1.5rem);
     text-align: center;
     padding: var(--spacing);
     color: var(--accent);
@@ -107,302 +105,256 @@ h2 {
 }
 
 h3 {
-    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
     color: var(--accent);
     padding: var(--spacing);
-    text-align: center;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    margin: 0;
 }
 
 .main-layout {
-    display: grid;
-    grid-template-columns: minmax(60px, auto) 1fr minmax(200px, auto); /* Flexible */
-    gap: 0.2rem;
+    display: flex;
+    flex-direction: row;
+    gap: var(--spacing);
     flex: 1;
-    height: calc(100vh - 3rem);
     overflow: hidden;
-}
-
-.left-section, .center-section, .right-section {
     padding: var(--spacing);
-    border: 1px solid var(--border);
-    background: var(--bg);
-    border-radius: var(--radius);
 }
 
 .left-section {
+    flex: 0 0 auto;
+    width: clamp(60px, 10vw, 80px);
     display: flex;
     flex-direction: column;
     gap: var(--spacing);
     align-items: center;
-    position: sticky;
-    top: 0;
-    height: 100%;
-    z-index: 20;
+    background: var(--bg);
+    padding: var(--spacing);
+    border-right: 1px solid var(--border);
 }
 
-.left-section button, .nivel-btn {
-    min-width: clamp(44px, 8vw, 48px); /* Mínimo táctil: 44px */
-    min-height: clamp(44px, 8vw, 48px);
+.center-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+    background: var(--chat-bg);
+    padding: var(--spacing);
+    border-radius: var(--radius);
+}
+
+.right-section {
+    flex: 0 0 auto;
+    width: clamp(200px, 20vw, 300px);
+    background: var(--bg);
+    padding: var(--spacing);
+    border-left: 1px solid var(--border);
+}
+
+.left-section button, .nivel-btn, #search-btn, .input-group button {
+    width: clamp(44px, 8vw, 48px);
+    height: clamp(44px, 8vw, 48px);
     border-radius: 50%;
     border: none;
     background: var(--button-bg);
     color: var(--text);
     cursor: pointer;
-    font-size: clamp(0.875rem, 2.5vw, 1rem); /* Escala con zoom */
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: var(--shadow);
     transition: var(--transition);
-    position: relative;
-    touch-action: manipulation; /* Mejora táctil */
-    pointer-events: auto;
+    touch-action: manipulation;
 }
 
-.left-section button:hover, .nivel-btn:hover {
+.left-section button:hover, .nivel-btn:hover, #search-btn:hover, .input-group button:hover {
     background: var(--button-hover);
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
-.left-section button:disabled, .nivel-btn:disabled {
-    background: #666;
-    cursor: not-allowed;
-}
-
-.left-section button::after, .nivel-btn::after {
+.left-section button::after, .nivel-btn::after, #search-btn::after, .input-group button::after {
     content: attr(data-tooltip);
     position: absolute;
     top: 50%;
     left: calc(100% + 5px);
     transform: translateY(-50%);
     background: rgba(0, 0, 0, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
     padding: 5px 8px;
     border-radius: 4px;
-    font-size: clamp(10px, 2vw, 12px);
-    max-width: 150px;
-    text-align: center;
+    font-size: clamp(0.7rem, 2vw, 0.8rem);
     opacity: 0;
     visibility: hidden;
-    transition: opacity var(--transition);
-    box-shadow: var(--shadow);
-    z-index: 5000;
-    white-space: nowrap;
+    transition: var(--transition);
 }
 
-.left-section button:hover::after, .nivel-btn:hover::after {
+.left-section button:hover::after, .nivel-btn:hover::after, #search-btn:hover::after, .input-group button:hover::after {
     opacity: 1;
     visibility: visible;
-}
-
-#btn-pause-speech::after {
-    content: "Pausar Voz de IA";
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-#btn-pause-speech:hover::after {
-    opacity: 1;
-    visibility: visible;
-}
-
-#btn-pause-speech {
-    z-index: 30;
 }
 
 .nivel-btn.active {
     background: var(--accent);
-    transform: scale(1.15);
-}
-
-.level-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing);
-    margin-top: var(--spacing);
-    width: 100%;
-    align-items: center;
-}
-
-.center-section {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-    z-index: 10;
-}
-
-.chat-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    transform: scale(1.1);
 }
 
 .search-container {
     display: flex;
     flex-direction: row;
     gap: calc(var(--spacing) / 2);
+    padding: var(--spacing);
     background: var(--bg);
-    padding: calc(var(--spacing) / 2);
     border-bottom: 2px solid var(--border);
-    z-index: 10;
-    flex-shrink: 0;
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .search-group {
     display: flex;
-    flex-direction: row;
-    gap: calc(var(--spacing) / 2);
-    width: 100%;
-    flex-wrap: nowrap;
-}
-
-#tema-filter {
-    flex: 0 0 auto;
-    padding: calc(var(--spacing) / 1.5);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg);
-    color: var(--text);
-    font-size: clamp(0.875rem, 2.5vw, 1rem);
-    box-shadow: var(--shadow);
-    min-height: clamp(44px, 8vw, 48px);
-    max-width: 150px;
-}
-
-#search-input {
     flex: 1;
-    padding: calc(var(--spacing) / 1.5);
+    gap: calc(var(--spacing) / 2);
+}
+
+#tema-filter, #search-input {
+    padding: calc(var(--spacing) / 2);
     border: 1px solid var(--border);
     border-radius: 4px;
     background: var(--bg);
     color: var(--text);
-    font-size: clamp(0.875rem, 2.5vw, 1rem);
-    box-shadow: var(--shadow);
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
     min-height: clamp(44px, 8vw, 48px);
     width: 100%;
-    box-sizing: border-box;
 }
 
 #search-btn {
-    padding: calc(var(--spacing) / 1.5);
+    padding: calc(var(--spacing) / 2);
+}
+
+#chatbox {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing);
+    border-radius: var(--radius);
+    background: var(--chat-bg);
+}
+
+.message-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+}
+
+.input-group {
+    display: flex;
+    gap: calc(var(--spacing) / 2);
+    padding: var(--spacing);
+    background: var(--bg);
+    border-top: 2px solid var(--border);
+}
+
+#input {
+    flex: 1;
+    padding: calc(var(--spacing) / 2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    min-height: clamp(44px, 8vw, 48px);
+}
+
+.tab-buttons {
+    display: flex;
+    gap: var(--spacing);
+    margin-bottom: var(--spacing);
+}
+
+.tab-btn {
+    padding: calc(var(--spacing) / 2);
+    border: none;
+    background: var(--button-bg);
+    color: var(--text);
+    cursor: pointer;
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
+    border-radius: var(--radius);
+}
+
+.tab-btn.active {
+    background: var(--accent);
+}
+
+.tab-content .asistente, .tab-content .historial {
+    display: none;
+}
+
+.tab-content .active {
+    display: block;
+}
+
+.avatar-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing);
+}
+
+.avatar-option {
+    width: clamp(40px, 10vw, 60px);
+    height: clamp(40px, 10vw, 60px);
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#lip-sync-canvas {
+    width: clamp(40px, 10vw, 60px);
+    height: clamp(40px, 10vw, 60px);
+}
+
+.card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--spacing);
+    margin-top: var(--spacing);
+}
+
+#nuevaPregunta, #nuevaRespuesta {
+    width: 100%;
+    padding: calc(var(--spacing) / 2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
+    margin-bottom: var(--spacing);
+}
+
+#learnBtn {
+    padding: calc(var(--spacing) / 2);
     background: var(--button-bg);
     color: var(--text);
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    transition: var(--transition);
-    box-shadow: var(--shadow);
-    font-size: clamp(0.875rem, 2.5vw, 1rem);
-    min-width: clamp(44px, 8vw, 48px);
-    min-height: clamp(44px, 8vw, 48px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: manipulation;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
 }
 
-#search-btn:hover {
-    background: var(--button-hover);
-    transform: scale(1.05);
+#notification-card {
+    position: fixed;
+    bottom: var(--spacing);
+    right: var(--spacing);
+    display: none;
 }
 
-#chatbox {
-    background: var(--chat-bg);
-    color: var(--text);
-    border-radius: var(--radius);
+#notification-card.active {
+    display: block;
+}
+
+.menu-toggle {
+    display: none;
+    font-size: clamp(1.2rem, 3vw, 1.5rem);
     padding: var(--spacing);
-    flex: 1;
-    overflow-y: auto;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-    position: relative;
+    cursor: pointer;
 }
 
-#chatbox.loading::after {
-    content: '';
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 20px;
-    height: 20px;
-    border: 3px solid var(--accent);
-    border-top: 3px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-@keyframes spin {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    100% { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-.message-container {
-    overflow-y: auto;
-    height: 100%;
-    padding: var(--spacing);
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--spacing) * 1.5);
-}
-
-.message-container::-webkit-scrollbar {
-    width: 0.4rem;
-}
-
-.message-container::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: var(--radius);
-}
-
-.message-container::-webkit-scrollbar-thumb {
-    background: var(--accent);
-    border-radius: var(--radius);
-}
-
-.message-container::-webkit-scrollbar-thumb:hover {
-    background: var(--button-hover);
-}
-
-.nivel-basico .message-container::-webkit-scrollbar-thumb {
-    background: #4CAF50;
-}
-
-.nivel-intermedio .message-container::-webkit-scrollbar-thumb {
-    background: #FF9800;
-}
-
-.nivel-avanzado .message-container::-webkit-scrollbar-thumb {
-    background: #FF5722;
-}
-
-.avatar-option, #lip-sync-canvas {
-    width: clamp(40px, 10vw, 60px);
-    height: clamp(40px, 10vw, 60px);
-    object-fit: contain; /* Mantiene proporciones al zoom */
-}
-
-/* ... (el resto del CSS original truncado, pero incluye todo lo anterior y lo siguiente) ... */
-
-/* Media Queries para máxima adaptabilidad */
+/* Media Queries */
 @media (max-width: 768px) {
     .main-layout {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
-        height: calc(100vh - 3rem);
+        flex-direction: column;
     }
     .left-section, .right-section {
         display: none;
@@ -410,13 +362,11 @@ h3 {
     .left-section.active, .right-section.active {
         display: flex;
         position: fixed;
-        top: 3rem;
-        bottom: 0;
-        width: clamp(200px, 80vw, 300px); /* Ajuste para móviles pequeños */
-        z-index: 20;
+        top: calc(3rem + var(--spacing));
+        width: clamp(200px, 80vw, 300px);
+        height: calc(100vh - 3rem - var(--spacing));
+        z-index: 1000;
         background: var(--bg);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
     }
     .left-section.active {
         left: 0;
@@ -426,95 +376,35 @@ h3 {
     }
     .menu-toggle {
         display: block;
-        min-width: 48px;
-        min-height: 48px;
-        touch-action: manipulation;
-    }
-    .center-section {
-        height: calc(100vh - 3rem);
     }
     .search-container {
-        flex-direction: row;
-        gap: calc(var(--spacing) / 2);
-        padding: calc(var(--spacing) / 2);
-        border-bottom: 2px solid var(--border);
-        width: 100%;
+        flex-direction: column;
+        gap: var(--spacing);
     }
     .search-group {
-        flex-direction: row;
-        gap: calc(var(--spacing) / 2);
+        flex-direction: column;
+        gap: var(--spacing);
+    }
+    #tema-filter, #search-input, #input {
         width: 100%;
-        flex-wrap: nowrap;
-    }
-    #tema-filter {
-        max-width: 120px;
-        font-size: clamp(0.875rem, 2.5vw, 1rem);
-        min-height: clamp(44px, 8vw, 48px);
-    }
-    #search-input {
-        font-size: clamp(0.875rem, 2.5vw, 1rem);
-        min-height: clamp(44px, 8vw, 48px);
-        width: 100%;
-    }
-    #search-btn {
-        font-size: clamp(0.875rem, 2.5vw, 1rem);
-        min-width: clamp(44px, 8vw, 48px);
-        min-height: clamp(44px, 8vw, 48px);
-    }
-    .user, .bot {
-        max-width: 90%;
-        font-size: clamp(0.875rem, 2.5vw, 1rem);
-        padding: clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 12px);
-    }
-    .user::before, .bot::before {
-        font-size: clamp(12px, 2.5vw, 14px);
-        top: clamp(8px, 2vw, 10px);
-    }
-    .avatar-option {
-        width: clamp(40px, 10vw, 44px);
-        height: clamp(40px, 10vw, 44px);
-    }
-    .tab-btn {
-        font-size: clamp(0.5625rem, 2.5vw, 0.625rem);
-        padding: calc(var(--spacing) / 2) var(--spacing);
-    }
-    #chat-list li {
-        font-size: clamp(0.5625rem, 2.5vw, 0.625rem);
-        min-height: 44px;
-    }
-    #chat-list .rename-btn, #chat-list .delete-btn {
-        width: clamp(22px, 6vw, 26px);
-        height: clamp(22px, 6vw, 26px);
-        font-size: clamp(7px, 2vw, 9px);
     }
 }
 
 @media (max-width: 480px) {
-    /* Ajustes similares, con clamp() para escalado */
-    /* ... (mantén el original y agrega clamp() donde sea necesario) ... */
-}
-
-@media (max-width: 360px) {
-    /* ... (original) ... */
+    .left-section button, .nivel-btn, #search-btn, .input-group button {
+        width: clamp(48px, 10vw, 52px);
+        height: clamp(48px, 10vw, 52px);
+    }
 }
 
 @media (min-width: 1200px) {
-    .container { max-width: 1200px; margin: 0 auto; } /* Centra en PC grandes */
-    .left-section button { width: clamp(48px, 5vw, 60px); height: clamp(48px, 5vw, 60px); }
-    #chatbox { font-size: clamp(1rem, 1.5vw, 1.2rem); } /* Texto más grande en PC */
-}
-
-@media (min-resolution: 2dppx), (-webkit-min-device-pixel-ratio: 2) {
-    body {
-        font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+    .container {
+        max-width: 1200px;
     }
-    #tema-filter, #search-input, #search-btn, .input-group input, .input-group button {
-        font-size: clamp(0.625rem, 2.5vw, 0.75rem);
-        min-height: clamp(44px, 8vw, 48px);
+    .left-section {
+        width: clamp(80px, 10vw, 100px);
     }
-}
-
-/* Clase para dispositivos táctiles */
-.touch-device button {
-    padding: 0.5rem; /* Más padding para dedos */
+    .right-section {
+        width: clamp(250px, 25vw, 350px);
+    }
 }
