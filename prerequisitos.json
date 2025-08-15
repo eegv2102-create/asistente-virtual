@@ -1,0 +1,7 @@
+{
+  "herencia": ["poo", "clases y objetos"],
+  "polimorfismo": ["poo", "clases y objetos", "herencia"],
+  "singleton": ["poo", "clases y objetos"],
+  "factory": ["poo", "clases y objetos"],
+  "observer": ["poo", "clases y objetos"]
+}

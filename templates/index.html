@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💻 Tesis</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.18/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="nivel-intermedio">
+    <button class="menu-toggle" aria-label="Abrir menú">☰</button>
+    <div class="container">
+        <h2>💻 Asistente de Programación Avanzada</h2>
+        <div class="main-layout">
+            <!-- Barra lateral izquierda -->
+            <div class="left-section" role="region" aria-label="Controles de navegación">
+                <button id="toggle-aprendizaje" aria-label="Modo aprendizaje" data-tooltip="Modo aprendizaje">📚</button>
+                <button id="modo-btn" aria-label="Modo claro y oscuro" data-tooltip="Modo claro/oscuro">☀️</button>
+                <button id="voice-btn" aria-label="Activar o desactivar voz" data-tooltip="Activar/desactivar voz">🔊</button>
+                <button id="exportTxtBtn" aria-label="Exportar chat a TXT" data-tooltip="Exportar TXT">📄</button>
+                <button id="exportPdfBtn" aria-label="Exportar chat a PDF" data-tooltip="Exportar PDF">📜</button>
+                <button id="btn-clear" aria-label="Limpiar chat actual" data-tooltip="Limpiar chat">🗑️</button>
+                <button id="new-chat-btn" aria-label="Generar nuevo chat" data-tooltip="Nuevo chat">➕</button>
+                <button id="quiz-btn" aria-label="Generar un quiz" data-tooltip="Generar Quiz">❓</button>
+                <button id="recommend-btn" aria-label="Recomendar un tema" data-tooltip="Recomendar tema">🎯</button>
+                <div class="level-buttons">
+                    <button class="nivel-btn" data-nivel="basico" aria-label="Nivel Básico" data-tooltip="Básico">🌱</button>
+                    <button class="nivel-btn active" data-nivel="intermedio" aria-label="Nivel Intermedio" data-tooltip="Intermedio">⭐</button>
+                    <button class="nivel-btn" data-nivel="avanzado" aria-label="Nivel Avanzado" data-tooltip="Avanzado">🔥</button>
+                </div>
+            </div>
+            <!-- Centro: chat -->
+            <div class="center-section" role="region" aria-label="Área de chat">
+                <div class="chat-content">
+                    <div class="search-container">
+                        <div class="search-group">
+                            <select id="tema-filter" aria-label="Filtrar por tema">
+                                <option value="">Filtrar por tema</option>
+                                <option value="poo">POO</option>
+                                <option value="herencia">Herencia</option>
+                                <option value="polimorfismo">Polimorfismo</option>
+                                <option value="singleton">Singleton</option>
+                                <option value="factory">Factory</option>
+                            </select>
+                            <input type="text" id="search-input" placeholder="Buscar tema..." aria-label="Buscar tema" lang="es" maxlength="100">
+                            <button id="search-btn" aria-label="Buscar tema" data-tooltip="Buscar">🔍</button>
+                        </div>
+                    </div>
+                    <div id="chatbox" aria-live="polite">
+                        <div class="message-container"></div>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
+                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz"><span class="voice-label">Iniciar</span> 🎤</button>
+                        <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz"><span class="voice-label">Detener</span> 🛑</button>
+                        <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸️</button>
+                        <button id="send-btn" aria-label="Enviar mensaje">➤</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Barra lateral derecha -->
+            <div class="right-section" role="region" aria-label="Configuración e historial">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="asistente" aria-label="Pestaña de asistente">Asistente</button>
+                    <button class="tab-btn" data-tab="historial" aria-label="Pestaña de historial">Historial</button>
+                </div>
+                <div class="tab-content">
+                    <div class="asistente active">
+                        <h3>Selecciona tu Avatar</h3>
+                        <div class="avatar-options"></div>
+                        <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
+                        <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
+                        <div id="analytics-container"></div>
+                    </div>
+                    <div class="historial">
+                        <h3>Historial de Chats</h3>
+                        <ul id="chat-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="notification-card" class="card" role="alert"></div>
+        <!-- Card para modo aprendizaje -->
+        <div id="aprendizajeCard" class="card">
+            <h3>Modo Aprendizaje</h3>
+            <input type="text" id="nuevaPregunta" placeholder="Nueva pregunta" aria-label="Nueva pregunta" lang="es" maxlength="500">
+            <textarea id="nuevaRespuesta" placeholder="Nueva respuesta" aria-label="Nueva respuesta" lang="es" maxlength="2000"></textarea>
+            <button id="learnBtn" aria-label="Guardar nuevo aprendizaje">Aprender</button>
+        </div>
+    </div>
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
