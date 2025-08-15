@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from groq import Groq
 import psycopg2
 
-# Cargar las variables de entorno al inicio de la aplicación
+# Cargar las variables de entorno
 load_dotenv()
 
 app = Flask(__name__)
@@ -24,7 +24,7 @@ app = Flask(__name__)
 # Configuración de logging
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Importar nlp.py con manejo de errores
+# Funciones de respaldo para nlp.py
 try:
     from nlp import buscar_respuesta, classify_intent, normalize
 except ImportError as e:
@@ -52,18 +52,18 @@ def init_db():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute('DROP TABLE IF EXISTS progreso')
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER, temas_aprendidos TEXT, nivel TEXT DEFAULT 'intermedio', avatar_id TEXT DEFAULT 'default')''')
-        c.execute('DROP TABLE IF EXISTS aprendizaje')
         c.execute('''CREATE TABLE IF NOT EXISTS aprendizaje
                      (pregunta TEXT PRIMARY KEY, respuesta TEXT)''')
-        c.execute('DROP TABLE IF EXISTS logs')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT)''')
-        c.execute("INSERT INTO avatars (avatar_id, nombre, url) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING", ("default", "Avatar Predeterminado", "/static/img/default-avatar.png"))
+        c.execute("INSERT INTO avatars (avatar_id, nombre, url) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING", 
+                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png"))
+        c.execute("INSERT INTO avatars (avatar_id, nombre, url) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING", 
+                  ("poo", "POO Avatar", "/static/img/poo.png"))
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('''CREATE TABLE IF NOT EXISTS progreso_tema
@@ -75,17 +75,19 @@ def init_db():
             with open("aprendizaje_inicial.json", "r", encoding="utf-8") as f:
                 aprendizaje_inicial = json.load(f)
             for pregunta, respuesta in aprendizaje_inicial.items():
-                c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT DO NOTHING", (pregunta.lower(), respuesta))
+                c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT DO NOTHING", 
+                          (pregunta.lower(), respuesta))
             conn.commit()
         except FileNotFoundError:
-            logging.error("No se encontró aprendizaje_inicial.json")
+            logging.warning("No se encontró aprendizaje_inicial.json, usando datos por defecto")
         except json.JSONDecodeError as e:
             logging.error(f"Error al parsear aprendizaje_inicial.json: {e}")
         conn.close()
     except psycopg2.OperationalError as e:
         logging.error(f"Error al inicializar la base de datos: {e}")
+        raise
 
-# Cargar temas.json con manejo de errores
+# Cargar temas.json
 try:
     with open("temas.json", "r", encoding="utf-8") as f:
         temas = json.load(f)
@@ -99,7 +101,7 @@ except (FileNotFoundError, json.JSONDecodeError) as e:
     }
     logging.warning("Usando temas por defecto")
 
-# Cargar prerequisitos.json con manejo de errores
+# Cargar prerequisitos.json
 try:
     with open("prerequisitos.json", "r", encoding="utf-8") as f:
         prerequisitos = json.load(f)
@@ -133,7 +135,8 @@ def cargar_progreso(usuario):
         c.execute("SELECT puntos, temas_aprendidos, nivel, avatar_id FROM progreso WHERE usuario = %s", (usuario,))
         row = c.fetchone()
         conn.close()
-        return {"puntos": row[0] if row else 0, "temas_aprendidos": row[1] if row else "", "nivel": row[2] if row else "intermedio", "avatar_id": row[3] if row else "default"} if row else {"puntos": 0, "temas_aprendidos": "", "nivel": "intermedio", "avatar_id": "default"}
+        return {"puntos": row[0] if row else 0, "temas_aprendidos": row[1] if row else "", 
+                "nivel": row[2] if row else "intermedio", "avatar_id": row[3] if row else "default"}
     except psycopg2.OperationalError as e:
         logging.error(f"Error al cargar progreso: {e}")
         return {"puntos": 0, "temas_aprendidos": "", "nivel": "intermedio", "avatar_id": "default"}
@@ -142,7 +145,8 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, nivel="intermedio", avat
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT INTO progreso (usuario, puntos, temas_aprendidos, nivel, avatar_id) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (usuario) DO UPDATE SET puntos = %s, temas_aprendidos = %s, nivel = %s, avatar_id = %s",
+        c.execute("INSERT INTO progreso (usuario, puntos, temas_aprendidos, nivel, avatar_id) VALUES (%s, %s, %s, %s, %s) "
+                  "ON CONFLICT (usuario) DO UPDATE SET puntos = %s, temas_aprendidos = %s, nivel = %s, avatar_id = %s",
                   (usuario, puntos, temas_aprendidos, nivel, avatar_id, puntos, temas_aprendidos, nivel, avatar_id))
         conn.commit()
         conn.close()
@@ -153,7 +157,8 @@ def log_interaccion(usuario, pregunta, respuesta, video_url=None):
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)", (usuario, pregunta, respuesta, video_url))
+        c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)", 
+                  (usuario, pregunta, respuesta, video_url))
         conn.commit()
         conn.close()
     except psycopg2.OperationalError as e:
@@ -182,47 +187,31 @@ def expandir_pregunta(pregunta):
     return " ".join(expandida)
 
 def consultar_groq_api(pregunta, nivel):
-    """
-    Función para consultar la API de Groq con la pregunta del usuario.
-    """
     try:
         api_key = os.getenv("GROQ_API_KEY")
-
         if not api_key:
-            logging.error("GROQ_API_KEY no está configurado.")
-            return "Lo siento, no pude conectar con la API de Groq. Falta la clave de API."
+            logging.error("GROQ_API_KEY no está configurado")
+            return "Error: Falta la clave de API de Groq"
 
-        # Elige el modelo de Groq que prefieras. Llama 3 8b es un buen punto de partida.
-        modelo = "llama3-8b-8192"
-
-        # Inicializa el cliente de Groq con la clave de API
         client = Groq(api_key=api_key)
-
         prompt = f"Eres un asistente de programación. Responde a la siguiente pregunta en un nivel {nivel}: {pregunta}"
-
         completion = client.chat.completions.create(
-            model=modelo,
+            model="llama3-8b-8192",
             messages=[
                 {"role": "system", "content": "Eres un tutor de programación experto que adapta sus respuestas a los niveles básico, intermedio y avanzado."},
                 {"role": "user", "content": prompt}
             ],
             temperature=1,
-            max_tokens=2000,
+            max_tokens=MAX_RESPUESTA_LEN,
             top_p=1,
             stream=False,
             stop=None
         )
-
-        respuesta_ia = completion.choices[0].message.content
-        
-        if len(respuesta_ia) > MAX_RESPUESTA_LEN:
-            return respuesta_ia[:MAX_RESPUESTA_LEN] + "... (texto truncado)"
-        
-        return respuesta_ia
-
+        respuesta_ia = completion.choices[0].message.content.strip()
+        return respuesta_ia[:MAX_RESPUESTA_LEN] + ("..." if len(respuesta_ia) > MAX_RESPUESTA_LEN else "")
     except Exception as e:
-        logging.error(f"Error al consultar la API de Groq: {e}")
-        return "Lo siento, hubo un problema al procesar la respuesta de la API. Revisa tu clave y la conexión."
+        logging.error(f"Error al consultar la API de Groq: {str(e)}")
+        return f"Error al consultar la API de Groq: {str(e)}"
 
 def buscar_respuesta_app(pregunta, usuario):
     try:
@@ -269,18 +258,23 @@ def buscar_respuesta_app(pregunta, usuario):
         if match and match[1] >= FUZZY_THRESHOLD:
             return aprendizaje[match[0]]
         
-        return consultar_groq_api(pregunta, nivel) + " ¿Quieres saber más o un quiz?"
+        respuesta = consultar_groq_api(pregunta, nivel)
+        log_interaccion(usuario, pregunta, respuesta)
+        return respuesta + " ¿Quieres saber más o un quiz?"
         
     except Exception as e:
         logging.error(f"Error en buscar_respuesta_app: {e}")
-        return "Error interno al procesar la pregunta. Intenta de nuevo."
+        return f"Error interno al procesar la pregunta: {str(e)}"
 
 def actualizar_dominio(usuario, tema, delta):
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT INTO progreso_tema (usuario, tema, dominio) VALUES (%s, %s, COALESCE((SELECT dominio FROM progreso_tema WHERE usuario=%s AND tema=%s), 0) + %s) ON CONFLICT (usuario, tema) DO UPDATE SET dominio = progreso_tema.dominio + %s",
-                  (usuario, tema, usuario, tema, delta, delta))
+        c.execute("INSERT INTO progreso_tema (usuario, tema, dominio, aciertos, fallos) VALUES (%s, %s, %s, %s, %s) "
+                  "ON CONFLICT (usuario, tema) DO UPDATE SET dominio = GREATEST(progreso_tema.dominio + %s, 0), "
+                  "aciertos = progreso_tema.aciertos + %s, fallos = progreso_tema.fallos + %s, "
+                  "ultima_interaccion = CURRENT_TIMESTAMP",
+                  (usuario, tema, delta, 1 if delta > 0 else 0, 1 if delta < 0 else 0, delta, 1 if delta > 0 else 0, 1 if delta < 0 else 0))
         conn.commit()
         conn.close()
     except psycopg2.OperationalError as e:
@@ -302,14 +296,14 @@ def recomendar_tema(usuario):
     try:
         dominios = {tema: cargar_dominio(usuario, tema) for tema in temas.keys()}
         if not dominios:
-            return "No hay temas disponibles"
+            return random.choice(list(temas.keys()))
         tema_bajo = min(dominios, key=dominios.get)
         if prerequisitos.get(tema_bajo) and any(cargar_dominio(usuario, prereq) < 0.6 for prereq in prerequisitos[tema_bajo]):
             return prerequisitos[tema_bajo][0]
         return tema_bajo
     except Exception as e:
         logging.error(f"Error en recomendar_tema: {e}")
-        return "No se pudo recomendar un tema"
+        return random.choice(list(temas.keys()))
 
 @app.route('/')
 def index():
@@ -363,8 +357,8 @@ def respuesta():
         return jsonify(response_data)
         
     except Exception as e:
-        logging.error(f"Error en /respuesta: {e}")
-        return jsonify({"error": "Ocurrió un error al procesar tu solicitud. Intenta de nuevo."}), 500
+        logging.error(f"Error en /respuesta: {str(e)}")
+        return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
 
 @app.route("/aprendizaje", methods=["POST"])
 @limiter.limit("5 per minute")
@@ -386,7 +380,8 @@ def aprendizaje():
             
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT (pregunta) DO UPDATE SET respuesta = %s", (pregunta, respuesta, respuesta))
+        c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT (pregunta) DO UPDATE SET respuesta = %s", 
+                  (pregunta, respuesta, respuesta))
         conn.commit()
         conn.close()
         cargar_aprendizaje.cache_clear()
@@ -395,7 +390,7 @@ def aprendizaje():
         
     except Exception as e:
         logging.error(f"Error en /aprendizaje: {e}")
-        return jsonify({"error": "Error al aprender: Intenta de nuevo."}), 500
+        return jsonify({"error": f"Error al aprender: {str(e)}"}), 500
 
 @app.route("/progreso", methods=["GET"])
 def progreso():
@@ -404,7 +399,7 @@ def progreso():
         return jsonify(cargar_progreso(usuario))
     except Exception as e:
         logging.error(f"Error en /progreso: {e}")
-        return jsonify({"error": "Error al cargar el progreso"}), 500
+        return jsonify({"error": f"Error al cargar el progreso: {str(e)}"}), 500
 
 @app.route("/actualizar_nivel", methods=["POST"])
 def actualizar_nivel():
@@ -424,7 +419,7 @@ def actualizar_nivel():
         
     except Exception as e:
         logging.error(f"Error en /actualizar_nivel: {e}")
-        return jsonify({"error": "Error al actualizar el nivel"}), 500
+        return jsonify({"error": f"Error al actualizar el nivel: {str(e)}"}), 500
 
 @app.route("/avatars", methods=["GET"])
 def avatars():
@@ -434,10 +429,16 @@ def avatars():
         c.execute("SELECT avatar_id, nombre, url FROM avatars")
         avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2]} for row in c.fetchall()]
         conn.close()
-        return jsonify(avatars)
+        return jsonify(avatars) if avatars else jsonify([
+            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "/static/img/default-avatar.png"},
+            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "/static/img/poo.png"}
+        ])
     except psycopg2.OperationalError as e:
         logging.error(f"Error al obtener avatares: {e}")
-        return jsonify({"error": "Error al cargar los avatares"}), 500
+        return jsonify([
+            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "/static/img/default-avatar.png"},
+            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "/static/img/poo.png"}
+        ])
 
 @app.route("/quiz", methods=["GET"])
 def quiz():
@@ -461,7 +462,7 @@ def quiz():
         
     except Exception as e:
         logging.error(f"Error en /quiz: {e}")
-        return jsonify({"error": "Error al generar el quiz"}), 500
+        return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
@@ -497,7 +498,7 @@ def responder_quiz():
         
     except Exception as e:
         logging.error(f"Error en /responder_quiz: {e}")
-        return jsonify({"error": "Error al procesar la respuesta del quiz"}), 500
+        return jsonify({"error": f"Error al procesar la respuesta del quiz: {str(e)}"}), 500
 
 @app.route("/recomendacion", methods=["GET"])
 def recomendacion():
@@ -506,7 +507,7 @@ def recomendacion():
         return jsonify({"recomendacion": recomendar_tema(usuario)})
     except Exception as e:
         logging.error(f"Error en /recomendacion: {e}")
-        return jsonify({"error": "Error al recomendar tema"}), 500
+        return jsonify({"error": f"Error al recomendar tema: {str(e)}"}), 500
 
 @app.route("/analytics", methods=["GET"])
 def analytics():
@@ -515,18 +516,26 @@ def analytics():
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
         c.execute("SELECT tema, dominio, aciertos, fallos FROM progreso_tema WHERE usuario = %s", (usuario,))
-        data = [{"tema": row[0], "dominio": row[1], "tasa_acierto": row[2] / (row[2] + row[3] or 1)} for row in c.fetchall()]
+        data = c.fetchall()
         conn.close()
-        return jsonify(data)
+        # Siempre retorna un arreglo, incluso si está vacío
+        result = [
+            {
+                "tema": row[0],
+                "dominio": float(row[1]),
+                "tasa_acierto": float(row[2] / (row[2] + row[3] or 1))  # Evitar división por cero
+            } for row in data
+        ]
+        return jsonify(result)
+    except psycopg2.OperationalError as e:
+        logging.error(f"Error al conectar a la base de datos en /analytics: {e}")
+        return jsonify([])  # Retornar arreglo vacío en caso de error
     except Exception as e:
         logging.error(f"Error en /analytics: {e}")
-        return jsonify({"error": "Error al cargar analytics"}), 500
+        return jsonify([])  # Retornar arreglo vacío en caso de error
 
 @app.route("/tts", methods=["POST"])
 def tts():
-    """
-    Endpoint para convertir texto a voz usando gTTS.
-    """
     try:
         data = request.get_json()
         text = data.get("text", "").strip()
@@ -539,25 +548,19 @@ def tts():
             logging.error(f"Texto excede el límite de {MAX_RESPUESTA_LEN} caracteres")
             return jsonify({"error": f"El texto excede los {MAX_RESPUESTA_LEN} caracteres"}), 400
 
-        try:
-            tts = gTTS(text=text, lang='es')
-            audio_buffer = io.BytesIO()
-            tts.write_to_fp(audio_buffer)
-            audio_buffer.seek(0)
-            
-            return audio_buffer.read(), 200, {'Content-Type': 'audio/mp3'}
+        tts = gTTS(text=text, lang='es')
+        audio_buffer = io.BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
         
-        except Exception as e:
-            logging.error(f"Error al generar audio con gTTS: {e}")
-            return jsonify({"error": "Error al generar audio con gTTS"}), 500
-
+        return audio_buffer.read(), 200, {'Content-Type': 'audio/mp3'}
+        
     except Exception as e:
         logging.error(f"Error en /tts: {e}")
-        return jsonify({"error": "Error al procesar la solicitud de TTS"}), 500
+        return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()
-    
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.bind(("0.0.0.0", 5000))
@@ -565,5 +568,4 @@ if __name__ == "__main__":
         webbrowser.open("http://localhost:5000")
     except OSError:
         print("Puerto 5000 ya en uso, no abriendo nueva pestaña.")
-    
     app.run(debug=True, host='0.0.0.0', port=5000)
