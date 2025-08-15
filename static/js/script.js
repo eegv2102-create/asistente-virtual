@@ -479,21 +479,40 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
 
 const cargarAnalytics = () => {
     fetch('/analytics?usuario=anonimo')
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
+            }
+            return res.json();
+        })
         .then(data => {
             const container = getElement('#analytics-container');
-            if (!container) return;
+            if (!container) {
+                console.error('Elemento #analytics-container no encontrado');
+                return;
+            }
+            if (!Array.isArray(data)) {
+                console.error('Error al cargar analytics: data no es un arreglo', data);
+                mostrarNotificacion('No se pudieron cargar las estadísticas. Intenta de nuevo.', 'error');
+                container.innerHTML = '<p>No hay estadísticas disponibles.</p>';
+                return;
+            }
             container.innerHTML = data.map(item => `
                 <div class="progress-bar">
                     <span>${item.tema}: ${Math.round(item.tasa_acierto * 100)}%</span>
                     <div class="bar" style="width: ${item.tasa_acierto * 100}%"></div>
                 </div>
             `).join('');
-        }).catch(error => {
+        })
+        .catch(error => {
+            console.error('Error al cargar analytics:', error);
             mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
+            const container = getElement('#analytics-container');
+            if (container) {
+                container.innerHTML = '<p>Error al cargar estadísticas.</p>';
+            }
         });
 };
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
