@@ -18,7 +18,6 @@
 
         <div class="main-layout">
             <div class="left-section">
-                <button id="menu-toggle" class="menu-btn" data-tooltip="Menú">📚</button>
                 <button id="modo-btn" data-tooltip="Cambiar Modo">☀️</button>
                 <button id="voice-btn" data-tooltip="Activar/Desactivar Voz">🔊</button>
                 <button id="export-txt-btn" data-tooltip="Exportar TXT">📄</button>
@@ -27,6 +26,7 @@
                 <button id="nueva-conversacion" data-tooltip="Nueva Conversación">➕</button>
                 <button id="quiz-btn" data-tooltip="Quiz">❓</button>
                 <button id="toggle-aprendizaje-btn" data-tooltip="Modo Aprendizaje">🎯</button>
+                <button id="toggle-right-section" data-tooltip="Historial/Asistente">📖</button> <!-- Nuevo botón para toggle right-section -->
                 
                 <div class="level-buttons">
                     <button class="nivel-btn" data-nivel="basico" data-tooltip="Básico">🌱</button>
@@ -46,7 +46,7 @@
                             <option value="Singleton">Singleton</option>
                             <option value="Factory">Factory</option>
                         </select>
-                        <input type="text" id="search-input" placeholder="🔍 Buscar...">
+                        <input type="text" id="search-input" placeholder="🔍">
                     </div>
                     <button id="search-btn">Buscar</button>
                 </div>
@@ -57,10 +57,10 @@
 
                 <div class="input-group">
                     <input type="text" id="input" placeholder="Escribe tu mensaje...">
-                    <button id="btn-start-voice" data-tooltip="Iniciar Voz">🎤</button>
-                    <button id="btn-stop-voice" data-tooltip="Detener Voz">🛑</button>
-                    <button id="btn-pause-speech" data-tooltip="Pausar Voz">⏸️</button>
-                    <button id="send-btn" data-tooltip="Enviar">➤</button>
+                    <button id="btn-start-voice">Iniciar 🎤</button>
+                    <button id="btn-stop-voice">Detener 🛑</button>
+                    <button id="btn-pause-speech">⏸️</button>
+                    <button id="send-btn">➤</button>
                 </div>
             </div>
 
@@ -75,7 +75,7 @@
                         <h3>Selecciona tu Avatar</h3>
                         <div class="avatar-options"></div>
                         <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
-                        <canvas id="lip-sync-canvas" width="60" height="60"></canvas>
+                        <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
                     </div>
 
                     <div class="historial">

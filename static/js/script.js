@@ -1,6 +1,6 @@
 let vozActiva = true, isListening = false, recognition = null, voicesLoaded = false;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
-let currentAudio = null;
+let currentAudio = null; // Variable para almacenar el audio activo
 const { jsPDF } = window.jspdf;
 
 const getElement = selector => document.querySelector(selector);
@@ -60,7 +60,7 @@ const speakText = text => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'es-ES';
         speechSynthesis.speak(utterance);
-        currentAudio = utterance;
+        currentAudio = utterance; // Guardar utterance como audio activo
     });
 };
 
@@ -119,7 +119,6 @@ const cargarAvatares = async () => {
             img.dataset.avatar = avatar.avatar_id;
             img.alt = avatar.nombre;
             img.title = avatar.nombre;
-            img.loading = 'lazy';
             if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
             avatarContainer.appendChild(img);
             img.addEventListener('click', () => {
@@ -515,32 +514,6 @@ const cargarAnalytics = () => {
         });
 };
 
-const learn = () => {
-    const pregunta = getElement('#nuevaPregunta')?.value.trim();
-    const respuesta = getElement('#nuevaRespuesta')?.value.trim();
-    if (!pregunta || !respuesta) {
-        mostrarNotificacion('Por favor, completa ambos campos.', 'error');
-        return;
-    }
-    fetch('/aprender', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({pregunta, respuesta, usuario: 'anonimo'})
-    }).then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                mostrarNotificacion(data.error, 'error');
-            } else {
-                mostrarNotificacion('¡Aprendizaje guardado con éxito!', 'success');
-                getElement('#nuevaPregunta').value = '';
-                getElement('#nuevaRespuesta').value = '';
-                getElement('#aprendizajeCard').classList.remove('active');
-            }
-        }).catch(error => {
-            mostrarNotificacion(`Error al guardar aprendizaje: ${error.message}`, 'error');
-        });
-};
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
@@ -562,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput: getElement('#search-input'),
         tabButtons: getElements('.tab-btn'),
         nivelBtns: getElements('.nivel-btn'),
-        learnBtn: getElement('#learnBtn')
+        toggleRightSection: getElement('#toggle-right-section') // Nuevo elemento para toggle right-section
     };
 
     Object.entries(elements).forEach(([key, value]) => {
@@ -579,6 +552,8 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.input.addEventListener('keypress', e => {
             if (e.key === 'Enter') sendMessage();
         });
+    } else {
+        console.error('sendBtn o input no encontrados');
     }
 
     if (elements.clearBtn) {
@@ -638,11 +613,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.menuToggle) {
         elements.menuToggle.addEventListener('click', () => {
             const leftSection = getElement('.left-section');
+            if (leftSection) leftSection.classList.toggle('active');
+        });
+    }
+
+    if (elements.toggleRightSection) {
+        elements.toggleRightSection.addEventListener('click', () => {
             const rightSection = getElement('.right-section');
-            if (leftSection && rightSection) {
-                leftSection.classList.toggle('active');
-                rightSection.classList.toggle('active');
-            }
+            if (rightSection) rightSection.classList.toggle('active');
         });
     }
 
@@ -792,37 +770,69 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.modoBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-claro');
             localStorage.setItem('modo', document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro');
-            mostrarNotificacion(`Modo ${document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro'} activado`, 'info');
+            mostrarNotificacion(`Modo cambiado a ${document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro'}`, 'success');
         });
-        const savedMode = localStorage.getItem('modo');
-        if (savedMode === 'claro') document.body.classList.add('modo-claro');
+        if (localStorage.getItem('modo') === 'claro') {
+            document.body.classList.add('modo-claro');
+        }
     }
 
-    elements.nivelBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            elements.nivelBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const nivel = btn.dataset.nivel;
-            document.body.classList.remove('nivel-basico', 'nivel-intermedio', 'nivel-avanzado');
-            document.body.classList.add(`nivel-${nivel}`);
-            localStorage.setItem('nivel', nivel);
-            mostrarNotificacion(`Nivel ${nivel.charAt(0).toUpperCase() + nivel.slice(1)} seleccionado`, 'success');
+    if (elements.nivelBtns.length > 0) {
+        elements.nivelBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const nivel = btn.dataset.nivel;
+                document.body.className = `nivel-${nivel}`;
+                elements.nivelBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                localStorage.setItem('nivel', nivel);
+                fetch('/actualizar_nivel', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({nivel, usuario: 'anonimo'})
+                }).then(res => res.json())
+                    .then(data => mostrarNotificacion(data.mensaje, 'success'))
+                    .catch(error => mostrarNotificacion(`Error al actualizar nivel: ${error.message}`, 'error'));
+            });
         });
-    });
-
-    const savedNivel = localStorage.getItem('nivel') || 'basico';
-    document.body.classList.add(`nivel-${savedNivel}`);
-    const activeNivelBtn = getElement(`.nivel-btn[data-nivel="${savedNivel}"]`);
-    if (activeNivelBtn) activeNivelBtn.classList.add('active');
+        const nivelGuardado = localStorage.getItem('nivel');
+        if (nivelGuardado) {
+            document.body.className = `nivel-${nivelGuardado}`;
+            getElement(`.nivel-btn[data-nivel="${nivelGuardado}"]`)?.classList.add('active');
+        }
+    }
 
     if (elements.toggleAprendizajeBtn) {
         elements.toggleAprendizajeBtn.addEventListener('click', () => {
             const aprendizajeCard = getElement('#aprendizajeCard');
-            if (aprendizajeCard) aprendizajeCard.classList.toggle('active');
+            if (aprendizajeCard) {
+                aprendizajeCard.classList.toggle('active');
+                mostrarNotificacion(`Modo aprendizaje ${aprendizajeCard.classList.contains('active') ? 'activado' : 'desactivado'}`, 'success');
+            }
         });
     }
 
-    if (elements.learnBtn) {
-        elements.learnBtn.addEventListener('click', learn);
+    const learnBtn = getElement('#learnBtn');
+    if (learnBtn) {
+        learnBtn.addEventListener('click', () => {
+            const nuevaPregunta = getElement('#nuevaPregunta')?.value.trim();
+            const nuevaRespuesta = getElement('#nuevaRespuesta')?.value.trim();
+            if (!nuevaPregunta || !nuevaRespuesta) {
+                mostrarNotificacion('Pregunta y respuesta no pueden estar vacías', 'error');
+                return;
+            }
+            fetch('/aprendizaje', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({pregunta: nuevaPregunta, respuesta: nuevaRespuesta})
+            }).then(res => res.json())
+                .then(data => {
+                    if (data.mensaje) {
+                        mostrarNotificacion(data.mensaje, 'success');
+                        getElement('#aprendizajeCard')?.classList.remove('active');
+                    } else {
+                        mostrarNotificacion(data.error, 'error');
+                    }
+                }).catch(error => mostrarNotificacion(`Error al aprender: ${error.message}`, 'error'));
+        });
     }
 });
