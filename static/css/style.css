@@ -92,7 +92,7 @@ body {
     height: 100vh;
     overflow: hidden;
     transition: var(--transition);
-    font-size: clamp(14px, 2.5vw, 16px); /* Escala con zoom */
+    font-size: clamp(14px, 2.5vw, 16px);
 }
 
 .container {
@@ -102,7 +102,6 @@ body {
     flex-direction: column;
     margin: 0 auto;
     overflow: hidden;
-    max-width: 100%;
 }
 
 h2 {
@@ -131,7 +130,7 @@ h3 {
     grid-template-columns: 60px 1fr 200px;
     gap: 0.2rem;
     flex: 1;
-    height: calc(100vh - 50px);
+    height: calc(100vh - 3rem);
     overflow: hidden;
 }
 
@@ -154,8 +153,8 @@ h3 {
 }
 
 .left-section button, .nivel-btn {
-    width: clamp(40px, 8vw, 44px); /* Tamaño mínimo para touch */
-    height: clamp(40px, 8vw, 44px);
+    width: clamp(44px, 8vw, 48px);
+    height: clamp(44px, 8vw, 48px);
     border-radius: 50%;
     border: none;
     background: var(--button-bg);
@@ -168,7 +167,7 @@ h3 {
     box-shadow: var(--shadow);
     transition: var(--transition);
     position: relative;
-    touch-action: manipulation; /* Mejora interacción táctil */
+    touch-action: manipulation;
 }
 
 .left-section button:hover, .nivel-btn:hover {
@@ -263,13 +262,28 @@ h3 {
     z-index: 10;
     flex-shrink: 0;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .search-group {
     display: flex;
+    flex-direction: row;
     gap: calc(var(--spacing) / 2);
     width: 100%;
-    flex: 1;
+    flex-wrap: nowrap; /* Evita que los elementos se apilen */
+}
+
+#tema-filter {
+    flex: 0 0 auto;
+    padding: calc(var(--spacing) / 1.5);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: clamp(12px, 2.5vw, 14px);
+    box-shadow: var(--shadow);
+    min-height: 48px;
+    max-width: 150px; /* Limita el ancho del select */
 }
 
 #search-input {
@@ -281,7 +295,7 @@ h3 {
     color: var(--text);
     font-size: clamp(12px, 2.5vw, 14px);
     box-shadow: var(--shadow);
-    min-height: 44px; /* Para teclado virtual */
+    min-height: 48px;
     width: 100%;
     box-sizing: border-box;
 }
@@ -296,8 +310,8 @@ h3 {
     transition: var(--transition);
     box-shadow: var(--shadow);
     font-size: clamp(12px, 2.5vw, 14px);
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 48px;
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -574,6 +588,7 @@ h3 {
 
 .input-group {
     display: flex;
+    flex-direction: row;
     gap: calc(var(--spacing) / 2);
     align-items: center;
     padding: calc(var(--spacing) / 2);
@@ -583,6 +598,7 @@ h3 {
     bottom: 0;
     z-index: 10;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .input-group input {
@@ -594,7 +610,7 @@ h3 {
     color: var(--text);
     font-size: clamp(12px, 2.5vw, 14px);
     box-shadow: var(--shadow);
-    min-height: 44px;
+    min-height: 48px;
     width: 100%;
 }
 
@@ -607,8 +623,8 @@ h3 {
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow);
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 48px;
+    min-height: 48px;
     font-size: clamp(12px, 2.5vw, 14px);
     touch-action: manipulation;
 }
@@ -618,9 +634,9 @@ h3 {
     transform: scale(1.05);
 }
 
-#btn-start-voice, #btn-stop-voice, #btn-pause-speech {
+#btn-start-voice, #btn-stop-voice, #btn-pause-speech, #send-btn {
     width: auto;
-    height: clamp(40px, 8vw, 44px);
+    height: clamp(44px, 8vw, 48px);
     padding: 0 calc(var(--spacing) / 2);
     font-size: clamp(10px, 2vw, 12px);
     display: flex;
@@ -740,7 +756,7 @@ h3 {
     font-size: clamp(10px, 2.5vw, 11px);
     color: var(--text);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    min-height: 44px;
+    min-height: 48px;
     width: 100%;
     transition: var(--transition), box-shadow 0.3s ease;
 }
@@ -830,7 +846,7 @@ h3 {
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     display: none;
-    max-width: 90%;
+    max-width: 95%;
     margin: 0 auto;
     z-index: 30;
 }
@@ -853,6 +869,7 @@ h3 {
     color: var(--text);
     font-size: clamp(10px, 2.5vw, 12px);
     box-shadow: var(--shadow);
+    min-height: 48px;
 }
 
 .card button {
@@ -865,7 +882,7 @@ h3 {
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow);
-    min-height: 44px;
+    min-height: 48px;
     touch-action: manipulation;
 }
 
@@ -888,8 +905,8 @@ h3 {
     box-shadow: var(--shadow);
     transition: var(--transition);
     z-index: 40;
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 48px;
+    min-height: 48px;
 }
 
 .menu-toggle:hover {
@@ -931,35 +948,40 @@ h3 {
         height: calc(100vh - 3rem);
     }
     .search-container {
-        flex-direction: row; /* Cambiado a row para móviles */
+        flex-direction: row;
         gap: calc(var(--spacing) / 2);
         padding: calc(var(--spacing) / 2);
         border-bottom: 2px solid var(--border);
         width: 100%;
-        box-sizing: border-box;
     }
     .search-group {
-        display: flex;
+        flex-direction: row;
         gap: calc(var(--spacing) / 2);
         width: 100%;
+        flex-wrap: nowrap;
+    }
+    #tema-filter {
+        max-width: 120px;
+        font-size: clamp(10px, 2.5vw, 12px);
+        min-height: 44px;
     }
     #search-input {
-        font-size: clamp(12px, 3vw, 14px);
+        font-size: clamp(10px, 2.5vw, 12px);
         min-height: 44px;
         width: 100%;
     }
     #search-btn {
-        font-size: clamp(12px, 3vw, 14px);
+        font-size: clamp(10px, 2.5vw, 12px);
         min-width: 44px;
         min-height: 44px;
     }
     .user, .bot {
         max-width: 90%;
-        font-size: clamp(11px, 2.8vw, 13px);
+        font-size: clamp(10px, 2.5vw, 12px);
         padding: clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 12px);
     }
     .user::before, .bot::before {
-        font-size: clamp(14px, 3vw, 16px);
+        font-size: clamp(12px, 2.5vw, 14px);
         top: clamp(8px, 2vw, 10px);
     }
     .avatar-option {
@@ -967,17 +989,17 @@ h3 {
         height: clamp(40px, 10vw, 44px);
     }
     .tab-btn {
-        font-size: clamp(10px, 2.5vw, 11px);
+        font-size: clamp(9px, 2.5vw, 10px);
         padding: calc(var(--spacing) / 2) var(--spacing);
     }
     #chat-list li {
-        font-size: clamp(10px, 2.5vw, 11px);
+        font-size: clamp(9px, 2.5vw, 10px);
         min-height: 44px;
     }
     #chat-list .rename-btn, #chat-list .delete-btn {
-        width: clamp(24px, 6vw, 28px);
-        height: clamp(24px, 6vw, 28px);
-        font-size: clamp(8px, 2vw, 10px);
+        width: clamp(22px, 6vw, 26px);
+        height: clamp(22px, 6vw, 26px);
+        font-size: clamp(7px, 2vw, 9px);
     }
 }
 
@@ -992,19 +1014,19 @@ h3 {
         font-size: clamp(0.7rem, 2.5vw, 0.8rem);
     }
     .user, .bot {
-        font-size: clamp(10px, 2.8vw, 12px);
+        font-size: clamp(9px, 2.5vw, 11px);
         padding: clamp(6px, 2vw, 8px) clamp(8px, 2.5vw, 10px);
     }
     .user::before, .bot::before {
-        font-size: clamp(12px, 3vw, 14px);
+        font-size: clamp(10px, 2.5vw, 12px);
         top: clamp(6px, 2vw, 8px);
     }
     .input-group input, .search-group input {
-        font-size: clamp(10px, 2.8vw, 12px);
+        font-size: clamp(9px, 2.5vw, 11px);
         min-height: 44px;
     }
     .input-group button, .search-group button {
-        font-size: clamp(10px, 2.8vw, 12px);
+        font-size: clamp(9px, 2.5vw, 11px);
         min-width: 44px;
         min-height: 44px;
     }
@@ -1020,11 +1042,11 @@ h3 {
         border-bottom: 2px solid var(--border);
     }
     .tab-btn {
-        font-size: clamp(9px, 2.5vw, 10px);
+        font-size: clamp(8px, 2.5vw, 9px);
         padding: calc(var(--spacing) / 2) calc(var(--spacing) / 1.5);
     }
     #chat-list li {
-        font-size: clamp(9px, 2.5vw, 10px);
+        font-size: clamp(8px, 2.5vw, 9px);
         min-height: 40px;
         padding: calc(var(--spacing) / 1.5);
         width: 100%;
@@ -1032,23 +1054,29 @@ h3 {
     #chat-list .rename-btn, #chat-list .delete-btn {
         width: clamp(20px, 6vw, 24px);
         height: clamp(20px, 6vw, 24px);
-        font-size: clamp(7px, 2vw, 9px);
+        font-size: clamp(6px, 2vw, 8px);
     }
 }
 
-@media (max-width: 320px) {
-    .container {
-        padding: calc(var(--spacing) / 3);
-    }
+@media (max-width: 360px) {
     .search-container {
-        flex-direction: column; /* Columna para pantallas muy pequeñas */
+        flex-direction: column;
         gap: calc(var(--spacing) / 3);
     }
-    #search-input, #search-btn {
-        width: 100%;
-        min-height: 48px; /* Más espacio para teclado virtual */
+    .search-group {
+        flex-direction: column;
+        gap: calc(var(--spacing) / 3);
     }
-    .input-group button, .search-group button {
+    #tema-filter, #search-input, #search-btn {
+        width: 100%;
+        max-width: 100%;
+        min-height: 48px;
+    }
+    .input-group {
+        flex-direction: column;
+        gap: calc(var(--spacing) / 3);
+    }
+    .input-group input, .input-group button {
         width: 100%;
         min-height: 48px;
     }
@@ -1059,7 +1087,7 @@ h3 {
     body {
         font-size: clamp(12px, 2.5vw, 14px);
     }
-    #search-input, #search-btn, .input-group input, .input-group button {
+    #tema-filter, #search-input, #search-btn, .input-group input, .input-group button {
         font-size: clamp(10px, 2.5vw, 12px);
         min-height: 48px;
     }
