@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from groq import Groq
 import psycopg2
 from psycopg2 import Error as PsycopgError
+import httpx  # Importar httpx para el cliente personalizado
 
 # Cargar variables de entorno
 load_dotenv()
@@ -203,9 +204,11 @@ def consultar_groq_api(pregunta, nivel):
             logging.error("GROQ_API_KEY no está configurado")
             return "Error: Falta la clave de API de Groq. Por favor, contacta al administrador."
 
+        logging.debug(f"Inicializando cliente de Groq con modelo=llama3-8b-8192")
         client = Groq(api_key=api_key)
         prompt = f"Eres un asistente de programación. Responde a la siguiente pregunta en un nivel {nivel}: {pregunta}"
-        logging.debug(f"Enviando solicitud a Groq: modelo=llama3-8b-8192, prompt={prompt}")
+        logging.debug(f"Enviando solicitud a Groq: prompt={prompt[:100]}...")
+
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=[
@@ -223,7 +226,8 @@ def consultar_groq_api(pregunta, nivel):
         return respuesta_ia[:MAX_RESPUESTA_LEN] + ("..." if len(respuesta_ia) > MAX_RESPUESTA_LEN else "")
     except Exception as e:
         logging.error(f"Error al consultar la API de Groq: {str(e)}")
-        return f"Error al consultar la API de Groq: {str(e)}"
+        logging.debug(f"Detalles del error: tipo={type(e).__name__}, mensaje={str(e)}")
+        return f"Error al consultar la API de Groq: {str(e)}. Intenta de nuevo o contacta al administrador."
 
 def buscar_respuesta_app(pregunta, usuario):
     try:
