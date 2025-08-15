@@ -5,7 +5,8 @@ requests==2.32.4
 python-dotenv==1.1.1
 scikit-learn==1.7.1
 fuzzywuzzy==0.18.0
-python-levenshtein==0.26.0  # Para eliminar la advertencia de fuzzywuzzy
+python-levenshtein==0.26.0
 gtts==2.5.3
 groq==0.11.0
-psycopg2-binary==2.9.10  # Versión compatible con Python 3.13
+psycopg2-binary==2.9.10
+httpx==0.27.2
