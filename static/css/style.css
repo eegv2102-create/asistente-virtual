@@ -379,8 +379,8 @@ h3 {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 .user {
     background: var(--user-bg);
@@ -692,22 +692,7 @@ h3 {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-#chat-list .rename-btn {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: none;
-    background: var(--accent);
-    color: var(--text);
-    cursor: pointer;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--transition);
-    box-shadow: var(--shadow);
-}
-#chat-list .delete-btn {
+#chat-list .rename-btn, #chat-list .delete-btn {
     width: 22px;
     height: 22px;
     border-radius: 50%;
@@ -895,9 +880,6 @@ h3 {
     #chat-list li {
         font-size: 10px;
         min-height: 40px;
-        padding: calc(var(--spacing));
-        margin: 0;
-        width: 100%;
     }
     #chat-list .rename-btn, #chat-list .delete-btn {
         width: 20px;
@@ -957,14 +939,4 @@ h3 {
         height: 18px;
         font-size: 8px;
     }
-}
-#tema-filter {
-    padding: calc(var(--spacing) / 1.5);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg);
-    color: var(--text);
-    font-size: 11px;
-    box-shadow: var(--shadow);
-    height: 24px;
 }
