@@ -2,36 +2,34 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Asistente de Programación Avanzada</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <script src="/static/js/script.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+    <!-- Agrega aquí cualquier otra librería si es necesaria, como marked o Prism -->
 </head>
 <body>
-    <div class="menu-toggle">☰</div>
+    ☰
     
     <div class="container">
         <h2>💻 Asistente de Programación Avanzada</h2>
 
         <div class="main-layout">
             <div class="left-section">
-                <button id="modo-btn" data-tooltip="Cambiar Modo">☀️</button>
-                <button id="voice-btn" data-tooltip="Activar/Desactivar Voz">🔊</button>
-                <button id="export-txt-btn" data-tooltip="Exportar TXT">📄</button>
-                <button id="export-pdf-btn" data-tooltip="Exportar PDF">📜</button>
-                <button id="limpiar-chat" data-tooltip="Limpiar Chat">🗑️</button>
-                <button id="nueva-conversacion" data-tooltip="Nueva Conversación">➕</button>
-                <button id="quiz-btn" data-tooltip="Quiz">❓</button>
-                <button id="toggle-aprendizaje-btn" data-tooltip="Modo Aprendizaje">🎯</button>
-                <button id="toggle-right-section" data-tooltip="Historial/Asistente">📖</button> <!-- Nuevo botón para toggle right-section -->
+                <button id="menu-toggle">📚</button>
+                <button id="modo-btn">☀️</button>
+                <button id="voice-btn">🔊</button>
+                <button id="export-txt-btn">📄</button>
+                <button id="export-pdf-btn">📜</button>
+                <button id="limpiar-chat">🗑️</button>
+                <button id="nueva-conversacion">➕</button>
+                <button id="quiz-btn">❓</button>
+                <button id="toggle-aprendizaje-btn">🎯</button>
                 
                 <div class="level-buttons">
-                    <button class="nivel-btn" data-nivel="basico" data-tooltip="Básico">🌱</button>
-                    <button class="nivel-btn" data-nivel="intermedio" data-tooltip="Intermedio">⭐</button>
-                    <button class="nivel-btn" data-nivel="avanzado" data-tooltip="Avanzado">🔥</button>
+                    <button class="nivel-btn" data-nivel="basico">🌱</button>
+                    <button class="nivel-btn" data-nivel="intermedio">⭐</button>
+                    <button class="nivel-btn" data-nivel="avanzado">🔥</button>
                 </div>
             </div>
 
@@ -46,8 +44,10 @@
                             <option value="Singleton">Singleton</option>
                             <option value="Factory">Factory</option>
                         </select>
+                        
                         <input type="text" id="search-input" placeholder="🔍">
                     </div>
+
                     <button id="search-btn">Buscar</button>
                 </div>
                 
@@ -74,7 +74,9 @@
                     <div class="asistente active">
                         <h3>Selecciona tu Avatar</h3>
                         <div class="avatar-options"></div>
+
                         <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
+                        
                         <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
                     </div>
 

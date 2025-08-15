@@ -513,7 +513,6 @@ const cargarAnalytics = () => {
             }
         });
 };
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
@@ -523,19 +522,19 @@ document.addEventListener('DOMContentLoaded', () => {
         btnStopVoice: getElement('#btn-stop-voice'),
         btnPauseSpeech: getElement('#btn-pause-speech'),
         chatbox: getElement('#chatbox'),
-        toggleAprendizajeBtn: getElement('#toggle-aprendizaje-btn'),
+        toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
         modoBtn: getElement('#modo-btn'),
-        exportTxtBtn: getElement('#export-txt-btn'),
-        exportPdfBtn: getElement('#export-pdf-btn'),
-        clearBtn: getElement('#limpiar-chat'),
-        newChatBtn: getElement('#nueva-conversacion'),
-        quizBtn: getElement('#quiz-btn'),
+        exportTxtBtn: getElement('#exportTxtBtn'),
+        exportPdfBtn: getElement('#exportPdfBtn'),
+        clearBtn: getElement('#btn-clear'),
+        newChatBtn: getElement('#new-chat-btn'),
+        recommendBtn: getElement('#recommend-btn'),
         menuToggle: getElement('.menu-toggle'),
         searchBtn: getElement('#search-btn'),
         searchInput: getElement('#search-input'),
         tabButtons: getElements('.tab-btn'),
-        nivelBtns: getElements('.nivel-btn'),
-        toggleRightSection: getElement('#toggle-right-section') // Nuevo elemento para toggle right-section
+        quizBtn: getElement('#quiz-btn'),
+        nivelBtns: getElements('.nivel-btn')
     };
 
     Object.entries(elements).forEach(([key, value]) => {
@@ -562,6 +561,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (elements.newChatBtn) {
         elements.newChatBtn.addEventListener('click', nuevaConversacion);
+    }
+
+    if (elements.recommendBtn) {
+        elements.recommendBtn.addEventListener('click', () => {
+            fetch('/recomendacion?usuario=anonimo')
+                .then(res => res.json())
+                .then(data => {
+                    const container = elements.chatbox?.querySelector('.message-container');
+                    if (container) {
+                        const botDiv = document.createElement('div');
+                        botDiv.classList.add('bot');
+                        const recomendacion = `Te recomiendo estudiar: ${data.recomendacion}`;
+                        botDiv.innerHTML = marked.parse(recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje">📋</button>`;
+                        container.appendChild(botDiv);
+                        container.scrollTop = container.scrollHeight;
+                        speakText(recomendacion);
+                        guardarMensaje('Recomendación', recomendacion);
+                        if (window.Prism) Prism.highlightAllUnder(botDiv);
+                        addCopyButtonListeners();
+                    }
+                }).catch(error => mostrarNotificacion(`Error al recomendar tema: ${error.message}`, 'error'));
+        });
     }
 
     if (elements.searchBtn && elements.searchInput) {
@@ -613,14 +634,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.menuToggle) {
         elements.menuToggle.addEventListener('click', () => {
             const leftSection = getElement('.left-section');
-            if (leftSection) leftSection.classList.toggle('active');
-        });
-    }
-
-    if (elements.toggleRightSection) {
-        elements.toggleRightSection.addEventListener('click', () => {
             const rightSection = getElement('.right-section');
-            if (rightSection) rightSection.classList.toggle('active');
+            if (leftSection && rightSection) {
+                leftSection.classList.toggle('active');
+                rightSection.classList.toggle('active');
+            }
         });
     }
 

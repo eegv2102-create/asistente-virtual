@@ -878,7 +878,7 @@ font-size: clamp(10px, 2.5vw, 12px);
 padding: clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 12px);
 }
 .user::before, .bot::before {
-font-size: clamp(10px, 2.5vw, 12px);
+font-size: clamp(12px, 2.5vw, 14px);
 top: clamp(8px, 2vw, 10px);
 }
 .avatar-option {
