@@ -1,6 +1,5 @@
 import time
 import json
-import sqlite3
 import os
 import random
 import logging
@@ -15,6 +14,7 @@ from gtts import gTTS
 import io
 from dotenv import load_dotenv
 from groq import Groq
+import psycopg2
 
 # Cargar las variables de entorno al inicio de la aplicación
 load_dotenv()
@@ -50,7 +50,7 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["5 per minute"])
 
 def init_db():
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
         c.execute('DROP TABLE IF EXISTS progreso')
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
@@ -60,14 +60,14 @@ def init_db():
                      (pregunta TEXT PRIMARY KEY, respuesta TEXT)''')
         c.execute('DROP TABLE IF EXISTS logs')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                     (id INTEGER PRIMARY KEY AUTOINCREMENT, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT)''')
-        c.execute("INSERT OR IGNORE INTO avatars (avatar_id, nombre, url) VALUES (?, ?, ?)", ("default", "Avatar Predeterminado", "/static/img/default-avatar.png"))
+        c.execute("INSERT INTO avatars (avatar_id, nombre, url) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING", ("default", "Avatar Predeterminado", "/static/img/default-avatar.png"))
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('''CREATE TABLE IF NOT EXISTS progreso_tema
-                     (usuario TEXT, tema TEXT, dominio REAL DEFAULT 0.0, aciertos INTEGER DEFAULT 0, fallos INTEGER DEFAULT 0, ultima_interaccion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                     (usuario TEXT, tema TEXT, dominio REAL DEFAULT 0.0, aciertos INTEGER DEFAULT 0, fallos INTEGER DEFAULT 0, ultima_interaccion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                      PRIMARY KEY (usuario, tema))''')
         conn.commit()
 
@@ -75,14 +75,14 @@ def init_db():
             with open("aprendizaje_inicial.json", "r", encoding="utf-8") as f:
                 aprendizaje_inicial = json.load(f)
             for pregunta, respuesta in aprendizaje_inicial.items():
-                c.execute("INSERT OR IGNORE INTO aprendizaje (pregunta, respuesta) VALUES (?, ?)", (pregunta.lower(), respuesta))
+                c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT DO NOTHING", (pregunta.lower(), respuesta))
             conn.commit()
         except FileNotFoundError:
             logging.error("No se encontró aprendizaje_inicial.json")
         except json.JSONDecodeError as e:
             logging.error(f"Error al parsear aprendizaje_inicial.json: {e}")
         conn.close()
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al inicializar la base de datos: {e}")
 
 # Cargar temas.json con manejo de errores
@@ -115,47 +115,48 @@ except (FileNotFoundError, json.JSONDecodeError) as e:
 @lru_cache(maxsize=128)
 def cargar_aprendizaje():
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
         c.execute("SELECT pregunta, respuesta FROM aprendizaje")
         aprendizaje = dict(c.fetchall())
         conn.close()
         return aprendizaje
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al cargar aprendizaje: {e}")
         return {}
 
 @lru_cache(maxsize=128)
 def cargar_progreso(usuario):
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("SELECT puntos, temas_aprendidos, nivel, avatar_id FROM progreso WHERE usuario = ?", (usuario,))
+        c.execute("SELECT puntos, temas_aprendidos, nivel, avatar_id FROM progreso WHERE usuario = %s", (usuario,))
         row = c.fetchone()
         conn.close()
         return {"puntos": row[0] if row else 0, "temas_aprendidos": row[1] if row else "", "nivel": row[2] if row else "intermedio", "avatar_id": row[3] if row else "default"} if row else {"puntos": 0, "temas_aprendidos": "", "nivel": "intermedio", "avatar_id": "default"}
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al cargar progreso: {e}")
         return {"puntos": 0, "temas_aprendidos": "", "nivel": "intermedio", "avatar_id": "default"}
 
 def guardar_progreso(usuario, puntos, temas_aprendidos, nivel="intermedio", avatar_id="default"):
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO progreso (usuario, puntos, temas_aprendidos, nivel, avatar_id) VALUES (?, ?, ?, ?, ?)", (usuario, puntos, temas_aprendidos, nivel, avatar_id))
+        c.execute("INSERT INTO progreso (usuario, puntos, temas_aprendidos, nivel, avatar_id) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (usuario) DO UPDATE SET puntos = %s, temas_aprendidos = %s, nivel = %s, avatar_id = %s",
+                  (usuario, puntos, temas_aprendidos, nivel, avatar_id, puntos, temas_aprendidos, nivel, avatar_id))
         conn.commit()
         conn.close()
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al guardar progreso: {e}")
 
 def log_interaccion(usuario, pregunta, respuesta, video_url=None):
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (?, ?, ?, ?)", (usuario, pregunta, respuesta, video_url))
+        c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)", (usuario, pregunta, respuesta, video_url))
         conn.commit()
         conn.close()
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al registrar log: {e}")
 
 FUZZY_THRESHOLD = 75
@@ -276,24 +277,24 @@ def buscar_respuesta_app(pregunta, usuario):
 
 def actualizar_dominio(usuario, tema, delta):
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO progreso_tema (usuario, tema, dominio) VALUES (?, ?, COALESCE((SELECT dominio FROM progreso_tema WHERE usuario=? AND tema=?), 0) + ?)",
-                  (usuario, tema, usuario, tema, delta))
+        c.execute("INSERT INTO progreso_tema (usuario, tema, dominio) VALUES (%s, %s, COALESCE((SELECT dominio FROM progreso_tema WHERE usuario=%s AND tema=%s), 0) + %s) ON CONFLICT (usuario, tema) DO UPDATE SET dominio = progreso_tema.dominio + %s",
+                  (usuario, tema, usuario, tema, delta, delta))
         conn.commit()
         conn.close()
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al actualizar dominio: {e}")
 
 def cargar_dominio(usuario, tema):
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("SELECT dominio FROM progreso_tema WHERE usuario = ? AND tema = ?", (usuario, tema))
+        c.execute("SELECT dominio FROM progreso_tema WHERE usuario = %s AND tema = %s", (usuario, tema))
         row = c.fetchone()
         conn.close()
         return row[0] if row else 0.0
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al cargar dominio: {e}")
         return 0.0
 
@@ -383,9 +384,9 @@ def aprendizaje():
             logging.error(f"Respuesta excede el límite de {MAX_RESPUESTA_LEN} caracteres")
             return jsonify({"error": f"La respuesta excede los {MAX_RESPUESTA_LEN} caracteres"}), 400
             
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO aprendizaje (pregunta, respuesta) VALUES (?, ?)", (pregunta, respuesta))
+        c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT (pregunta) DO UPDATE SET respuesta = %s", (pregunta, respuesta, respuesta))
         conn.commit()
         conn.close()
         cargar_aprendizaje.cache_clear()
@@ -428,13 +429,13 @@ def actualizar_nivel():
 @app.route("/avatars", methods=["GET"])
 def avatars():
     try:
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
         c.execute("SELECT avatar_id, nombre, url FROM avatars")
         avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2]} for row in c.fetchall()]
         conn.close()
         return jsonify(avatars)
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         logging.error(f"Error al obtener avatares: {e}")
         return jsonify({"error": "Error al cargar los avatares"}), 500
 
@@ -511,9 +512,9 @@ def recomendacion():
 def analytics():
     try:
         usuario = request.args.get("usuario", "anonimo")
-        conn = sqlite3.connect('aprendizaje.db')
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("SELECT tema, dominio, aciertos, fallos FROM progreso_tema WHERE usuario = ?", (usuario,))
+        c.execute("SELECT tema, dominio, aciertos, fallos FROM progreso_tema WHERE usuario = %s", (usuario,))
         data = [{"tema": row[0], "dominio": row[1], "tasa_acierto": row[2] / (row[2] + row[3] or 1)} for row in c.fetchall()]
         conn.close()
         return jsonify(data)
