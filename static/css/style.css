@@ -31,6 +31,7 @@ html {
     --chat-bg: #26332E;
     --user-bg: #4CAF50;
     --bot-bg: #2E3C37;
+    --scrollbar-thumb: #4CAF50;
 }
 
 /* Modo Oscuro - Nivel Intermedio (Azul Profundo) */
@@ -44,6 +45,7 @@ html {
     --chat-bg: #222F45;
     --user-bg: #FF9800;
     --bot-bg: #2A374D;
+    --scrollbar-thumb: #FF9800;
 }
 
 /* Modo Oscuro - Nivel Avanzado (Rojo Intenso) */
@@ -57,6 +59,7 @@ html {
     --chat-bg: #332222;
     --user-bg: #FF5722;
     --bot-bg: #3A2727;
+    --scrollbar-thumb: #FF5722;
 }
 
 /* Modo Claro */
@@ -70,6 +73,7 @@ html {
     --chat-bg: #F5FAF5;
     --user-bg: #4CAF50;
     --bot-bg: #FFFFFF;
+    --scrollbar-thumb: #4CAF50;
 }
 
 .modo-claro.nivel-intermedio {
@@ -82,6 +86,7 @@ html {
     --chat-bg: #F0F7FE;
     --user-bg: #FF9800;
     --bot-bg: #FFFFFF;
+    --scrollbar-thumb: #FF9800;
 }
 
 .modo-claro.nivel-avanzado {
@@ -94,6 +99,7 @@ html {
     --chat-bg: #FFF5F7;
     --user-bg: #FF5722;
     --bot-bg: #FFFFFF;
+    --scrollbar-thumb: #FF5722;
 }
 
 * {
@@ -366,6 +372,8 @@ h3 {
     overflow-y: auto;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     min-height: 0; /* Allow flex to shrink properly */
+    display: flex;
+    flex-direction: column-reverse; /* Reverse scroll to bottom by default */
 }
 
 #chatbox.loading::after {
@@ -396,6 +404,7 @@ h3 {
     gap: calc(var(--spacing) * 1.5);
     height: 100%;
     min-height: 0; /* Fix for flex child overflow */
+    flex-grow: 1;
 }
 
 .message-container::-webkit-scrollbar {
@@ -404,12 +413,12 @@ h3 {
 }
 
 .message-container::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--chat-bg); /* Match chat background */
     border-radius: var(--radius);
 }
 
 .message-container::-webkit-scrollbar-thumb {
-    background: var(--accent);
+    background: var(--scrollbar-thumb); /* Dynamic scrollbar color */
     border-radius: var(--radius);
 }
 
@@ -417,33 +426,9 @@ h3 {
     background: var(--button-hover);
 }
 
-.nivel-basico .message-container::-webkit-scrollbar-thumb {
-    background: #4CAF50;
-}
-
-.nivel-intermedio .message-container::-webkit-scrollbar-thumb {
-    background: #FF9800;
-}
-
-.nivel-avanzado .message-container::-webkit-scrollbar-thumb {
-    background: #FF5722;
-}
-
 .message-container {
     scrollbar-width: thin;
-    scrollbar-color: var(--accent) transparent;
-}
-
-.nivel-basico .message-container {
-    scrollbar-color: #4CAF50 transparent;
-}
-
-.nivel-intermedio .message-container {
-    scrollbar-color: #FF9800 transparent;
-}
-
-.nivel-avanzado .message-container {
-    scrollbar-color: #FF5722 transparent;
+    scrollbar-color: var(--scrollbar-thumb) var(--chat-bg); /* Match chat background */
 }
 
 .user, .bot {
@@ -656,6 +641,8 @@ h3 {
     box-shadow: var(--shadow);
     min-width: 0; /* Allow flex shrink */
     resize: none; /* Prevent resize if textarea */
+    height: clamp(40px, 5vw, 48px); /* Ensure visible height */
+    display: block; /* Ensure it appears */
 }
 
 /* Improved voice buttons for touch and zoom */
