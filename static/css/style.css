@@ -2,15 +2,15 @@
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     --radius: 8px;
     --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
-    --spacing: 8px; /* Aumentado para mejor touch */
+    --spacing: 6px; /* Reducido para PC, aumenta en móvil */
     --font-base: 16px;
-    --font-scale: 1.15;
-    --spacing-base: 8px;
+    --font-scale: 1.1;
+    --spacing-base: 6px;
 }
 
 /* Fluid typography */
 html {
-    font-size: clamp(14px, calc(16px + (18 - 14) * ((100vw - 320px) / (1600 - 320))), 18px);
+    font-size: clamp(14px, calc(16px + (16 - 14) * ((100vw - 320px) / (1600 - 320))), 16px);
 }
 
 /* Enhanced accessibility */
@@ -122,7 +122,7 @@ body {
 }
 
 h2 {
-    font-size: clamp(1rem, 2.5vw, 1.3rem);
+    font-size: clamp(1rem, 2vw, 1.2rem);
     text-align: center;
     padding: var(--spacing);
     color: var(--accent);
@@ -130,7 +130,7 @@ h2 {
 }
 
 h3 {
-    font-size: clamp(0.8rem, 2vw, 0.9rem);
+    font-size: clamp(0.8rem, 1.8vw, 0.9rem);
     color: var(--accent);
     padding: var(--spacing);
     text-align: center;
@@ -143,8 +143,8 @@ h3 {
 
 .main-layout {
     display: grid;
-    grid-template-columns: 60px 1fr 250px;
-    gap: 4px;
+    grid-template-columns: 50px 1fr 200px;
+    gap: 2px;
     flex: 1;
     overflow: hidden;
 }
@@ -170,8 +170,8 @@ h3 {
 }
 
 .left-section button, .nivel-btn {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     border: none;
     background: var(--button-bg);
@@ -183,6 +183,13 @@ h3 {
     justify-content: center;
     box-shadow: var(--shadow);
     transition: var(--transition);
+}
+
+@media (max-width: 768px) {
+    .left-section button, .nivel-btn {
+        width: 48px;
+        height: 48px;
+    }
 }
 
 .left-section button:hover, .nivel-btn:hover {
@@ -199,15 +206,15 @@ h3 {
     content: attr(data-tooltip);
     position: absolute;
     top: 50%;
-    left: calc(100% + 8px);
+    left: calc(100% + 6px);
     transform: translateY(-50%);
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 4px;
-    font-size: 12px;
-    max-width: 150px;
+    font-size: 11px;
+    max-width: 120px;
     text-align: center;
     opacity: 0;
     visibility: hidden;
@@ -281,17 +288,17 @@ h3 {
 
 #tema-filter, #search-input {
     flex: 1;
-    padding: var(--spacing);
+    padding: calc(var(--spacing) * 0.75);
     border: 1px solid var(--border);
     border-radius: 4px;
     background: var(--bg);
     color: var(--text);
-    font-size: clamp(12px, 2vw, 14px);
+    font-size: clamp(11px, 1.5vw, 13px);
     box-shadow: var(--shadow);
 }
 
 #search-btn {
-    padding: var(--spacing);
+    padding: calc(var(--spacing) * 0.75);
     background: var(--button-bg);
     color: var(--text);
     border: none;
@@ -299,7 +306,7 @@ h3 {
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow);
-    width: 48px;
+    width: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -399,10 +406,10 @@ h3 {
 .user, .bot {
     position: relative;
     max-width: 80%;
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-radius: var(--radius);
-    font-size: clamp(12px, 2vw, 14px);
-    line-height: 1.6;
+    font-size: clamp(11px, 1.5vw, 13px);
+    line-height: 1.5;
     box-shadow: var(--shadow);
     animation: fadeIn 0.4s ease-out forwards;
     border: 2px solid color-mix(in srgb, var(--border), var(--accent) 20%);
@@ -423,15 +430,15 @@ h3 {
     color: var(--text);
     margin-left: auto;
     border-radius: 18px 18px 4px 18px;
-    margin-right: calc(var(--spacing) + 24px);
+    margin-right: calc(var(--spacing) + 20px);
 }
 
 .user::before {
     content: '👤';
     position: absolute;
-    right: -24px;
-    top: 12px;
-    font-size: 20px;
+    right: -20px;
+    top: 10px;
+    font-size: 18px;
     transition: var(--transition);
 }
 
@@ -444,15 +451,15 @@ h3 {
     color: var(--text);
     margin-right: auto;
     border-radius: 18px 18px 18px 4px;
-    margin-left: calc(var(--spacing) + 24px);
+    margin-left: calc(var(--spacing) + 20px);
 }
 
 .bot::before {
     content: '🤖';
     position: absolute;
-    left: -24px;
-    top: 12px;
-    font-size: 20px;
+    left: -20px;
+    top: 10px;
+    font-size: 18px;
     transition: var(--transition);
 }
 
@@ -471,21 +478,21 @@ h3 {
     background: color-mix(in srgb, var(--chat-bg), var(--text) 5%);
     padding: 3px 6px;
     border-radius: 4px;
-    font-size: clamp(10px, 1.8vw, 12px);
+    font-size: clamp(10px, 1.5vw, 12px);
 }
 
 .bot pre {
     background: color-mix(in srgb, var(--chat-bg), var(--text) 10%);
     color: var(--text);
-    padding: 10px;
+    padding: 8px;
     border-radius: 6px;
     overflow-x: auto;
-    font-size: clamp(10px, 1.8vw, 12px);
+    font-size: clamp(10px, 1.5vw, 12px);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .bot ul, .bot ol {
-    padding-left: 24px;
+    padding-left: 20px;
     margin: var(--spacing) 0;
 }
 
@@ -495,7 +502,7 @@ h3 {
 
 .bot .suggestions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     margin-top: calc(var(--spacing) * 1.5);
     overflow-x: auto;
     padding-bottom: 4px;
@@ -503,11 +510,11 @@ h3 {
 
 .bot .suggestions a {
     display: inline-block;
-    padding: 6px 12px;
+    padding: 5px 10px;
     background: color-mix(in srgb, var(--accent), var(--bg) 20%);
     color: var(--text);
-    border-radius: 16px;
-    font-size: clamp(10px, 1.8vw, 12px);
+    border-radius: 14px;
+    font-size: clamp(10px, 1.5vw, 11px);
     text-decoration: none;
     transition: var(--transition);
     white-space: nowrap;
@@ -534,12 +541,12 @@ h3 {
 
 .copy-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 6px;
     background: transparent;
     border: none;
     color: var(--text);
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
     opacity: 0.7;
     transition: opacity 0.3s ease;
@@ -552,9 +559,9 @@ h3 {
 
 .voice-indicator {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 16px;
+    top: 8px;
+    right: 8px;
+    font-size: 14px;
     color: var(--accent);
     animation: pulse 1.5s infinite;
     z-index: 10;
@@ -569,9 +576,9 @@ h3 {
 .bot.typing::after {
     content: '|';
     position: absolute;
-    right: 10px;
-    bottom: 10px;
-    font-size: 14px;
+    right: 8px;
+    bottom: 8px;
+    font-size: 12px;
     color: var(--accent);
     animation: blink 0.7s infinite;
 }
@@ -595,17 +602,17 @@ h3 {
 
 .input-group input {
     flex: 1;
-    padding: var(--spacing);
+    padding: calc(var(--spacing) * 0.75);
     border: 1px solid var(--border);
     border-radius: 4px;
     background: var(--bg);
     color: var(--text);
-    font-size: clamp(12px, 2vw, 14px);
+    font-size: clamp(11px, 1.5vw, 13px);
     box-shadow: var(--shadow);
 }
 
 .input-group button {
-    padding: var(--spacing);
+    padding: calc(var(--spacing) * 0.75);
     background: var(--button-bg);
     color: var(--text);
     border: none;
@@ -613,8 +620,8 @@ h3 {
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow);
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -659,7 +666,7 @@ h3 {
     border-bottom: 2px solid transparent;
     cursor: pointer;
     transition: var(--transition);
-    font-size: clamp(10px, 2vw, 12px);
+    font-size: clamp(10px, 1.5vw, 11px);
 }
 
 .tab-btn.active, .tab-btn[aria-selected="true"] {
@@ -727,10 +734,10 @@ h3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: clamp(10px, 2vw, 12px);
+    font-size: clamp(10px, 1.5vw, 11px);
     color: var(--text);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    min-height: 48px;
+    min-height: 40px;
     transition: var(--transition), box-shadow 0.3s ease;
 }
 
@@ -759,14 +766,14 @@ h3 {
 }
 
 #chat-list .rename-btn, #chat-list .delete-btn {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     border: none;
     background: var(--accent);
     color: var(--text);
     cursor: pointer;
-    font-size: 10px;
+    font-size: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -832,7 +839,7 @@ h3 {
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     display: none;
-    max-width: 400px;
+    max-width: 350px;
     margin: 0 auto;
     z-index: 30;
 }
@@ -848,17 +855,17 @@ h3 {
 .card.success { border-color: #2ecc71; }
 
 .card input[type="text"], .card textarea {
-    padding: var(--spacing);
+    padding: calc(var(--spacing) * 0.75);
     border: 1px solid var(--border);
     border-radius: 4px;
     background: var(--bg);
     color: var(--text);
-    font-size: clamp(10px, 2vw, 12px);
+    font-size: clamp(9px, 1.5vw, 11px);
     box-shadow: var(--shadow);
 }
 
 .card button {
-    padding: var(--spacing);
+    padding: calc(var(--spacing) * 0.75);
     background: var(--button-bg);
     color: var(--text);
     border: none;
@@ -913,7 +920,7 @@ h3 {
     border-radius: 4px;
     padding: calc(var(--spacing) / 2);
     cursor: pointer;
-    font-size: clamp(10px, 2vw, 12px);
+    font-size: clamp(9px, 1.5vw, 11px);
     transition: var(--transition);
     box-shadow: var(--shadow);
 }
@@ -941,7 +948,7 @@ h3 {
     border-radius: 4px;
     padding: var(--spacing);
     cursor: pointer;
-    font-size: clamp(10px, 2vw, 12px);
+    font-size: clamp(9px, 1.5vw, 11px);
     transition: var(--transition);
     box-shadow: var(--shadow);
     text-align: left;
@@ -965,8 +972,8 @@ h3 {
 }
 
 .avatar-option {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     border-radius: var(--radius);
     border: 2px solid transparent;
     cursor: pointer;
@@ -990,10 +997,14 @@ h3 {
     background: color-mix(in srgb, var(--chat-bg), #FFFFFF 5%);
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    font-size: clamp(10px, 2vw, 12px);
+    font-size: clamp(9px, 1.5vw, 11px);
 }
 
 @media (max-width: 768px) {
+    :root {
+        --spacing: 8px;
+    }
+
     .main-layout {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto;
