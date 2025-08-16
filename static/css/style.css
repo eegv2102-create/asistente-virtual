@@ -1,20 +1,18 @@
-/* Variables y Configuración General */
 :root {
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     --radius: 8px;
     --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
-    --spacing: 0.5rem; /* Usando rem para adaptabilidad */
+    --spacing: 0.5rem;
     --font-base: 1rem;
     --font-scale: 1.1;
 }
 
-/* Fluid typography and spacing */
 html {
     font-size: 16px;
 }
 
 body {
-    font-size: clamp(0.875rem, 1.5vw, 1rem); /* 14px a 16px */
+    font-size: clamp(0.875rem, 1.5vw, 1rem);
     line-height: 1.5;
     font-family: 'Open Sans', Arial, sans-serif;
     background: var(--bg);
@@ -24,7 +22,6 @@ body {
     transition: var(--transition);
 }
 
-/* Colores de los temas */
 .nivel-basico {
     --bg: #1A2B26;
     --text: #E0F2E9;
@@ -97,7 +94,12 @@ body {
     --bot-bg: #FFFFFF;
 }
 
-/* Estructura principal */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 .container {
     display: flex;
     flex-direction: column;
@@ -131,7 +133,6 @@ h2 {
     overflow-x: hidden;
 }
 
-/* Barra lateral izquierda */
 .left-section {
     display: flex;
     flex-direction: column;
@@ -144,7 +145,7 @@ h2 {
 }
 
 .left-section button, .nivel-btn {
-    width: 2.5rem; /* Usando rem para escalar con la fuente */
+    width: 2.5rem;
     height: 2.5rem;
     min-width: 2.5rem;
     min-height: 2.5rem;
@@ -190,7 +191,6 @@ h2 {
     visibility: visible;
 }
 
-/* Estilos para tooltips de botones */
 #toggle-aprendizaje::after { content: "Modo aprendizaje"; }
 #modo-btn::after { content: "Modo claro/oscuro"; }
 #voice-btn::after { content: "Activar/desactivar voz"; }
@@ -218,11 +218,11 @@ h2 {
     align-items: center;
 }
 
-/* Sección central: Chat */
 .center-section {
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
 }
 
 .chat-content {
@@ -288,7 +288,6 @@ h2 {
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Mensajes del chat */
 .message-container {
     display: flex;
     flex-direction: column;
@@ -356,7 +355,6 @@ h2 {
     animation: blink 0.7s infinite;
 }
 
-/* Grupo de entrada */
 .input-group {
     display: flex;
     gap: var(--spacing);
@@ -419,7 +417,6 @@ h2 {
     visibility: visible;
 }
 
-/* Estilos de la barra de desplazamiento */
 .message-container::-webkit-scrollbar,
 #chat-list::-webkit-scrollbar {
     width: 0.375rem;
@@ -442,7 +439,6 @@ h2 {
     background: var(--button-hover);
 }
 
-/* Media Queries para diseño responsive */
 @media (max-width: 768px) {
     .main-layout {
         grid-template-columns: 1fr;
@@ -472,7 +468,6 @@ h2 {
     }
 }
 
-/* Tooltips ocultos en dispositivos táctiles */
 @media (hover: none) and (pointer: coarse) {
     .left-section button::after,
     .nivel-btn::after,
