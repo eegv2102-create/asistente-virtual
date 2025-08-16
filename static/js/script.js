@@ -332,14 +332,6 @@ const addCopyButtonListeners = () => {
             });
         });
     });
-    // Nuevo: Listeners para feedback
-    getElements('.feedback-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const positive = btn.dataset.positive === 'true';
-            rateResponse(positive);
-            btn.disabled = true; // Evita múltiples clics
-        });
-    });
 };
 
 const sendMessage = () => {
@@ -849,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.modoBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-claro');
             localStorage.setItem('modo', document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro');
-            mostrarNotificacion(`Modo cambiado a ${document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro'}`, 'info');
+            mostrarNotificacion(`Modo cambiado a ${document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro'}`, 'success');
         });
         if (localStorage.getItem('modo') === 'claro') {
             document.body.classList.add('modo-claro');

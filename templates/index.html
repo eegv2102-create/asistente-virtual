@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <!-- Nuevo: Previene zoom no deseado y optimiza móvil -->
-    <meta name="apple-mobile-web-app-capable" content="yes"> <!-- Nuevo: Soporte PWA en iOS para mejor experiencia móvil -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>💻 Tesis</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
@@ -56,12 +56,12 @@
                         <div class="message-container"></div>
                     </div>
                     <div class="input-group">
-                        <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
+                        <textarea id="input" placeholder="Escribe o habla... (Shift+Enter para nueva línea)" aria-label="Entrada de texto para preguntas" lang="es" maxlength="500" rows="1"></textarea>
+                        <button id="send-btn" aria-label="Enviar mensaje al asistente">➤</button>
                         <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz"><span class="voice-label">Iniciar</span> 🎤</button>
                         <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz"><span class="voice-label">Detener</span> 🛑</button>
                         <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸️</button>
                         <button id="btn-resume-speech" aria-label="Reanudar voz del asistente" data-tooltip="Reanudar voz">▶️</button>
-                        <button id="send-btn" aria-label="Enviar mensaje al asistente">➤</button> <!-- Nuevo: aria-label más descriptivo -->
                     </div>
                 </div>
             </div>
@@ -76,6 +76,7 @@
                         <h3>Selecciona tu Avatar</h3>
                         <div class="avatar-options"></div>
                         <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
+                        <div id="avatar-container"></div>
                         <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
                         <div id="analytics-container"></div>
                     </div>
@@ -96,5 +97,12 @@
         </div>
     </div>
     <script src="/static/js/script.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js')
+                .then(reg => console.log('Service Worker registrado', reg))
+                .catch(err => console.error('Error al registrar Service Worker', err));
+        }
+    </script>
 </body>
 </html>
