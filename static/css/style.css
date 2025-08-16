@@ -170,7 +170,7 @@ h3 {
 .left-section {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing);
+    gap: calc(var(--spacing) / 2); /* Reducido el gap */
     align-items: center;
     position: sticky;
     top: 0;
@@ -181,30 +181,30 @@ h3 {
 }
 
 .left-section button, .nivel-btn {
-    width: 40px;
-    height: 40px;
+    width: 30px; /* Reducido tamaño de los botones */
+    height: 30px; /* Reducido tamaño de los botones */
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, var(--button-bg), color-mix(in srgb, var(--button-bg), #000 20%));
     color: var(--text);
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px; /* Reducido tamaño de fuente */
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: var(--shadow);
     transition: var(--transition);
     position: relative;
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 30px;
+    min-height: 30px;
 }
 
 @media (max-width: 768px) {
     .left-section button, .nivel-btn {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-        min-height: 48px;
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        min-height: 36px;
     }
 }
 
@@ -262,21 +262,49 @@ h3 {
 
 /* Iconos para botones de voz en .input-group */
 #btn-start-voice::before { content: "\f130"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-start-voice::after { content: "Iniciar Voz"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; }
+#btn-start-voice::after { content: "Iniciar Voz"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
 
 #btn-stop-voice::before { content: "\f04d"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-stop-voice::after { content: "Detener Voz"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; }
+#btn-stop-voice::after { content: "Detener Voz"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
 
 #btn-pause-speech::before { content: "\f04c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-pause-speech::after { content: "Pausar Voz de IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; }
+#btn-pause-speech::after { content: "Pausar Voz de IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
 
 #btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-resume-speech::after { content: "Reanudar Voz de IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; }
+#btn-resume-speech::after { content: "Reanudar Voz de IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
 
 #btn-start-voice:hover::after,
 #btn-stop-voice:hover::after,
 #btn-pause-speech:hover::after,
 #btn-resume-speech:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+#btn-start-voice::after,
+#btn-stop-voice::after,
+#btn-pause-speech::after,
+#btn-resume-speech::after {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition);
+    z-index: 1001; /* Asegura que esté por encima de otros elementos */
+}
+
+#send-btn::after { content: "Enviar"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
+
+#btn-start-voice:hover::after,
+#btn-stop-voice:hover::after,
+#btn-pause-speech:hover::after,
+#btn-resume-speech:hover::after,
+#send-btn:hover::after {
     opacity: 1;
     visibility: visible;
 }
@@ -1211,7 +1239,7 @@ body:not(.modo-claro) .bot {
 
 #input {
     flex: 1;
-    padding: calc(var(--spacing) * 1.5); /* Aumentado el padding para hacer la caja más grande */
-    min-height: 50px; /* Altura mínima para hacerla más grande */
-    font-size: clamp(14px, 2vw, 16px); /* Tamaño de fuente mayor */
+    padding: calc(var(--spacing) * 1.5);
+    min-height: 50px;
+    font-size: clamp(14px, 2vw, 16px);
 }
