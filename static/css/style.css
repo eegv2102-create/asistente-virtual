@@ -1,26 +1,24 @@
 :root {
-    --shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    --radius: 8px;
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --radius: 6px;
     --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
-    --spacing: clamp(6px, 1.5vw, 8px); /* Fluid spacing for better scaling */
-    --font-base: clamp(14px, 2vw, 16px); /* Improved fluid typography */
+    --spacing: clamp(5px, 1.2vw, 6px);
+    --font-base: clamp(12px, 1.8vw, 14px);
     --font-scale: 1.1;
-    --spacing-base: clamp(6px, 1.5vw, 8px);
+    --spacing-base: clamp(5px, 1.2vw, 6px);
 }
 
-/* Enhanced fluid typography and accessibility */
 html {
     font-size: var(--font-base);
-    scroll-behavior: smooth; /* Smooth scrolling for better UX */
+    scroll-behavior: smooth;
 }
 
-/* Focus styles for accessibility */
 :focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
-/* Modo Oscuro - Nivel Básico (Verde Suave) */
+/* Modo Oscuro - Nivel Básico */
 .nivel-basico {
     --bg: #1A2B26;
     --text: #E0F2E9;
@@ -34,7 +32,7 @@ html {
     --scrollbar-thumb: #4CAF50;
 }
 
-/* Modo Oscuro - Nivel Intermedio (Azul Profundo) */
+/* Modo Oscuro - Nivel Intermedio */
 .nivel-intermedio {
     --bg: #1A263A;
     --text: #E3F2FD;
@@ -48,7 +46,7 @@ html {
     --scrollbar-thumb: #FF9800;
 }
 
-/* Modo Oscuro - Nivel Avanzado (Rojo Intenso) */
+/* Modo Oscuro - Nivel Avanzado */
 .nivel-avanzado {
     --bg: #2A1A1A;
     --text: #FFE6E6;
@@ -113,49 +111,37 @@ body {
     color: var(--text);
     font-family: 'Open Sans', Arial, sans-serif;
     height: 100vh;
+    width: 100vw; /* Ensure full width */
     overflow: hidden;
     transition: var(--transition);
     line-height: 1.5;
 }
 
 .container {
-    width: 100vw;
-    max-width: none;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    margin: 0 auto;
+    margin: 0;
+    padding: 0;
     overflow: hidden;
-    overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 h2 {
-    font-size: clamp(1rem, 2.5vw, 1.2rem); /* Better fluid sizing */
+    font-size: clamp(0.9rem, 2.2vw, 1.1rem);
     text-align: center;
     padding: var(--spacing);
     color: var(--accent);
     border-bottom: 1px solid var(--border);
-}
-
-h3 {
-    font-size: clamp(0.8rem, 2vw, 0.9rem); /* Adjusted for zoom */
-    color: var(--accent);
-    padding: var(--spacing);
-    text-align: center;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 .main-layout {
     display: grid;
-    grid-template-columns: minmax(40px, auto) 1fr minmax(200px, auto); /* Adjusted min for smaller left buttons */
-    gap: clamp(2px, 0.5vw, 4px); /* Fluid gap */
+    grid-template-columns: minmax(40px, 5%) 1fr minmax(180px, 20%); /* Adjusted for full fit */
+    gap: clamp(1px, 0.3vw, 2px);
     flex: 1;
     overflow: hidden;
-    overflow-x: hidden;
+    height: calc(100% - 40px); /* Adjust for h2 height */
 }
 
 .left-section, .center-section, .right-section {
@@ -170,33 +156,34 @@ h3 {
 .left-section {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing);
+    gap: calc(var(--spacing) - 1px);
     align-items: center;
     position: sticky;
     top: 0;
     height: 100%;
     z-index: 20;
     transition: transform 0.3s ease;
-    overflow-y: hidden; /* No scroll in left bar */
+    overflow-y: auto; /* Enable scrolling if needed */
 }
 
 .left-section button, .nivel-btn {
-    width: clamp(32px, 4vw, 40px); /* Smaller buttons */
-    height: clamp(32px, 4vw, 40px);
+    width: clamp(25px, 3vw, 30px); /* Smaller buttons */
+    height: clamp(25px, 3vw, 30px);
     border-radius: 50%;
     border: none;
     background: var(--button-bg);
     color: var(--text);
     cursor: pointer;
-    font-size: clamp(12px, 1.8vw, 14px); /* Adjusted font */
+    font-size: clamp(10px, 1.5vw, 12px);
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: var(--shadow);
     transition: var(--transition);
     position: relative;
-    min-width: clamp(32px, 4vw, 40px);
-    min-height: clamp(32px, 4vw, 40px);
+    min-width: clamp(25px, 3vw, 30px);
+    min-height: clamp(25px, 3vw, 30px);
+    margin: 2px 0; /* Small margin to ensure spacing */
 }
 
 .left-section button:hover, .nivel-btn:hover {
@@ -218,16 +205,16 @@ h3 {
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: clamp(6px, 1vw, 10px) clamp(8px, 1.5vw, 12px);
-    border-radius: 4px;
-    font-size: clamp(10px, 1.5vw, 12px);
-    max-width: 120px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    max-width: 100px;
     text-align: center;
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
-    z-index: 10000; /* High z-index to show on top */
+    z-index: 10001; /* Higher z-index to avoid chat overlap */
     white-space: nowrap;
 }
 
@@ -236,10 +223,9 @@ h3 {
     visibility: visible;
 }
 
-/* Tooltips específicos para botones de la barra izquierda */
 #toggle-aprendizaje::after { content: "Modo Aprendizaje"; }
 #modo-btn::after { content: "Modo Claro/Oscuro"; }
-#voice-btn::after { content: "Activar/Desactivar Voz"; }
+#voice-btn::after { content: "Voz On/Off"; }
 #exportTxtBtn::after { content: "Exportar TXT"; }
 #exportPdfBtn::after { content: "Exportar PDF"; }
 #btn-clear::after { content: "Limpiar Chat"; }
@@ -250,29 +236,33 @@ h3 {
 .nivel-btn[data-nivel="intermedio"]::after { content: "Intermedio"; }
 .nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
 
-/* Iconos para botones de voz en .input-group */
-#btn-start-voice::before { content: "🎤"; font-size: clamp(14px, 2vw, 16px); }
-#btn-start-voice::after { content: "Iniciar Voz"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: clamp(10px, 1.5vw, 12px); padding: 4px 8px; z-index: 10000; /* High z-index */ background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 4px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-start-voice::before { content: "🎤"; font-size: 14px; }
+#btn-start-voice::after { content: "Iniciar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
-#btn-stop-voice::before { content: "🛑"; font-size: clamp(14px, 2vw, 16px); }
-#btn-stop-voice::after { content: "Detener Voz"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: clamp(10px, 1.5vw, 12px); padding: 4px 8px; z-index: 10000; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 4px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-stop-voice::before { content: "🛑"; font-size: 14px; }
+#btn-stop-voice::after { content: "Detener"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
-#btn-pause-speech::before { content: "⏸️"; font-size: clamp(14px, 2vw, 16px); }
-#btn-pause-speech::after { content: "Pausar Voz IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: clamp(10px, 1.5vw, 12px); padding: 4px 8px; z-index: 10000; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 4px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-pause-speech::before { content: "⏸️"; font-size: 14px; }
+#btn-pause-speech::after { content: "Pausar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
-#btn-resume-speech::before { content: "▶️"; font-size: clamp(14px, 2vw, 16px); }
-#btn-resume-speech::after { content: "Play Voz IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: clamp(10px, 1.5vw, 12px); padding: 4px 8px; z-index: 10000; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 4px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-resume-speech::before { content: "▶️"; font-size: 14px; }
+#btn-resume-speech::after { content: "Reanudar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+
+#send-btn::after { content: "Enviar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
 #btn-start-voice:hover::after,
 #btn-stop-voice:hover::after,
 #btn-pause-speech:hover::after,
-#btn-resume-speech:hover::after {
+#btn-resume-speech:hover::after,
+#send-btn:hover::after {
     opacity: 1;
     visibility: visible;
 }
 
-#btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
-    font-size: 0; /* Hide text, show only icon */
+#btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech, #send-btn {
+    font-size: 0;
+    width: clamp(25px, 3vw, 30px);
+    height: clamp(25px, 3vw, 30px);
 }
 
 .nivel-btn.active {
@@ -283,7 +273,7 @@ h3 {
 .level-buttons {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing);
+    gap: calc(var(--spacing) - 1px);
     margin-top: var(--spacing);
     width: 100%;
     align-items: center;
@@ -309,7 +299,7 @@ h3 {
     gap: var(--spacing);
     background: var(--bg);
     padding: var(--spacing);
-    border-bottom: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
     z-index: 10;
     flex-shrink: 0;
 }
@@ -322,25 +312,26 @@ h3 {
 
 #tema-filter, #search-input {
     flex: 1;
-    padding: var(--spacing);
+    padding: calc(var(--spacing) - 1px);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius);
     background: var(--bg);
     color: var(--text);
-    font-size: clamp(12px, 1.8vw, 14px); /* Better readability */
+    font-size: clamp(11px, 1.6vw, 13px);
     box-shadow: var(--shadow);
 }
 
 #search-btn {
-    padding: var(--spacing);
+    padding: 0;
     background: var(--button-bg);
     color: var(--text);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius);
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow);
-    width: clamp(40px, 5vw, 48px);
+    width: clamp(25px, 3vw, 30px);
+    height: clamp(25px, 3vw, 30px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -358,10 +349,10 @@ h3 {
     padding: var(--spacing);
     flex: 1;
     overflow-y: auto;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-    min-height: 0; /* Allow flex to shrink properly */
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+    min-height: 0;
     display: flex;
-    flex-direction: column-reverse; /* Reverse scroll to bottom by default */
+    flex-direction: column-reverse;
 }
 
 #chatbox.loading::after {
@@ -369,10 +360,10 @@ h3 {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: clamp(24px, 3vw, 32px);
-    height: clamp(24px, 3vw, 32px);
-    border: 3px solid var(--accent);
-    border-top: 3px solid transparent;
+    width: clamp(20px, 2.5vw, 24px);
+    height: clamp(20px, 2.5vw, 24px);
+    border: 2px solid var(--accent);
+    border-top: 2px solid transparent;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     position: absolute;
@@ -389,24 +380,24 @@ h3 {
 .message-container {
     display: flex;
     flex-direction: column;
-    gap: calc(var(--spacing) * 1.5);
+    gap: calc(var(--spacing) * 1.2);
     height: 100%;
-    min-height: 0; /* Fix for flex child overflow */
+    min-height: 0;
     flex-grow: 1;
 }
 
 .message-container::-webkit-scrollbar {
-    width: clamp(6px, 1vw, 8px);
-    display: block; /* Force scrollbar visibility if content overflows */
+    width: 6px;
+    display: block;
 }
 
 .message-container::-webkit-scrollbar-track {
-    background: var(--chat-bg); /* Match chat background */
+    background: var(--chat-bg);
     border-radius: var(--radius);
 }
 
 .message-container::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb); /* Dynamic scrollbar color */
+    background: var(--scrollbar-thumb);
     border-radius: var(--radius);
 }
 
@@ -416,28 +407,28 @@ h3 {
 
 .message-container {
     scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) var(--chat-bg); /* Match chat background */
+    scrollbar-color: var(--scrollbar-thumb) var(--chat-bg);
 }
 
 .user, .bot {
     position: relative;
-    max-width: 80%;
-    padding: clamp(10px, 2vw, 14px) clamp(12px, 2.5vw, 16px);
+    max-width: 85%;
+    padding: calc(var(--spacing) + 2px) calc(var(--spacing) + 4px);
     border-radius: var(--radius);
-    font-size: clamp(12px, 1.8vw, 14px); /* Modern AI-like font size */
-    line-height: 1.5;
+    font-size: clamp(11px, 1.6vw, 13px);
+    line-height: 1.4;
     box-shadow: var(--shadow);
-    animation: fadeIn 0.4s ease-out forwards;
-    border: 2px solid color-mix(in srgb, var(--border), var(--accent) 20%);
+    animation: fadeIn 0.3s ease-out forwards;
+    border: 1px solid color-mix(in srgb, var(--border), var(--accent) 15%);
 }
 
 .user:hover, .bot:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -445,16 +436,16 @@ h3 {
     background: var(--user-bg);
     color: var(--text);
     margin-left: auto;
-    border-radius: 18px 18px 4px 18px;
-    margin-right: calc(var(--spacing) + 20px);
+    border-radius: 15px 15px 3px 15px;
+    margin-right: calc(var(--spacing) + 15px);
 }
 
 .user::before {
     content: '👤';
     position: absolute;
-    right: -20px;
-    top: 10px;
-    font-size: clamp(16px, 2.5vw, 18px);
+    right: -15px;
+    top: 8px;
+    font-size: clamp(14px, 2vw, 16px);
     transition: var(--transition);
 }
 
@@ -466,16 +457,16 @@ h3 {
     background: var(--bot-bg);
     color: var(--text);
     margin-right: auto;
-    border-radius: 18px 18px 18px 4px;
-    margin-left: calc(var(--spacing) + 20px);
+    border-radius: 15px 15px 15px 3px;
+    margin-left: calc(var(--spacing) + 15px);
 }
 
 .bot::before {
     content: '🤖';
     position: absolute;
-    left: -20px;
-    top: 10px;
-    font-size: clamp(16px, 2.5vw, 18px);
+    left: -15px;
+    top: 8px;
+    font-size: clamp(14px, 2vw, 16px);
     transition: var(--transition);
 }
 
@@ -492,23 +483,23 @@ h3 {
 
 .bot code {
     background: color-mix(in srgb, var(--chat-bg), var(--text) 5%);
-    padding: clamp(3px, 0.5vw, 6px) clamp(4px, 0.8vw, 8px);
-    border-radius: 4px;
-    font-size: clamp(11px, 1.5vw, 13px);
+    padding: calc(var(--spacing) - 1px) calc(var(--spacing) + 1px);
+    border-radius: 3px;
+    font-size: clamp(10px, 1.4vw, 12px);
 }
 
 .bot pre {
     background: color-mix(in srgb, var(--chat-bg), var(--text) 10%);
     color: var(--text);
-    padding: clamp(8px, 1.5vw, 12px);
-    border-radius: 6px;
+    padding: calc(var(--spacing) + 2px);
+    border-radius: 4px;
     overflow-x: auto;
-    font-size: clamp(11px, 1.5vw, 13px);
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: clamp(10px, 1.4vw, 12px);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .bot ul, .bot ol {
-    padding-left: clamp(20px, 3vw, 24px);
+    padding-left: clamp(18px, 2.5vw, 20px);
     margin: var(--spacing) 0;
 }
 
@@ -518,19 +509,19 @@ h3 {
 
 .bot .suggestions {
     display: flex;
-    gap: clamp(6px, 1vw, 8px);
-    margin-top: calc(var(--spacing) * 1.5);
+    gap: calc(var(--spacing) - 1px);
+    margin-top: calc(var(--spacing) * 1.2);
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding-bottom: 2px;
 }
 
 .bot .suggestions a {
     display: inline-block;
-    padding: clamp(5px, 1vw, 8px) clamp(8px, 1.5vw, 12px);
+    padding: calc(var(--spacing) - 1px) calc(var(--spacing) + 2px);
     background: color-mix(in srgb, var(--accent), var(--bg) 20%);
     color: var(--text);
-    border-radius: 14px;
-    font-size: clamp(11px, 1.5vw, 12px);
+    border-radius: 12px;
+    font-size: clamp(10px, 1.4vw, 11px);
     text-decoration: none;
     transition: var(--transition);
     white-space: nowrap;
@@ -543,7 +534,7 @@ h3 {
 }
 
 .bot .suggestions::-webkit-scrollbar {
-    height: clamp(6px, 1vw, 8px);
+    height: 4px;
 }
 
 .bot .suggestions::-webkit-scrollbar-thumb {
@@ -557,12 +548,12 @@ h3 {
 
 .copy-btn {
     position: absolute;
-    top: clamp(6px, 1vw, 8px);
-    right: clamp(6px, 1vw, 8px);
+    top: calc(var(--spacing) - 1px);
+    right: calc(var(--spacing) - 1px);
     background: transparent;
     border: none;
     color: var(--text);
-    font-size: clamp(11px, 1.5vw, 13px);
+    font-size: clamp(10px, 1.4vw, 12px);
     cursor: pointer;
     opacity: 0.7;
     transition: opacity 0.3s ease;
@@ -575,9 +566,9 @@ h3 {
 
 .voice-indicator {
     position: absolute;
-    top: clamp(8px, 1.2vw, 10px);
-    right: clamp(8px, 1.2vw, 10px);
-    font-size: clamp(14px, 2vw, 16px);
+    top: calc(var(--spacing) + 2px);
+    right: calc(var(--spacing) + 2px);
+    font-size: clamp(12px, 1.8vw, 14px);
     color: var(--accent);
     animation: pulse 1.5s infinite;
     z-index: 10;
@@ -592,9 +583,9 @@ h3 {
 .bot.typing::after {
     content: '|';
     position: absolute;
-    right: clamp(8px, 1.2vw, 10px);
-    bottom: clamp(8px, 1.2vw, 10px);
-    font-size: clamp(12px, 1.8vw, 14px);
+    right: calc(var(--spacing) + 2px);
+    bottom: calc(var(--spacing) + 2px);
+    font-size: clamp(10px, 1.6vw, 12px);
     color: var(--accent);
     animation: blink 0.7s infinite;
 }
@@ -607,59 +598,29 @@ h3 {
 
 .input-group {
     display: flex;
-    gap: var(--spacing);
+    gap: calc(var(--spacing) - 1px);
     padding: var(--spacing);
     border-top: 1px solid var(--border);
     background: var(--bg);
     position: sticky;
     bottom: 0;
     z-index: 10;
-    align-items: center; /* Center align items vertically */
+    align-items: center;
 }
 
-/* Added styles for input box */
 #input {
     flex: 1;
-    padding: var(--spacing);
+    padding: calc(var(--spacing) - 1px);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius);
     background: var(--bg);
     color: var(--text);
-    font-size: clamp(12px, 1.8vw, 14px);
+    font-size: clamp(11px, 1.6vw, 13px);
     box-shadow: var(--shadow);
-    min-width: 0; /* Allow flex shrink */
-    resize: none; /* Prevent resize if textarea */
-    height: clamp(40px, 5vw, 48px); /* Ensure visible height */
-    display: block; /* Ensure it appears */
-}
-
-/* Improved voice buttons for touch and zoom */
-.input-group button {
-    padding: var(--spacing);
-    background: var(--button-bg);
-    color: var(--text);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: var(--transition);
-    box-shadow: var(--shadow);
-    width: clamp(32px, 4vw, 40px); /* Smaller buttons */
-    height: clamp(32px, 4vw, 40px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    font-size: clamp(12px, 1.8vw, 14px);
-    flex-shrink: 0; /* Prevent shrinking on zoom */
-}
-
-.input-group button:hover {
-    background: var(--button-hover);
-    transform: scale(1.05);
-}
-
-.input-group .voice-label {
-    display: none;
+    min-width: 0;
+    resize: none;
+    height: clamp(30px, 3.5vw, 35px);
+    display: block;
 }
 
 .right-section {
@@ -673,8 +634,8 @@ h3 {
 .tab-buttons {
     display: flex;
     justify-content: space-around;
-    gap: var(--spacing);
-    margin-bottom: calc(var(--spacing) * 1.5);
+    gap: calc(var(--spacing) - 1px);
+    margin-bottom: calc(var(--spacing) * 1.2);
     position: sticky;
     top: 0;
     z-index: 20;
@@ -685,14 +646,14 @@ h3 {
 
 .tab-btn {
     flex: 1;
-    padding: var(--spacing) clamp(8px, 1.5vw, 12px);
+    padding: calc(var(--spacing) - 1px) calc(var(--spacing) + 2px);
     background: var(--button-bg);
     color: var(--text);
     border: none;
     border-bottom: 2px solid transparent;
     cursor: pointer;
     transition: var(--transition);
-    font-size: clamp(11px, 1.5vw, 12px);
+    font-size: clamp(10px, 1.4vw, 11px);
 }
 
 .tab-btn.active, .tab-btn[aria-selected="true"] {
@@ -752,7 +713,7 @@ h3 {
 }
 
 #chat-list li {
-    padding: clamp(12px, 2vw, 16px);
+    padding: calc(var(--spacing) + 2px);
     background: color-mix(in srgb, var(--chat-bg), #FFFFFF 5%);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -760,10 +721,10 @@ h3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: clamp(11px, 1.5vw, 12px);
+    font-size: clamp(10px, 1.4vw, 11px);
     color: var(--text);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    min-height: clamp(40px, 5vw, 48px);
+    min-height: clamp(35px, 4vw, 40px);
     transition: var(--transition), box-shadow 0.3s ease;
 }
 
@@ -785,21 +746,21 @@ h3 {
 }
 
 #chat-list .chat-name {
-    font-size: clamp(12px, 1.8vw, 14px);
+    font-size: clamp(11px, 1.6vw, 12px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 #chat-list .rename-btn, #chat-list .delete-btn {
-    width: clamp(20px, 3vw, 24px);
-    height: clamp(20px, 3vw, 24px);
+    width: clamp(18px, 2.5vw, 20px);
+    height: clamp(18px, 2.5vw, 20px);
     border-radius: 50%;
     border: none;
     background: var(--accent);
     color: var(--text);
     cursor: pointer;
-    font-size: clamp(9px, 1.5vw, 11px);
+    font-size: clamp(8px, 1.2vw, 10px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -808,7 +769,7 @@ h3 {
 }
 
 #chat-list::-webkit-scrollbar {
-    width: clamp(6px, 1vw, 8px);
+    width: 6px;
 }
 
 #chat-list::-webkit-scrollbar-track {
@@ -825,33 +786,9 @@ h3 {
     background: var(--button-hover);
 }
 
-.nivel-basico #chat-list::-webkit-scrollbar-thumb {
-    background: #4CAF50;
-}
-
-.nivel-intermedio #chat-list::-webkit-scrollbar-thumb {
-    background: #FF9800;
-}
-
-.nivel-avanzado #chat-list::-webkit-scrollbar-thumb {
-    background: #FF5722;
-}
-
 #chat-list {
     scrollbar-width: thin;
     scrollbar-color: var(--accent) transparent;
-}
-
-.nivel-basico #chat-list {
-    scrollbar-color: #4CAF50 transparent;
-}
-
-.nivel-intermedio #chat-list {
-    scrollbar-color: #FF9800 transparent;
-}
-
-.nivel-avanzado #chat-list {
-    scrollbar-color: #FF5722 transparent;
 }
 
 .card {
@@ -865,7 +802,7 @@ h3 {
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     display: none;
-    max-width: clamp(300px, 80vw, 350px); /* Fluid max-width */
+    max-width: clamp(280px, 75vw, 320px);
     margin: 0 auto;
     z-index: 30;
 }
@@ -881,21 +818,21 @@ h3 {
 .card.success { border-color: #2ecc71; }
 
 .card input[type="text"], .card textarea {
-    padding: var(--spacing);
+    padding: calc(var(--spacing) - 1px);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius);
     background: var(--bg);
     color: var(--text);
-    font-size: clamp(11px, 1.5vw, 12px);
+    font-size: clamp(10px, 1.4vw, 11px);
     box-shadow: var(--shadow);
 }
 
 .card button {
-    padding: var(--spacing);
+    padding: calc(var(--spacing) - 1px);
     background: var(--button-bg);
     color: var(--text);
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius);
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow);
@@ -912,9 +849,9 @@ h3 {
     top: var(--spacing);
     background: var(--button-bg);
     border: none;
-    border-radius: 4px;
-    padding: var(--spacing);
-    font-size: clamp(16px, 2.5vw, 20px);
+    border-radius: var(--radius);
+    padding: calc(var(--spacing) - 1px);
+    font-size: clamp(14px, 2vw, 16px);
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: var(--transition);
@@ -934,99 +871,6 @@ h3 {
     transform: scale(1.05);
 }
 
-.feedback {
-    display: flex;
-    gap: var(--spacing);
-    margin-top: var(--spacing);
-}
-
-.feedback-btn {
-    background: var(--button-bg);
-    border: none;
-    border-radius: 4px;
-    padding: var(--spacing);
-    cursor: pointer;
-    font-size: clamp(11px, 1.5vw, 12px);
-    transition: var(--transition);
-    box-shadow: var(--shadow);
-}
-
-.feedback-btn:hover {
-    background: var(--button-hover);
-    transform: scale(1.05);
-}
-
-.feedback-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.quiz-options {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing);
-    margin-top: var(--spacing);
-}
-
-.quiz-option {
-    background: var(--button-bg);
-    border: none;
-    border-radius: 4px;
-    padding: var(--spacing);
-    cursor: pointer;
-    font-size: clamp(11px, 1.5vw, 12px);
-    transition: var(--transition);
-    box-shadow: var(--shadow);
-    text-align: left;
-}
-
-.quiz-option:hover {
-    background: var(--button-hover);
-    transform: scale(1.02);
-}
-
-.quiz-option:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.avatar-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing);
-    justify-content: center;
-}
-
-.avatar-option {
-    width: clamp(40px, 5vw, 48px);
-    height: clamp(40px, 5vw, 48px);
-    border-radius: var(--radius);
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: var(--transition);
-    box-shadow: var(--shadow);
-}
-
-.avatar-option:hover {
-    border-color: var(--accent);
-    transform: scale(1.1);
-}
-
-.avatar-option.active {
-    border-color: var(--accent);
-    transform: scale(1.15);
-}
-
-#analytics-container {
-    margin-top: var(--spacing);
-    padding: var(--spacing);
-    background: color-mix(in srgb, var(--chat-bg), #FFFFFF 5%);
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    font-size: clamp(11px, 1.5vw, 12px);
-}
-
-/* Improved mobile responsiveness */
 @media (max-width: 768px) {
     .main-layout {
         grid-template-columns: 1fr;
@@ -1040,9 +884,9 @@ h3 {
     .left-section.active, .right-section.active {
         display: flex;
         position: fixed;
-        top: clamp(50px, 10vh, 60px);
+        top: clamp(45px, 8vh, 50px);
         bottom: 0;
-        width: clamp(240px, 80vw, 300px);
+        width: clamp(220px, 75vw, 280px);
         z-index: 20;
         transition: transform 0.3s ease;
     }
@@ -1080,18 +924,20 @@ h3 {
     }
 
     .user, .bot {
-        max-width: 95%; /* More space on mobile */
+        max-width: 90%;
     }
 
-    .left-section button::after, .nivel-btn::after, #btn-pause-speech::after, #btn-resume-speech::after,
-    #btn-start-voice::after, #btn-stop-voice::after {
-        display: none; /* Hide tooltips on mobile for touch UX */
+    .left-section button::after, .nivel-btn::after,
+    #btn-start-voice::after, #btn-stop-voice::after,
+    #btn-pause-speech::after, #btn-resume-speech::after,
+    #send-btn::after {
+        display: none;
     }
 
     .input-group .voice-label {
         display: inline;
-        font-size: clamp(12px, 2vw, 14px);
-        margin-right: clamp(4px, 1vw, 6px);
+        font-size: clamp(10px, 1.6vw, 12px);
+        margin-right: calc(var(--spacing) - 1px);
     }
 }
 
@@ -1113,55 +959,25 @@ h3 {
     }
 
     h2 {
-        font-size: clamp(0.9rem, 2.5vw, 1rem);
-    }
-
-    h3 {
-        font-size: clamp(0.7rem, 2vw, 0.8rem);
+        font-size: clamp(0.8rem, 2.2vw, 0.9rem);
     }
 
     .user, .bot {
-        font-size: clamp(12px, 2vw, 14px);
-        padding: clamp(8px, 1.5vw, 12px) clamp(10px, 2vw, 14px);
+        font-size: clamp(10px, 1.6vw, 12px);
+        padding: calc(var(--spacing) + 1px) calc(var(--spacing) + 2px);
     }
 
     .user::before, .bot::before {
-        font-size: clamp(16px, 3vw, 18px);
-        top: clamp(8px, 1.5vw, 10px);
+        font-size: clamp(12px, 2.5vw, 14px);
+        top: calc(var(--spacing) + 1px);
     }
 
     .input-group button {
-        width: clamp(40px, 10vw, 48px);
-        height: clamp(40px, 10vw, 48px);
+        width: clamp(25px, 8vw, 30px);
+        height: clamp(25px, 8vw, 30px);
     }
 
     .card {
-        max-width: clamp(280px, 90vw, 320px);
+        max-width: clamp(260px, 85vw, 300px);
     }
-
-    .avatar-option {
-        width: clamp(40px, 10vw, 48px);
-        height: clamp(40px, 10vw, 48px);
-    }
-}
-
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    img.avatar-option {
-        image-rendering: crisp-edges;
-    }
-}
-
-.loading::after {
-    content: '';
-    display: block;
-    width: clamp(24px, 3vw, 32px);
-    height: clamp(24px, 3vw, 32px);
-    border: 3px solid var(--accent);
-    border-top: 3px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
 }
