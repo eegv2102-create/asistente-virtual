@@ -12,8 +12,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="nivel-intermedio">
-    <button class="menu-toggle" aria-label="Abrir menú izquierdo">☰</button>
-    <button class="menu-toggle-right" aria-label="Abrir menú derecho">☰</button>
+    <button class="menu-toggle" aria-label="Abrir menú izquierdo" data-tooltip="Menú izquierdo">☰</button>
+    <button class="menu-toggle-right" aria-label="Abrir menú derecho" data-tooltip="Menú derecho">☰</button>
     <div class="container">
         <h2>💻 Asistente de Programación Avanzada</h2>
         <div class="main-layout">
@@ -52,17 +52,22 @@
                         </div>
                     </div>
                     <div id="chatbox" aria-live="polite">
-                        <div class="message-container"></div>
+                        <div class="message-container">
+                            <div class="user nivel-basico">Mensaje de usuario básico</div>
+                            <div class="bot nivel-intermedio">Respuesta del bot intermedia</div>
+                            <div class="user nivel-avanzado">Mensaje de usuario avanzado</div>
+                            <div class="bot nivel-basico">Respuesta del bot básica</div>
+                        </div>
                     </div>
                     <div class="input-group">
                         <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
                     </div>
                     <div class="voice-controls">
-                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz">🎙</button>
-                        <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz">⏹</button>
-                        <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸</button>
+                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz">🎤</button>
+                        <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz">🛑</button>
+                        <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸️</button>
                         <button id="btn-resume-speech" aria-label="Reanudar voz del asistente" data-tooltip="Reanudar voz">🔊</button>
-                        <button id="send-btn" aria-label="Enviar mensaje">📤</button>
+                        <button id="send-btn" aria-label="Enviar mensaje" data-tooltip="Enviar">📤</button>
                     </div>
                 </div>
             </div>
