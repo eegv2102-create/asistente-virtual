@@ -233,7 +233,9 @@ const cargarChat = index => {
         return;
     }
     container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    container.scrollTop = container.scrollHeight; // Desplazamiento al cargar chat
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 0);
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
@@ -287,13 +289,15 @@ const cargarConversacionActual = () => {
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container || !currentConversation.mensajes?.length) return;
     container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    container.scrollTop = container.scrollHeight; // Desplazamiento al cargar
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 0);
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
 
 const exportarTxt = () => {
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    const historial = JSON.parse(localStorage.getItem('chatHistory') || ' obstructions');
     const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.mensajes.length) {
         mostrarNotificacion('No hay mensajes para exportar', 'error');
@@ -363,7 +367,9 @@ const sendMessage = () => {
     userDiv.classList.add('user');
     userDiv.textContent = pregunta;
     container.appendChild(userDiv);
-    container.scrollTop = container.scrollHeight; // Desplazamiento tras mensaje del usuario
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 0);
 
     fetch('/respuesta', {
         method: 'POST',
@@ -386,14 +392,18 @@ const sendMessage = () => {
                         if (window.Prism) Prism.highlightAllUnder(botDiv);
                         speakText(respuesta);
                         guardarMensaje(pregunta, respuesta);
-                        container.scrollTop = container.scrollHeight; // Desplazamiento tras respuesta completa
+                        setTimeout(() => {
+                            container.scrollTop = container.scrollHeight;
+                        }, 0);
                         addCopyButtonListeners();
                         return;
                     }
                     const chunk = decoder.decode(value);
                     respuesta += chunk;
                     botDiv.innerHTML = marked.parse(respuesta);
-                    container.scrollTop = container.scrollHeight; // Desplazamiento durante streaming
+                    setTimeout(() => {
+                        container.scrollTop = container.scrollHeight;
+                    }, 0);
                     read();
                 }).catch(error => {
                     botDiv.classList.remove('typing');
@@ -414,7 +424,9 @@ const sendMessage = () => {
                     }
                     botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                     container.appendChild(botDiv);
-                    container.scrollTop = container.scrollHeight; // Desplazamiento tras respuesta
+                    setTimeout(() => {
+                        container.scrollTop = container.scrollHeight;
+                    }, 0);
                     if (window.Prism) Prism.highlightAllUnder(botDiv);
                     speakText(data.respuesta);
                     guardarMensaje(pregunta, data.respuesta);
@@ -457,7 +469,9 @@ const buscarTema = () => {
                 }
                 botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                 container.appendChild(botDiv);
-                container.scrollTop = container.scrollHeight; // Desplazamiento tras respuesta
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 0);
                 if (window.Prism) Prism.highlightAllUnder(botDiv);
                 speakText(data.respuesta);
                 guardarMensaje(`Explica ${query}`, data.respuesta);
@@ -485,7 +499,9 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
             botDiv.classList.add('bot');
             botDiv.innerHTML = marked.parse(data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
             container.appendChild(botDiv);
-            container.scrollTop = container.scrollHeight; // Desplazamiento tras respuesta
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 0);
             if (window.Prism) Prism.highlightAllUnder(botDiv);
             speakText(data.respuesta);
             guardarMensaje(`Respuesta Quiz ${tema}`, data.respuesta);
@@ -567,17 +583,28 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarConversacionActual();
     cargarAnalytics();
 
-    // Añadir evento input para forzar scroll al escribir
+    // Evento input para forzar scroll al escribir
     const input = elements.input;
     const container = elements.chatbox?.querySelector('.message-container');
     if (input && container) {
         input.addEventListener('input', () => {
-            // Forzar scroll al fondo solo si el contenedor está lleno
-            if (container.scrollHeight > container.clientHeight) {
+            setTimeout(() => {
                 container.scrollTop = container.scrollHeight;
-            }
+            }, 0);
         });
     }
+
+    // Opcional: MutationObserver para detectar cambios dinámicos
+    /*
+    if (container) {
+        const observer = new MutationObserver(() => {
+            setTimeout(() => {
+                container.scrollTop = container規制0, 0);
+            }, 0);
+        });
+        observer.observe(container, { childList: true, subtree: true });
+    }
+    */
 
     if (elements.sendBtn && elements.input) {
         elements.sendBtn.addEventListener('click', sendMessage);
@@ -608,7 +635,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         const recomendacion = `Te recomiendo estudiar: ${data.recomendacion}`;
                         botDiv.innerHTML = marked.parse(recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                         container.appendChild(botDiv);
-                        container.scrollTop = container.scrollHeight; // Desplazamiento tras recomendación
+                        setTimeout(() => {
+                            container.scrollTop = container.scrollHeight;
+                        }, 0);
                         speakText(recomendacion);
                         guardarMensaje('Recomendación', recomendacion);
                         if (window.Prism) Prism.highlightAllUnder(botDiv);
@@ -639,7 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     opcionesHtml += '</div>';
                     const pregunta = `${data.pregunta}<br>Opciones:<br>${opcionesHtml}`;
                     container.innerHTML += `<div class="bot">${marked.parse(pregunta)}<button class="copy-btn" data-text="${data.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
-                    container.scrollTop = container.scrollHeight; // Desplazamiento tras pregunta
+                    setTimeout(() => {
+                        container.scrollTop = container.scrollHeight;
+                    }, 0);
                     guardarMensaje('Quiz', `${data.pregunta}\nOpciones: ${data.opciones.join(', ')}`);
                     getElements('.quiz-option').forEach(btn => {
                         btn.addEventListener('click', () => {
@@ -816,7 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (getElement('#tema-filter')) {
         getElement('#tema-filter').addEventListener('change', () => {
             const tema = getElement('#tema-filter').value;
-            if (tema) {
+            if (tima) {
                 getElement('#search-input').value = tema;
                 buscarTema();
             }
