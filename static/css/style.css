@@ -119,6 +119,7 @@ body {
     flex-direction: column;
     margin: 0 auto;
     overflow: hidden;
+    overflow-x: hidden; /* Eliminar barra horizontal */
 }
 
 h2 {
@@ -147,6 +148,7 @@ h3 {
     gap: 2px;
     flex: 1;
     overflow: hidden;
+    overflow-x: hidden; /* Eliminar barra horizontal */
 }
 
 .left-section, .center-section, .right-section {
@@ -155,6 +157,7 @@ h3 {
     background: var(--bg);
     border-radius: var(--radius);
     overflow-y: auto;
+    overflow-x: hidden; /* Eliminar barra horizontal */
 }
 
 .left-section {
@@ -183,12 +186,17 @@ h3 {
     justify-content: center;
     box-shadow: var(--shadow);
     transition: var(--transition);
+    position: relative; /* Para tooltips */
+    min-width: 40px;
+    min-height: 40px;
 }
 
 @media (max-width: 768px) {
     .left-section button, .nivel-btn {
         width: 48px;
         height: 48px;
+        min-width: 48px;
+        min-height: 48px;
     }
 }
 
@@ -206,7 +214,7 @@ h3 {
     content: attr(data-tooltip);
     position: absolute;
     top: 50%;
-    left: calc(100% + 6px);
+    left: calc(100% + 5px);
     transform: translateY(-50%);
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -221,6 +229,7 @@ h3 {
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
     z-index: 5000;
+    white-space: nowrap;
 }
 
 .left-section button:hover::after, .nivel-btn:hover::after {
@@ -228,15 +237,54 @@ h3 {
     visibility: visible;
 }
 
-#btn-pause-speech::after, #btn-resume-speech::after {
-    content: attr(data-tooltip);
+#btn-pause-speech::after {
+    content: "Pausar Voz de IA";
     top: -40px;
     left: 50%;
     transform: translateX(-50%);
     white-space: nowrap;
 }
 
-#btn-pause-speech:hover::after, #btn-resume-speech:hover::after {
+#btn-pause-speech:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+#btn-resume-speech::after {
+    content: "Reanudar Voz de IA";
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+#btn-resume-speech:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+#btn-start-voice::after {
+    content: "Iniciar Voz";
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+#btn-start-voice:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+#btn-stop-voice::after {
+    content: "Detener Voz";
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+#btn-stop-voice:hover::after {
     opacity: 1;
     visibility: visible;
 }
@@ -625,6 +673,7 @@ h3 {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
 }
 
 .input-group button:hover {
