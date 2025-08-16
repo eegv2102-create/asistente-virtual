@@ -111,7 +111,7 @@ body {
     color: var(--text);
     font-family: 'Open Sans', Arial, sans-serif;
     height: 100vh;
-    width: 100vw; /* Ensure full width */
+    width: 100vw;
     overflow: hidden;
     transition: var(--transition);
     line-height: 1.5;
@@ -137,11 +137,11 @@ h2 {
 
 .main-layout {
     display: grid;
-    grid-template-columns: minmax(40px, 5%) 1fr minmax(180px, 20%); /* Adjusted for full fit */
+    grid-template-columns: minmax(40px, 5%) 1fr minmax(180px, 20%);
     gap: clamp(1px, 0.3vw, 2px);
     flex: 1;
     overflow: hidden;
-    height: calc(100% - 40px); /* Adjust for h2 height */
+    height: calc(100% - 40px);
 }
 
 .left-section, .center-section, .right-section {
@@ -161,13 +161,13 @@ h2 {
     position: sticky;
     top: 0;
     height: 100%;
-    z-index: 20;
+    z-index: 100; /* Aumentado para estar encima de la conversación */
     transition: transform 0.3s ease;
-    overflow-y: auto; /* Enable scrolling if needed */
+    overflow-y: auto;
 }
 
 .left-section button, .nivel-btn {
-    width: clamp(25px, 3vw, 30px); /* Smaller buttons */
+    width: clamp(25px, 3vw, 30px);
     height: clamp(25px, 3vw, 30px);
     border-radius: 50%;
     border: none;
@@ -183,7 +183,7 @@ h2 {
     position: relative;
     min-width: clamp(25px, 3vw, 30px);
     min-height: clamp(25px, 3vw, 30px);
-    margin: 2px 0; /* Small margin to ensure spacing */
+    margin: 2px 0;
 }
 
 .left-section button:hover, .nivel-btn:hover {
@@ -214,7 +214,7 @@ h2 {
     visibility: hidden;
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
-    z-index: 10001; /* Higher z-index to avoid chat overlap */
+    z-index: 101; /* Aumentado para estar encima */
     white-space: nowrap;
 }
 
@@ -237,18 +237,18 @@ h2 {
 .nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
 
 #btn-start-voice::before { content: "🎤"; font-size: 14px; }
-#btn-start-voice::after { content: "Iniciar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-start-voice::after { content: "Iniciar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 101; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
 #btn-stop-voice::before { content: "🛑"; font-size: 14px; }
-#btn-stop-voice::after { content: "Detener"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-stop-voice::after { content: "Detener"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 101; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
 #btn-pause-speech::before { content: "⏸️"; font-size: 14px; }
-#btn-pause-speech::after { content: "Pausar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-pause-speech::after { content: "Pausar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 101; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
 #btn-resume-speech::before { content: "▶️"; font-size: 14px; }
-#btn-resume-speech::after { content: "Reanudar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#btn-resume-speech::after { content: "Reanudar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 101; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
-#send-btn::after { content: "Enviar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 10001; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
+#send-btn::after { content: "Enviar"; top: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 2px 4px; z-index: 101; background: rgba(0, 0, 0, 0.9); color: #fff; border-radius: 3px; opacity: 0; visibility: hidden; transition: opacity var(--transition); }
 
 #btn-start-voice:hover::after,
 #btn-stop-voice:hover::after,
@@ -348,33 +348,35 @@ h2 {
     border-radius: var(--radius);
     padding: var(--spacing);
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto; /* Asegura que la barra de desplazamiento sea visible */
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
     min-height: 0;
     display: flex;
     flex-direction: column-reverse;
 }
 
-#chatbox.loading::after {
-    content: '';
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: clamp(20px, 2.5vw, 24px);
-    height: clamp(20px, 2.5vw, 24px);
-    border: 2px solid var(--accent);
-    border-top: 2px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+#chatbox::-webkit-scrollbar {
+    width: 6px;
+    display: block; /* Asegura que la barra sea visible */
 }
 
-@keyframes spin {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    100% { transform: translate(-50%, -50%) rotate(360deg); }
+#chatbox::-webkit-scrollbar-track {
+    background: var(--chat-bg);
+    border-radius: var(--radius);
+}
+
+#chatbox::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius);
+}
+
+#chatbox::-webkit-scrollbar-thumb:hover {
+    background: var(--button-hover);
+}
+
+#chatbox {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--chat-bg);
 }
 
 .message-container {
@@ -384,30 +386,6 @@ h2 {
     height: 100%;
     min-height: 0;
     flex-grow: 1;
-}
-
-.message-container::-webkit-scrollbar {
-    width: 6px;
-    display: block;
-}
-
-.message-container::-webkit-scrollbar-track {
-    background: var(--chat-bg);
-    border-radius: var(--radius);
-}
-
-.message-container::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: var(--radius);
-}
-
-.message-container::-webkit-scrollbar-thumb:hover {
-    background: var(--button-hover);
-}
-
-.message-container {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) var(--chat-bg);
 }
 
 .user, .bot {

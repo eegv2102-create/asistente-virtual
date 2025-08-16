@@ -586,6 +586,13 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.input.addEventListener('keypress', e => {
             if (e.key === 'Enter') sendMessage();
         });
+        // Auto-scroll mientras se escribe
+        elements.input.addEventListener('input', () => {
+            const container = elements.chatbox?.querySelector('.message-container');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        });
     } else {
         console.error('sendBtn o input no encontrados');
     }
