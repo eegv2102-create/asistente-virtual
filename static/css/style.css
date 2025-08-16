@@ -237,54 +237,53 @@ h3 {
     visibility: visible;
 }
 
-#btn-pause-speech::after {
-    content: "Pausar Voz de IA";
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-}
+/* Tooltips específicos para botones de la barra izquierda */
+#toggle-aprendizaje::after { content: "Modo Aprendizaje"; }
+#modo-btn::after { content: "Modo Claro/Oscuro"; }
+#voice-btn::after { content: "Activar/Desactivar Voz"; }
+#exportTxtBtn::after { content: "Exportar TXT"; }
+#exportPdfBtn::after { content: "Exportar PDF"; }
+#btn-clear::after { content: "Limpiar Chat"; }
+#new-chat-btn::after { content: "Nuevo Chat"; }
+#quiz-btn::after { content: "Generar Quiz"; }
+#recommend-btn::after { content: "Recomendar Tema"; }
+.nivel-btn[data-nivel="basico"]::after { content: "Básico"; }
+.nivel-btn[data-nivel="intermedio"]::after { content: "Intermedio"; }
+.nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
 
-#btn-pause-speech:hover::after {
-    opacity: 1;
-    visibility: visible;
+/* Iconos para botones de voz en .input-group */
+#btn-start-voice {
+    content: "🎤";
 }
+#btn-start-voice .voice-label { display: none; }
+#btn-start-voice::before { content: "🎤"; font-size: 20px; }
+#btn-start-voice::after { content: "Iniciar Voz"; top: -40px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
-#btn-resume-speech::after {
-    content: "Reanudar Voz de IA";
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
+#btn-stop-voice {
+    content: "🛑";
 }
+#btn-stop-voice .voice-label { display: none; }
+#btn-stop-voice::before { content: "🛑"; font-size: 20px; }
+#btn-stop-voice::after { content: "Detener Voz"; top: -40px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
+#btn-pause-speech {
+    content: "⏸️";
+}
+#btn-pause-speech .voice-label { display: none; }
+#btn-pause-speech::before { content: "⏸️"; font-size: 20px; }
+#btn-pause-speech::after { content: "Pausar Voz de IA"; top: -40px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+
+#btn-resume-speech {
+    content: "▶️";
+}
+#btn-resume-speech .voice-label { display: none; }
+#btn-resume-speech::before { content: "▶️"; font-size: 20px; }
+#btn-resume-speech::after { content: "Reanudar Voz de IA"; top: -40px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+
+#btn-start-voice:hover::after,
+#btn-stop-voice:hover::after,
+#btn-pause-speech:hover::after,
 #btn-resume-speech:hover::after {
-    opacity: 1;
-    visibility: visible;
-}
-
-#btn-start-voice::after {
-    content: "Iniciar Voz";
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-}
-
-#btn-start-voice:hover::after {
-    opacity: 1;
-    visibility: visible;
-}
-
-#btn-stop-voice::after {
-    content: "Detener Voz";
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-}
-
-#btn-stop-voice:hover::after {
     opacity: 1;
     visibility: visible;
 }
@@ -1109,7 +1108,8 @@ h3 {
         max-width: 90%;
     }
 
-    .left-section button::after, .nivel-btn::after, #btn-pause-speech::after, #btn-resume-speech::after {
+    .left-section button::after, .nivel-btn::after, #btn-pause-speech::after, #btn-resume-speech::after,
+    #btn-start-voice::after, #btn-stop-voice::after {
         display: none;
     }
 
