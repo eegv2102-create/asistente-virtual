@@ -106,6 +106,7 @@ body {
     color: var(--text);
     font-family: 'Open Sans', Arial, sans-serif;
     height: 100vh;
+    width: 100vw;
     overflow: hidden;
     transition: var(--transition);
     line-height: 1.5;
@@ -113,13 +114,13 @@ body {
 
 .container {
     width: 100vw;
-    max-width: none;
     height: 100vh;
     display: flex;
     flex-direction: column;
-    margin: 0 auto;
+    margin: 0;
+    padding: 0;
     overflow: hidden;
-    overflow-x: hidden; /* Eliminar barra horizontal */
+    overflow-x: hidden;
 }
 
 h2 {
@@ -148,7 +149,7 @@ h3 {
     gap: 2px;
     flex: 1;
     overflow: hidden;
-    overflow-x: hidden; /* Eliminar barra horizontal */
+    overflow-x: hidden;
 }
 
 .left-section, .center-section, .right-section {
@@ -157,7 +158,7 @@ h3 {
     background: var(--bg);
     border-radius: var(--radius);
     overflow-y: auto;
-    overflow-x: hidden; /* Eliminar barra horizontal */
+    overflow-x: hidden;
 }
 
 .left-section {
@@ -170,7 +171,7 @@ h3 {
     height: 100%;
     z-index: 20;
     transition: transform 0.3s ease;
-    overflow-y: hidden; /* Eliminar barra de desplazamiento en barra izquierda */
+    overflow-y: hidden;
 }
 
 .left-section button, .nivel-btn {
@@ -187,7 +188,7 @@ h3 {
     justify-content: center;
     box-shadow: var(--shadow);
     transition: var(--transition);
-    position: relative; /* Para tooltips */
+    position: relative;
     min-width: 40px;
     min-height: 40px;
 }
