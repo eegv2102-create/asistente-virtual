@@ -227,14 +227,15 @@ const cargarChat = index => {
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const chat = historial[index];
     if (!chat) return;
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) {
-        console.error('Elemento .message-container no encontrado');
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox) {
+        console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
     container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
     setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
+        chatbox.scrollTop = chatbox.scrollHeight;
     }, 0);
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
@@ -272,7 +273,8 @@ const eliminarChat = index => {
 };
 
 const nuevaConversacion = () => {
-    const container = getElement('#chatbox')?.querySelector('.message-container');
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
     if (container) container.innerHTML = '';
     const input = getElement('#input');
     if (input) input.value = '';
@@ -286,18 +288,19 @@ const limpiarChat = () => {
 
 const cargarConversacionActual = () => {
     const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container || !currentConversation.mensajes?.length) return;
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox || !currentConversation.mensajes?.length) return;
     container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
     setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
+        chatbox.scrollTop = chatbox.scrollHeight;
     }, 0);
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
 
 const exportarTxt = () => {
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || ' obstructions');
+    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.mensajes.length) {
         mostrarNotificacion('No hay mensajes para exportar', 'error');
@@ -357,9 +360,10 @@ const sendMessage = () => {
     const pregunta = input?.value.trim();
     if (!pregunta) return;
     input.value = '';
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) {
-        console.error('Elemento .message-container no encontrado');
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox) {
+        console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
     container.classList.add('loading');
@@ -368,7 +372,7 @@ const sendMessage = () => {
     userDiv.textContent = pregunta;
     container.appendChild(userDiv);
     setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
+        chatbox.scrollTop = chatbox.scrollHeight;
     }, 0);
 
     fetch('/respuesta', {
@@ -393,7 +397,7 @@ const sendMessage = () => {
                         speakText(respuesta);
                         guardarMensaje(pregunta, respuesta);
                         setTimeout(() => {
-                            container.scrollTop = container.scrollHeight;
+                            chatbox.scrollTop = chatbox.scrollHeight;
                         }, 0);
                         addCopyButtonListeners();
                         return;
@@ -402,7 +406,7 @@ const sendMessage = () => {
                     respuesta += chunk;
                     botDiv.innerHTML = marked.parse(respuesta);
                     setTimeout(() => {
-                        container.scrollTop = container.scrollHeight;
+                        chatbox.scrollTop = chatbox.scrollHeight;
                     }, 0);
                     read();
                 }).catch(error => {
@@ -425,7 +429,7 @@ const sendMessage = () => {
                     botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                     container.appendChild(botDiv);
                     setTimeout(() => {
-                        container.scrollTop = container.scrollHeight;
+                        chatbox.scrollTop = chatbox.scrollHeight;
                     }, 0);
                     if (window.Prism) Prism.highlightAllUnder(botDiv);
                     speakText(data.respuesta);
@@ -448,8 +452,9 @@ const buscarTema = () => {
         mostrarNotificacion('Ingresa una palabra clave para buscar.', 'error');
         return;
     }
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) return;
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox) return;
     container.classList.add('loading');
     fetch('/respuesta', {
         method: 'POST',
@@ -470,7 +475,7 @@ const buscarTema = () => {
                 botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                 container.appendChild(botDiv);
                 setTimeout(() => {
-                    container.scrollTop = container.scrollHeight;
+                    chatbox.scrollTop = chatbox.scrollHeight;
                 }, 0);
                 if (window.Prism) Prism.highlightAllUnder(botDiv);
                 speakText(data.respuesta);
@@ -493,14 +498,15 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
         body: JSON.stringify({respuesta: opcion, respuesta_correcta, tema, usuario: 'anonimo'})
     }).then(res => res.json())
         .then(data => {
-            const container = getElement('#chatbox')?.querySelector('.message-container');
-            if (!container) return;
+            const chatbox = getElement('#chatbox');
+            const container = chatbox?.querySelector('.message-container');
+            if (!container || !chatbox) return;
             const botDiv = document.createElement('div');
             botDiv.classList.add('bot');
             botDiv.innerHTML = marked.parse(data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
             container.appendChild(botDiv);
             setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
+                chatbox.scrollTop = chatbox.scrollHeight;
             }, 0);
             if (window.Prism) Prism.highlightAllUnder(botDiv);
             speakText(data.respuesta);
@@ -585,26 +591,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Evento input para forzar scroll al escribir
     const input = elements.input;
-    const container = elements.chatbox?.querySelector('.message-container');
-    if (input && container) {
+    const chatbox = elements.chatbox;
+    const container = chatbox?.querySelector('.message-container');
+    if (input && chatbox) {
         input.addEventListener('input', () => {
             setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
+                chatbox.scrollTop = chatbox.scrollHeight;
             }, 0);
         });
     }
 
-    // Opcional: MutationObserver para detectar cambios dinámicos
-    /*
-    if (container) {
+    // MutationObserver para detectar cambios dinámicos y scrollear automáticamente
+    if (container && chatbox) {
         const observer = new MutationObserver(() => {
             setTimeout(() => {
-                container.scrollTop = container規制0, 0);
+                chatbox.scrollTop = chatbox.scrollHeight;
             }, 0);
         });
         observer.observe(container, { childList: true, subtree: true });
     }
-    */
 
     if (elements.sendBtn && elements.input) {
         elements.sendBtn.addEventListener('click', sendMessage);
@@ -628,15 +633,16 @@ document.addEventListener('DOMContentLoaded', () => {
             fetch('/recomendacion?usuario=anonimo')
                 .then(res => res.json())
                 .then(data => {
-                    const container = elements.chatbox?.querySelector('.message-container');
-                    if (container) {
+                    const chatbox = elements.chatbox;
+                    const container = chatbox?.querySelector('.message-container');
+                    if (container && chatbox) {
                         const botDiv = document.createElement('div');
                         botDiv.classList.add('bot');
                         const recomendacion = `Te recomiendo estudiar: ${data.recomendacion}`;
                         botDiv.innerHTML = marked.parse(recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                         container.appendChild(botDiv);
                         setTimeout(() => {
-                            container.scrollTop = container.scrollHeight;
+                            chatbox.scrollTop = chatbox.scrollHeight;
                         }, 0);
                         speakText(recomendacion);
                         guardarMensaje('Recomendación', recomendacion);
@@ -659,8 +665,9 @@ document.addEventListener('DOMContentLoaded', () => {
             fetch('/quiz?usuario=anonimo')
                 .then(res => res.json())
                 .then(data => {
-                    const container = elements.chatbox.querySelector('.message-container');
-                    if (!container) return;
+                    const chatbox = elements.chatbox;
+                    const container = chatbox?.querySelector('.message-container');
+                    if (!container || !chatbox) return;
                     let opcionesHtml = '<div class="quiz-options">';
                     data.opciones.forEach((opcion, i) => {
                         opcionesHtml += `<button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${data.respuesta_correcta}" data-tema="${data.tema}">${i + 1}. ${opcion}</button>`;
@@ -669,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const pregunta = `${data.pregunta}<br>Opciones:<br>${opcionesHtml}`;
                     container.innerHTML += `<div class="bot">${marked.parse(pregunta)}<button class="copy-btn" data-text="${data.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
                     setTimeout(() => {
-                        container.scrollTop = container.scrollHeight;
+                        chatbox.scrollTop = chatbox.scrollHeight;
                     }, 0);
                     guardarMensaje('Quiz', `${data.pregunta}\nOpciones: ${data.opciones.join(', ')}`);
                     getElements('.quiz-option').forEach(btn => {
@@ -847,7 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (getElement('#tema-filter')) {
         getElement('#tema-filter').addEventListener('change', () => {
             const tema = getElement('#tema-filter').value;
-            if (tima) {
+            if (tema) {
                 getElement('#search-input').value = tema;
                 buscarTema();
             }
