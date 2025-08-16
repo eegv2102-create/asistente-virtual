@@ -2,24 +2,21 @@
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     --radius: 8px;
     --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
-    --spacing: 6px; /* Reducido para PC, aumenta en móvil */
+    --spacing: 6px;
     --font-base: 16px;
     --font-scale: 1.1;
     --spacing-base: 6px;
 }
 
-/* Fluid typography */
 html {
     font-size: clamp(14px, calc(16px + (16 - 14) * ((100vw - 320px) / (1600 - 320))), 16px);
 }
 
-/* Enhanced accessibility */
 :focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 3px;
 }
 
-/* Modo Oscuro - Nivel Básico (Verde Suave) */
 .nivel-basico {
     --bg: #1A2B26;
     --text: #E0F2E9;
@@ -34,7 +31,6 @@ html {
     --scrollbar-track: #26332E;
 }
 
-/* Modo Oscuro - Nivel Intermedio (Azul Profundo) */
 .nivel-intermedio {
     --bg: #1A263A;
     --text: #E3F2FD;
@@ -49,7 +45,6 @@ html {
     --scrollbar-track: #222F45;
 }
 
-/* Modo Oscuro - Nivel Avanzado (Rojo Intenso) */
 .nivel-avanzado {
     --bg: #2A1A1A;
     --text: #FFE6E6;
@@ -64,7 +59,6 @@ html {
     --scrollbar-track: #332222;
 }
 
-/* Modo Claro */
 .modo-claro.nivel-basico {
     --bg: #E8F5E9;
     --text: #1A3C1B;
@@ -182,25 +176,25 @@ h3 {
 .left-section {
     display: flex;
     flex-direction: column;
-    gap: calc(var(--spacing) / 2); /* Reducido el gap */
+    gap: calc(var(--spacing) / 2);
     align-items: center;
     position: sticky;
     top: 0;
     height: 100%;
-    z-index: 30; /* Aumentado para que tooltips se vean sobre el chat */
+    z-index: 100; /* Aumentado para superar al chat */
     transition: transform 0.3s ease;
-    overflow-y: visible; /* Cambiado a visible para que tooltips no se clipen */
+    overflow-y: visible;
 }
 
 .left-section button, .nivel-btn {
-    width: 30px; /* Reducido tamaño de los botones */
-    height: 30px; /* Reducido tamaño de los botones */
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, var(--button-bg), color-mix(in srgb, var(--button-bg), #000 20%));
     color: var(--text);
     cursor: pointer;
-    font-size: 12px; /* Reducido tamaño de fuente */
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -231,7 +225,6 @@ h3 {
     cursor: not-allowed;
 }
 
-/* Ajuste de tooltips para coincidir con tu estilo */
 .left-section button::after, .nivel-btn::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -250,7 +243,7 @@ h3 {
     visibility: hidden;
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
-    z-index: 5000;
+    z-index: 101; /* Aumentado para estar por encima */
     white-space: nowrap;
 }
 
@@ -259,7 +252,6 @@ h3 {
     visibility: visible;
 }
 
-/* Tooltips específicos para botones de la barra izquierda */
 #toggle-aprendizaje::after { content: "Modo Aprendizaje"; }
 #modo-btn::after { content: "Modo Claro/Oscuro"; }
 #voice-btn::after { content: "Activar/Desactivar Voz"; }
@@ -273,48 +265,12 @@ h3 {
 .nivel-btn[data-nivel="intermedio"]::after { content: "Intermedio"; }
 .nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
 
-/* Iconos para botones de voz en .input-group */
-#btn-start-voice::before { content: "\f130"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-start-voice::after { content: "Iniciar Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
-
-#btn-stop-voice::before { content: "\f04d"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-stop-voice::after { content: "Detener Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
-
-#btn-pause-speech::before { content: "\f04c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-pause-speech::after { content: "Pausar Voz de IA"; position: absolute; top: -40px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 150px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
-
-#btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-resume-speech::after { content: "Reanudar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
-
-#btn-start-voice:hover::after,
-#btn-stop-voice:hover::after,
-#btn-pause-speech:hover::after,
-#btn-resume-speech:hover::after {
-    opacity: 1;
-    visibility: visible;
-}
-
-#send-btn::before { content: "\f1d8"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-
-.nivel-btn.active {
-    background: var(--accent);
-    transform: scale(1.15);
-}
-
-.level-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing);
-    margin-top: var(--spacing);
-    width: 100%;
-    align-items: center;
-}
-
 .center-section {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    z-index: 1; /* Menor que el z-index de .left-section */
 }
 
 .chat-content {
@@ -379,14 +335,14 @@ h3 {
     border-radius: var(--radius);
     padding: var(--spacing);
     flex: 1;
-    overflow-y: scroll; /* Siempre mostrar scrollbar si es necesario */
+    overflow-y: scroll;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     position: relative;
     transition: all 0.3s ease;
+    z-index: 1; /* Menor que el z-index de .left-section */
 }
 
 #chatbox[aria-live="polite"] {
-    /* Para lectores de pantalla */
 }
 
 #chatbox.loading::after {
@@ -696,7 +652,7 @@ body:not(.modo-claro) .bot {
     align-items: center;
     justify-content: center;
     position: relative;
-    font-size: 0; /* Elimina texto para mostrar solo iconos */
+    font-size: 0;
 }
 
 .input-group button:hover {
@@ -1075,11 +1031,62 @@ body:not(.modo-claro) .bot {
     }
 
     .left-section button::after, .nivel-btn::after {
-        display: none !important;
+        display: block !important;
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 5px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        max-width: 120px;
+        text-align: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity var(--transition);
+        box-shadow: var(--shadow);
+        z-index: 101;
+        white-space: nowrap;
+        margin-top: 5px;
+    }
+
+    .left-section button:hover::after, .nivel-btn:hover::after {
+        opacity: 1;
+        visibility: visible;
     }
 
     #btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after {
-        display: none !important;
+        display: block !important;
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 5px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        max-width: 120px;
+        text-align: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity var(--transition);
+        box-shadow: var(--shadow);
+        z-index: 101;
+        white-space: nowrap;
+        margin-top: 5px;
+    }
+
+    #btn-start-voice:hover::after,
+    #btn-stop-voice:hover::after,
+    #btn-pause-speech:hover::after,
+    #btn-resume-speech:hover::after {
+        opacity: 1;
+        visibility: visible;
     }
 
     .input-group .voice-label {
