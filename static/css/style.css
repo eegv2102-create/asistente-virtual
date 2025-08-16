@@ -273,14 +273,10 @@ h3 {
 #btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
 #btn-resume-speech::after { content: "Reanudar Voz de IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
 
-#send-btn::before { content: "\f1d8"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#send-btn::after { content: "Enviar"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
-
 #btn-start-voice:hover::after,
 #btn-stop-voice:hover::after,
 #btn-pause-speech:hover::after,
-#btn-resume-speech:hover::after,
-#send-btn:hover::after {
+#btn-resume-speech:hover::after {
     opacity: 1;
     visibility: visible;
 }
@@ -437,6 +433,18 @@ h3 {
     background: #FF5722;
 }
 
+.modo-claro.nivel-basico .message-container::-webkit-scrollbar-thumb {
+    background: #4CAF50;
+}
+
+.modo-claro.nivel-intermedio .message-container::-webkit-scrollbar-thumb {
+    background: #FF9800;
+}
+
+.modo-claro.nivel-avanzado .message-container::-webkit-scrollbar-thumb {
+    background: #FF5722;
+}
+
 .message-container {
     scrollbar-width: thin;
     scrollbar-color: var(--accent) transparent;
@@ -451,6 +459,18 @@ h3 {
 }
 
 .nivel-avanzado .message-container {
+    scrollbar-color: #FF5722 transparent;
+}
+
+.modo-claro.nivel-basico .message-container {
+    scrollbar-color: #4CAF50 transparent;
+}
+
+.modo-claro.nivel-intermedio .message-container {
+    scrollbar-color: #FF9800 transparent;
+}
+
+.modo-claro.nivel-avanzado .message-container {
     scrollbar-color: #FF5722 transparent;
 }
 
