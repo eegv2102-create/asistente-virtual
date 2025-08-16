@@ -3,79 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💻 Tesis</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.18/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <title>Asistente de Programación Avanzada</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPDF/2.5.1/jspdf.umd.min.js"></script>
+    <script src="script.js" defer></script>
 </head>
-<body class="nivel-intermedio">
-    <button class="menu-toggle" aria-label="Abrir menú izquierdo" data-tooltip="Menú izquierdo">☰</button>
-    <button class="menu-toggle-right" aria-label="Abrir menú derecho" data-tooltip="Menú derecho">☰</button>
+<body class="nivel-basico">
     <div class="container">
+        <button class="menu-toggle"><i class="fas fa-bars"></i></button>
+        <button class="menu-toggle-right"><i class="fas fa-bars"></i></button>
+        
         <h2>💻 Asistente de Programación Avanzada</h2>
+
         <div class="main-layout">
-            <!-- Barra lateral izquierda -->
-            <div class="left-section" role="region" aria-label="Controles de navegación">
-                <button id="toggle-aprendizaje" aria-label="Modo aprendizaje" data-tooltip="Modo aprendizaje">📚</button>
-                <button id="modo-btn" aria-label="Modo claro y oscuro" data-tooltip="Modo claro/oscuro">☀️</button>
-                <button id="voice-btn" aria-label="Activar o desactivar voz" data-tooltip="Activar/desactivar voz">🔊</button>
-                <button id="exportTxtBtn" aria-label="Exportar chat a TXT" data-tooltip="Exportar TXT">📄</button>
-                <button id="exportPdfBtn" aria-label="Exportar chat a PDF" data-tooltip="Exportar PDF">📜</button>
-                <button id="btn-clear" aria-label="Limpiar chat actual" data-tooltip="Limpiar chat">🗑️</button>
-                <button id="new-chat-btn" aria-label="Generar nuevo chat" data-tooltip="Nuevo chat">➕</button>
-                <button id="quiz-btn" aria-label="Generar un quiz" data-tooltip="Generar Quiz">❓</button>
-                <button id="recommend-btn" aria-label="Recomendar un tema" data-tooltip="Recomendar tema">🎯</button>
+            <section class="left-section">
+                <button id="toggle-aprendizaje" data-tooltip="Modo Aprendizaje" aria-label="Activar modo aprendizaje"><i class="fas fa-book"></i></button>
+                <button id="modo-btn" data-tooltip="Modo Claro/Oscuro" aria-label="Cambiar modo claro/oscuro"><i class="fas fa-sun"></i></button>
+                <button id="voice-btn" data-tooltip="Activar/Desactivar Voz" aria-label="Activar/desactivar voz"><i class="fas fa-volume-up"></i></button>
+                <button id="exportTxtBtn" data-tooltip="Exportar TXT" aria-label="Exportar chat como TXT"><i class="fas fa-file-alt"></i></button>
+                <button id="exportPdfBtn" data-tooltip="Exportar PDF" aria-label="Exportar chat como PDF"><i class="fas fa-file-pdf"></i></button>
+                <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar chat"><i class="fas fa-trash"></i></button>
+                <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Iniciar nuevo chat"><i class="fas fa-plus"></i></button>
+                <button id="quiz-btn" data-tooltip="Generar Quiz" aria-label="Generar quiz"><i class="fas fa-question-circle"></i></button>
+                <button id="recommend-btn" data-tooltip="Recomendar Tema" aria-label="Recomendar tema"><i class="fas fa-lightbulb"></i></button>
+                
                 <div class="level-buttons">
-                    <button class="nivel-btn" data-nivel="basico" aria-label="Nivel Básico" data-tooltip="Básico">🌱</button>
-                    <button class="nivel-btn active" data-nivel="intermedio" aria-label="Nivel Intermedio" data-tooltip="Intermedio">⭐</button>
-                    <button class="nivel-btn" data-nivel="avanzado" aria-label="Nivel Avanzado" data-tooltip="Avanzado">🔥</button>
+                    <button class="nivel-btn" data-nivel="basico" data-tooltip="Básico" aria-label="Nivel Básico"><i class="fas fa-seedling"></i></button>
+                    <button class="nivel-btn" data-nivel="intermedio" data-tooltip="Intermedio" aria-label="Nivel Intermedio"><i class="fas fa-star"></i></button>
+                    <button class="nivel-btn" data-nivel="avanzado" data-tooltip="Avanzado" aria-label="Nivel Avanzado"><i class="fas fa-fire"></i></button>
                 </div>
-            </div>
-            <!-- Centro: chat -->
-            <div class="center-section" role="region" aria-label="Área de chat">
+            </section>
+
+            <section class="center-section">
                 <div class="chat-content">
                     <div class="search-container">
                         <div class="search-group">
                             <select id="tema-filter" aria-label="Filtrar por tema">
                                 <option value="">Filtrar por tema</option>
-                                <option value="poo">POO</option>
-                                <option value="herencia">Herencia</option>
-                                <option value="polimorfismo">Polimorfismo</option>
-                                <option value="singleton">Singleton</option>
-                                <option value="factory">Factory</option>
+                                <option value="POO">POO</option>
+                                <option value="Herencia">Herencia</option>
+                                <option value="Polimorfismo">Polimorfismo</option>
+                                <option value="Singleton">Singleton</option>
+                                <option value="Factory">Factory</option>
                             </select>
-                            <input type="text" id="search-input" placeholder="Buscar tema..." aria-label="Buscar tema" lang="es" maxlength="100">
-                            <button id="search-btn" aria-label="Buscar tema" data-tooltip="Buscar">🔍</button>
+                            <input type="text" id="search-input" placeholder="Buscar tema..." aria-label="Buscar tema">
+                            <button id="search-btn" aria-label="Buscar"><i class="fas fa-search"></i></button>
                         </div>
                     </div>
                     <div id="chatbox" aria-live="polite">
-                        <div class="message-container">
-                            <div class="user nivel-basico">Mensaje de usuario básico</div>
-                            <div class="bot nivel-intermedio">Respuesta del bot intermedia</div>
-                            <div class="user nivel-avanzado">Mensaje de usuario avanzado</div>
-                            <div class="bot nivel-basico">Respuesta del bot básica</div>
-                        </div>
+                        <div class="message-container"></div>
                     </div>
                     <div class="input-group">
-                        <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
-                    </div>
-                    <div class="voice-controls">
-                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz">🎤</button>
-                        <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz">🛑</button>
-                        <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸️</button>
-                        <button id="btn-resume-speech" aria-label="Reanudar voz del asistente" data-tooltip="Reanudar voz">🔊</button>
-                        <button id="send-btn" aria-label="Enviar mensaje" data-tooltip="Enviar">📤</button>
+                        <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
+                        <button id="send-btn" aria-label="Enviar mensaje"><i class="fas fa-paper-plane"></i></button>
+                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz"><i class="fas fa-microphone"></i></button>
+                        <button id="btn-stop-voice" disabled aria-label="Detener reconocimiento de voz"><i class="fas fa-stop"></i></button>
+                        <button id="btn-pause-speech" disabled aria-label="Pausar voz de IA"><i class="fas fa-pause"></i></button>
+                        <button id="btn-resume-speech" disabled aria-label="Reanudar voz de IA"><i class="fas fa-play"></i></button>
                     </div>
                 </div>
-            </div>
-            <!-- Barra lateral derecha -->
-            <div class="right-section" role="region" aria-label="Configuración e historial">
+            </section>
+
+            <section class="right-section">
                 <div class="tab-buttons">
-                    <button class="tab-btn active" data-tab="asistente" aria-label="Pestaña de asistente">Asistente</button>
-                    <button class="tab-btn" data-tab="historial" aria-label="Pestaña de historial">Historial</button>
+                    <button class="tab-btn active" data-tab="asistente" aria-selected="true">Asistente</button>
+                    <button class="tab-btn" data-tab="historial" aria-selected="false">Historial</button>
                 </div>
                 <div class="tab-content">
                     <div class="asistente active">
@@ -83,24 +77,23 @@
                         <div class="avatar-options"></div>
                         <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
                         <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
-                        <div id="analytics-container"></div>
                     </div>
                     <div class="historial">
                         <h3>Historial de Chats</h3>
                         <ul id="chat-list"></ul>
+                        <div id="analytics-container"></div>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
-        <div id="notification-card" class="card" role="alert"></div>
-        <!-- Card para modo aprendizaje -->
+
+        <div id="notification-card" class="card"></div>
         <div id="aprendizajeCard" class="card">
             <h3>Modo Aprendizaje</h3>
-            <input type="text" id="nuevaPregunta" placeholder="Nueva pregunta" aria-label="Nueva pregunta" lang="es" maxlength="500">
-            <textarea id="nuevaRespuesta" placeholder="Nueva respuesta" aria-label="Nueva respuesta" lang="es" maxlength="2000"></textarea>
-            <button id="learnBtn" aria-label="Guardar nuevo aprendizaje">Aprender</button>
+            <input type="text" id="nuevaPregunta" placeholder="Pregunta..." aria-label="Nueva pregunta">
+            <textarea id="nuevaRespuesta" placeholder="Respuesta..." aria-label="Nueva respuesta"></textarea>
+            <button id="learnBtn" aria-label="Aprender">Aprender</button>
         </div>
     </div>
-    <script src="/static/js/script.js"></script>
 </body>
 </html>
