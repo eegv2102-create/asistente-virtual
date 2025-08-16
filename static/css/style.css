@@ -108,6 +108,7 @@ body {
     font-weight: 400;
     letter-spacing: 0.01em;
     height: 100vh;
+    width: 100vw;
     overflow: hidden;
     transition: var(--transition);
     line-height: 1.5;
@@ -115,12 +116,11 @@ body {
 
 .container {
     width: 100vw;
-    max-width: none;
     height: 100vh;
     display: flex;
     flex-direction: column;
-    margin: 0 auto;
-    overflow: visible;
+    margin: 0;
+    overflow: hidden;
 }
 
 h2 {
@@ -149,10 +149,12 @@ h3 {
 
 .main-layout {
     display: grid;
-    grid-template-columns: 50px 1fr 200px;
+    grid-template-columns: minmax(50px, auto) 1fr minmax(200px, auto);
     gap: 2px;
     flex: 1;
-    overflow: visible;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
 }
 
 .left-section, .center-section, .right-section {
@@ -162,6 +164,7 @@ h3 {
     border-radius: var(--radius);
     overflow-y: auto;
     overflow-x: hidden;
+    height: 100%;
 }
 
 .left-section {
@@ -234,7 +237,7 @@ h3 {
     visibility: hidden;
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
-    z-index: 5000;
+    z-index: 1000; /* Aumentado z-index para que se vea sobre el chat */
     white-space: nowrap;
 }
 
