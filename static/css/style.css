@@ -6,20 +6,22 @@
     --font-base: 16px;
     --font-scale: 1.1;
     --spacing-base: 6px;
+
+    /* Colores por nivel */
+    --basic-bg: #ADD8E6; /* Azul claro */
+    --medium-bg: #FFA500; /* Naranja */
+    --advanced-bg: #FF4500; /* Rojo */
 }
 
-/* Fluid typography */
 html {
     font-size: clamp(14px, calc(16px + (16 - 14) * ((100vw - 320px) / (1600 - 320))), 16px);
 }
 
-/* Enhanced accessibility */
 :focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 3px;
 }
 
-/* Modo Oscuro - Nivel Básico (Verde Suave) */
 .nivel-basico {
     --bg: #1A2B26;
     --text: #E0F2E9;
@@ -28,11 +30,10 @@ html {
     --button-bg: #4CAF50;
     --button-hover: #66BB6A;
     --chat-bg: #26332E;
-    --user-bg: #4CAF50;
-    --bot-bg: #2E3C37;
+    --user-bg: var(--basic-bg);
+    --bot-bg: var(--basic-bg);
 }
 
-/* Modo Oscuro - Nivel Intermedio (Azul Profundo) */
 .nivel-intermedio {
     --bg: #1A263A;
     --text: #E3F2FD;
@@ -41,11 +42,10 @@ html {
     --button-bg: #FF9800;
     --button-hover: #FFB74D;
     --chat-bg: #222F45;
-    --user-bg: #FF9800;
-    --bot-bg: #2A374D;
+    --user-bg: var(--medium-bg);
+    --bot-bg: var(--medium-bg);
 }
 
-/* Modo Oscuro - Nivel Avanzado (Rojo Intenso) */
 .nivel-avanzado {
     --bg: #2A1A1A;
     --text: #FFE6E6;
@@ -54,11 +54,10 @@ html {
     --button-bg: #FF5722;
     --button-hover: #F4511E;
     --chat-bg: #332222;
-    --user-bg: #FF5722;
-    --bot-bg: #3A2727;
+    --user-bg: var(--advanced-bg);
+    --bot-bg: var(--advanced-bg);
 }
 
-/* Modo Claro */
 .modo-claro.nivel-basico {
     --bg: #E8F5E9;
     --text: #1A3C1B;
@@ -67,8 +66,8 @@ html {
     --button-bg: #4CAF50;
     --button-hover: #43A047;
     --chat-bg: #F5FAF5;
-    --user-bg: #4CAF50;
-    --bot-bg: #FFFFFF;
+    --user-bg: var(--basic-bg);
+    --bot-bg: var(--basic-bg);
 }
 
 .modo-claro.nivel-intermedio {
@@ -79,8 +78,8 @@ html {
     --button-bg: #FF9800;
     --button-hover: #FB8C00;
     --chat-bg: #F0F7FE;
-    --user-bg: #FF9800;
-    --bot-bg: #FFFFFF;
+    --user-bg: var(--medium-bg);
+    --bot-bg: var(--medium-bg);
 }
 
 .modo-claro.nivel-avanzado {
@@ -91,8 +90,8 @@ html {
     --button-bg: #FF5722;
     --button-hover: #E64A19;
     --chat-bg: #FFF5F7;
-    --user-bg: #FF5722;
-    --bot-bg: #FFFFFF;
+    --user-bg: var(--advanced-bg);
+    --bot-bg: var(--advanced-bg);
 }
 
 * {
@@ -168,7 +167,7 @@ h3 {
     position: sticky;
     top: 0;
     height: 100%;
-    z-index: 20;
+    z-index: 1000; /* Para que no se esconda detrás del chat */
     transition: transform 0.3s ease;
     overflow-y: hidden;
 }
@@ -202,7 +201,8 @@ h3 {
 }
 
 .left-section button:hover, .nivel-btn:hover {
-    background: var(--button-hover);
+    background: color-mix(in srgb, var(--button-bg), #FFFFFF 20%); /* Fondo más claro */
+    color: var(--text); /* Texto visible */
     transform: scale(1.1);
 }
 
@@ -229,7 +229,7 @@ h3 {
     visibility: hidden;
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
-    z-index: 5000;
+    z-index: 1000;
     white-space: nowrap;
 }
 
@@ -238,7 +238,6 @@ h3 {
     visibility: visible;
 }
 
-/* Tooltips específicos */
 #toggle-aprendizaje::after { content: "Modo Aprendizaje"; }
 #modo-btn::after { content: "Modo Claro/Oscuro"; }
 #voice-btn::after { content: "Activar/Desactivar Voz"; }
@@ -369,7 +368,7 @@ h3 {
 
 .message-container::-webkit-scrollbar {
     width: 6px;
-    background: transparent; /* Fondo transparente para la barra */
+    background: transparent;
 }
 
 .message-container::-webkit-scrollbar-track {
@@ -386,33 +385,9 @@ h3 {
     background: var(--button-hover);
 }
 
-.nivel-basico .message-container::-webkit-scrollbar-thumb {
-    background: #4CAF50;
-}
-
-.nivel-intermedio .message-container::-webkit-scrollbar-thumb {
-    background: #FF9800;
-}
-
-.nivel-avanzado .message-container::-webkit-scrollbar-thumb {
-    background: #FF5722;
-}
-
 .message-container {
     scrollbar-width: thin;
     scrollbar-color: var(--accent) transparent;
-}
-
-.nivel-basico .message-container {
-    scrollbar-color: #4CAF50 transparent;
-}
-
-.nivel-intermedio .message-container {
-    scrollbar-color: #FF9800 transparent;
-}
-
-.nivel-avanzado .message-container {
-    scrollbar-color: #FF5722 transparent;
 }
 
 .user, .bot {
@@ -422,7 +397,7 @@ h3 {
     border-radius: var(--radius);
     font-size: clamp(11px, 1.5vw, 13px);
     line-height: 1.5;
-    box-shadow: var(--shadow);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     animation: fadeIn 0.4s ease-out forwards;
     border: 2px solid color-mix(in srgb, var(--border), var(--accent) 20%);
 }
@@ -601,47 +576,47 @@ h3 {
     100% { opacity: 1; }
 }
 
-/* Cuadro de botones debajo de la caja de conversación */
-.input-group {
+/* Botones de control de voz */
+.voice-controls {
     display: flex;
-    gap: calc(var(--spacing) / 2);
+    gap: 8px;
     padding: var(--spacing);
-    border-top: 1px solid var(--border);
     background: var(--bg);
-    position: relative;
+    border-top: 1px solid var(--border);
+    position: sticky;
+    bottom: 0;
     z-index: 10;
     flex-shrink: 0;
 }
 
-.input-group button {
-    padding: calc(var(--spacing) * 0.75);
-    background: var(--button-bg);
-    color: var(--text);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: var(--transition);
-    box-shadow: var(--shadow);
+.voice-controls button {
     width: 40px;
     height: 40px;
+    border-radius: var(--radius);
+    border: none;
+    background: var(--button-bg);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
     position: relative;
-    font-size: clamp(14px, 2vw, 16px);
 }
 
-.input-group button:hover {
+.voice-controls button:hover {
     background: var(--button-hover);
     transform: scale(1.05);
 }
 
-.input-group button::after {
+.voice-controls button::after {
     content: attr(data-tooltip);
     position: absolute;
     top: -35px;
-    left: -10px;
-    transform: translateX(-100%);
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
@@ -652,30 +627,25 @@ h3 {
     visibility: hidden;
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
-    z-index: 5000;
+    z-index: 1000;
     white-space: nowrap;
 }
 
-.input-group button:hover::after {
+.voice-controls button:hover::after {
     opacity: 1;
     visibility: visible;
 }
 
-/* Botones específicos con logos */
-#btn-start-voice::before { content: "🎤"; font-size: 16px; }
+#btn-start-voice::before { content: "🎙"; }
 #btn-start-voice::after { content: "Iniciar Voz"; }
-#btn-pause-voice::before { content: "⏸️"; font-size: 16px; }
+#btn-pause-voice::before { content: "⏸"; }
 #btn-pause-voice::after { content: "Pausar Voz"; }
-#btn-pause-speech::before { content: "⏸️"; font-size: 16px; }
-#btn-pause-speech::after { content: "Pausar Voz de IA"; }
-#btn-resume-speech::before { content: "▶️"; font-size: 16px; }
-#btn-resume-speech::after { content: "Reanudar Voz de IA"; }
-#send-btn::before { content: "➡️"; font-size: 16px; }
-#send-btn::after { content: "Enviar Mensaje"; }
-
-.input-group .voice-label {
-    display: none;
-}
+#btn-pause-speech::before { content: "🔇"; }
+#btn-pause-speech::after { content: "Pausar Voz IA"; }
+#btn-resume-speech::before { content: "🔊"; }
+#btn-resume-speech::after { content: "Reanudar Voz IA"; }
+#send-btn::before { content: "📤"; }
+#send-btn::after { content: "Enviar"; }
 
 #input {
     flex: 1;
@@ -686,6 +656,7 @@ h3 {
     color: var(--text);
     font-size: clamp(11px, 1.5vw, 13px);
     box-shadow: var(--shadow);
+    margin-right: var(--spacing);
 }
 
 .right-section {
@@ -851,33 +822,9 @@ h3 {
     background: var(--button-hover);
 }
 
-.nivel-basico #chat-list::-webkit-scrollbar-thumb {
-    background: #4CAF50;
-}
-
-.nivel-intermedio #chat-list::-webkit-scrollbar-thumb {
-    background: #FF9800;
-}
-
-.nivel-avanzado #chat-list::-webkit-scrollbar-thumb {
-    background: #FF5722;
-}
-
 #chat-list {
     scrollbar-width: thin;
     scrollbar-color: var(--accent) transparent;
-}
-
-.nivel-basico #chat-list {
-    scrollbar-color: #4CAF50 transparent;
-}
-
-.nivel-intermedio #chat-list {
-    scrollbar-color: #FF9800 transparent;
-}
-
-.nivel-avanzado #chat-list {
-    scrollbar-color: #FF5722 transparent;
 }
 
 .card {
@@ -1072,8 +1019,7 @@ h3 {
         top: 50px;
         bottom: 0;
         width: 240px;
-        z-index: 20;
-        transition: transform 0.3s ease;
+        z-index: 1000;
     }
 
     .left-section {
@@ -1096,7 +1042,7 @@ h3 {
         display: block;
     }
 
-    .input-group {
+    .voice-controls {
         position: fixed;
         bottom: 0;
         width: 100%;
@@ -1148,9 +1094,9 @@ h3 {
         top: 8px;
     }
 
-    .input-group button {
-        width: 40px;
-        height: 40px;
+    .voice-controls button {
+        width: 36px;
+        height: 36px;
     }
 
     .card {
