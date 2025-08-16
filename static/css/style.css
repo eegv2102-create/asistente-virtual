@@ -112,8 +112,8 @@ body {
 }
 
 .container {
-    width: 100%;
-    max-width: 1400px;
+    width: 100vw;
+    max-width: none;
     height: 100vh;
     display: flex;
     flex-direction: column;
