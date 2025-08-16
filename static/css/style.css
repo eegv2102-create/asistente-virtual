@@ -231,6 +231,7 @@ h3 {
     cursor: not-allowed;
 }
 
+/* Ajuste de tooltips para coincidir con tu estilo */
 .left-section button::after, .nivel-btn::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -240,16 +241,16 @@ h3 {
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: 6px 10px;
+    padding: 5px 8px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 10px;
     max-width: 120px;
     text-align: center;
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--transition);
     box-shadow: var(--shadow);
-    z-index: 5000; /* Aumentado z-index significativamente para que se vea sobre todo */
+    z-index: 5000;
     white-space: nowrap;
 }
 
@@ -274,16 +275,16 @@ h3 {
 
 /* Iconos para botones de voz en .input-group */
 #btn-start-voice::before { content: "\f130"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-start-voice::after { content: "Iniciar Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
+#btn-start-voice::after { content: "Iniciar Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
 
 #btn-stop-voice::before { content: "\f04d"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-stop-voice::after { content: "Detener Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
+#btn-stop-voice::after { content: "Detener Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
 
 #btn-pause-speech::before { content: "\f04c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-pause-speech::after { content: "Pausar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
+#btn-pause-speech::after { content: "Pausar Voz de IA"; position: absolute; top: -40px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 150px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
 
 #btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-resume-speech::after { content: "Reanudar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
+#btn-resume-speech::after { content: "Reanudar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 10px; max-width: 120px; text-align: center; opacity: 0; visibility: hidden; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 5000; }
 
 #btn-start-voice:hover::after,
 #btn-stop-voice:hover::after,
