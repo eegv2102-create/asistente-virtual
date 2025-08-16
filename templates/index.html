@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <!-- Nuevo: Previene zoom no deseado y optimiza móvil -->
+    <meta name="apple-mobile-web-app-capable" content="yes"> <!-- Nuevo: Soporte PWA en iOS para mejor experiencia móvil -->
     <title>💻 Tesis</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
@@ -60,7 +61,7 @@
                         <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz"><span class="voice-label">Detener</span> 🛑</button>
                         <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz">⏸️</button>
                         <button id="btn-resume-speech" aria-label="Reanudar voz del asistente" data-tooltip="Reanudar voz">▶️</button>
-                        <button id="send-btn" aria-label="Enviar mensaje">➤</button>
+                        <button id="send-btn" aria-label="Enviar mensaje al asistente">➤</button> <!-- Nuevo: aria-label más descriptivo -->
                     </div>
                 </div>
             </div>

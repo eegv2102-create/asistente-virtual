@@ -29,6 +29,22 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
+# Nuevo: Decorador para retry en Groq
+def retry_on_failure(max_attempts=3, delay=1):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_attempts - 1:
+                        logging.error(f"Error tras {max_attempts} intentos: {str(e)}")
+                        raise
+                    time.sleep(delay * (2 ** attempt))  # Backoff exponencial
+                    logging.debug(f"Reintentando ({attempt + 1}/{max_attempts})...")
+        return wrapper
+    return decorator
+
 # Funciones de respaldo para nlp.py
 try:
     from nlp import buscar_respuesta, classify_intent, normalize
@@ -181,7 +197,7 @@ MAX_RESPUESTA_LEN = 2000
 
 SINONIMOS = {
     "patrones de diseño": ["design patterns", "patrones", "patrones diseño"],
-    "multihilos": ["multithreading", "hilos", "threads"],
+    "multihilos": ["multithreading", "hilos", "thread"],
     "poo": ["programacion orientada a objetos", "oop", "orientada objetos"],
 }
 
@@ -197,38 +213,6 @@ def expandir_pregunta(pregunta):
             expandida.append(palabra)
     return " ".join(expandida)
 
-def consultar_groq_api(pregunta, nivel):
-    try:
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            logging.error("GROQ_API_KEY no está configurado")
-            return "Error: Falta la clave de API de Groq. Por favor, contacta al administrador."
-
-        logging.debug(f"Inicializando cliente de Groq con modelo=llama3-8b-8192")
-        client = Groq(api_key=api_key)
-        prompt = f"Eres un asistente de programación. Responde a la siguiente pregunta en un nivel {nivel}: {pregunta}"
-        logging.debug(f"Enviando solicitud a Groq: prompt={prompt[:100]}...")
-
-        completion = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[
-                {"role": "system", "content": "Eres un tutor de programación experto que adapta sus respuestas a los niveles básico, intermedio y avanzado."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=1,
-            max_tokens=MAX_RESPUESTA_LEN,
-            top_p=1,
-            stream=False,
-            stop=None
-        )
-        respuesta_ia = completion.choices[0].message.content.strip()
-        logging.debug(f"Respuesta de Groq recibida: {respuesta_ia[:100]}...")
-        return respuesta_ia[:MAX_RESPUESTA_LEN] + ("..." if len(respuesta_ia) > MAX_RESPUESTA_LEN else "")
-    except Exception as e:
-        logging.error(f"Error al consultar la API de Groq: {str(e)}")
-        logging.debug(f"Detalles del error: tipo={type(e).__name__}, mensaje={str(e)}")
-        return f"Error al consultar la API de Groq: {str(e)}. Intenta de nuevo o contacta al administrador."
-
 def buscar_respuesta_app(pregunta, usuario):
     try:
         logging.debug(f"Procesando pregunta: {pregunta}, usuario: {usuario}")
@@ -238,53 +222,46 @@ def buscar_respuesta_app(pregunta, usuario):
         aprendizaje = cargar_aprendizaje()
 
         if intent == "saludo":
-            logging.debug("Intención detectada: saludo")
             return aprendizaje.get(pregunta.lower(), "Hola, ¿qué quieres aprender sobre programación avanzada?")
         elif intent == "cambiar_nivel":
-            logging.debug("Intención detectada: cambiar_nivel")
             nuevo_nivel = "basico" if "basico" in pregunta else "intermedio" if "intermedio" in pregunta else "avanzado"
             guardar_progreso(usuario, progreso["puntos"], progreso["temas_aprendidos"], nuevo_nivel, progreso["avatar_id"])
             return f"Nivel cambiado a {nuevo_nivel}. ¿Qué tema quieres explorar ahora?"
         elif intent == "quiz":
-            logging.debug("Intención detectada: quiz")
             quiz_data = quiz().get_json()
             return quiz_data["pregunta"] + " Opciones: " + ", ".join(quiz_data["opciones"])
 
         expandida = expandir_pregunta(normalize(pregunta))
-        logging.debug(f"Pregunta expandida: {expandida}")
+        hits = buscar_respuesta(expandida, k=3)
 
-        try:
-            hits = buscar_respuesta(expandida, k=3)
-            logging.debug(f"Resultados de buscar_respuesta: {hits}")
-        except Exception as e:
-            logging.error(f"Error en buscar_respuesta: {str(e)}")
-            hits = []
-
-        if hits and len(hits) > 0 and hits[0][2] > 0.5:
+        # Nuevo: Estructura de respuesta
+        if hits and hits[0][2] > 0.5:
             tema, fragmento, _ = hits[0]
-            logging.debug(f"Tema encontrado: {tema}, fragmento: {fragmento}")
             if prerequisitos.get(tema) and any(cargar_dominio(usuario, prereq) < 0.6 for prereq in prerequisitos[tema]):
                 return f"Primero domina los prerequisitos: {', '.join(prerequisitos[tema])}. ¿Quieres empezar con ellos?"
 
+            respuesta_base = f"**Resumen**: {fragmento.split('.')[0]}.\n"
             if nivel == "basico":
-                respuesta = f"[Básico] {fragmento.split('.')[0]}. Analogía: Como un {tema} en la vida real. ¿Quieres un ejemplo simple o un quiz?"
+                respuesta_base += f"**Explicación Simple**: {fragmento}. Ejemplo: Como organizar tus juguetes en cajas.\n"
             elif nivel == "intermedio":
-                respuesta = f"[Intermedio] {fragmento}. Ejemplo práctico: class Ejemplo: ... ¿Quieres un ejercicio guiado?"
+                respuesta_base += f"**Explicación Práctica**: {fragmento}. Ejemplo de código: `class Ejemplo: pass`.\n"
             else:
-                respuesta = f"[Avanzado] {fragmento}. Pitfalls comunes: Sobrecarga. Referencia: docs.python.org. ¿Quieres un caso real o un quiz?"
+                respuesta_base += f"**Explicación Avanzada**: {fragmento}. Pitfall: Evita sobrecarga. Referencia: docs.python.org.\n"
+            respuesta_base += f"**Sugerencia**: Prueba un quiz sobre {tema} o explora {random.choice(list(temas.keys()))}."
             
-            log_interaccion(usuario, pregunta, respuesta)
+            log_interaccion(usuario, pregunta, respuesta_base)
             actualizar_dominio(usuario, tema, 0.1)
-            return respuesta
+            return respuesta_base
 
         match = process.extractOne(expandida, aprendizaje.keys())
         if match and match[1] >= FUZZY_THRESHOLD:
-            logging.debug(f"Respuesta encontrada en aprendizaje: {match[0]}")
             return aprendizaje[match[0]]
-        
+
         respuesta = consultar_groq_api(pregunta, nivel)
-        log_interaccion(usuario, pregunta, respuesta)
-        return respuesta + " ¿Quieres saber más o un quiz?"
+        # Nuevo: Estructurar respuesta de Groq
+        respuesta_structured = f"**Resumen**: {respuesta[:100]}...\n**Detalles**: {respuesta}\n**Sugerencia**: ¿Quieres un ejemplo práctico o un quiz?"
+        log_interaccion(usuario, pregunta, respuesta_structured)
+        return respuesta_structured
         
     except Exception as e:
         logging.error(f"Error en buscar_respuesta_app: {str(e)}")
@@ -358,8 +335,10 @@ def respuesta():
 
         if "temas que contengan" in pregunta:
             query = pregunta.replace("temas que contengan", "").strip().lower()
-            todos_los_temas = list(temas.keys()) + list(cargar_aprendizaje().keys())
-            temas_filtrados = [tema for tema in todos_los_temas if query in tema.lower()]
+            temas_filtrados = [tema for tema in temas.keys() if query in tema.lower()]
+            temas_aprendizaje = cargar_aprendizaje()
+            temas_filtrados.extend([p for p in temas_aprendizaje.keys() if query in p.lower()])
+            temas_filtrados = list(set(temas_filtrados))  # Eliminar duplicados
             progreso = cargar_progreso(usuario)
             if temas_filtrados:
                 return jsonify({"respuesta": f"Temas encontrados: {', '.join(temas_filtrados)}. Tienes {progreso['puntos']} puntos y has aprendido: {progreso['temas_aprendidos'] or 'ningún tema aún'}."})
@@ -576,7 +555,7 @@ def analytics():
             {
                 "tema": row[0],
                 "dominio": float(row[1]),
-                "tasa_acierto": float(row[2] / (row[2] + row[3] or 1))  # Evitar división por cero
+                "tasa_acierto": float(row[2] / (row[2] + row[3] or 1))
             } for row in data
         ]
         logging.debug(f"Datos de analytics: {result}")
@@ -614,6 +593,28 @@ def tts():
     except Exception as e:
         logging.error(f"Error en /tts: {str(e)}")
         return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
+
+# Nuevo: Endpoint para feedback
+@app.route("/feedback", methods=["POST"])
+@limiter.limit("10 per minute")
+def feedback():
+    try:
+        data = request.get_json()
+        usuario = data.get("usuario", "anonimo")
+        positive = data.get("positive", False)
+        logging.debug(f"Feedback recibido: usuario={usuario}, positive={positive}")
+        
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        c = conn.cursor()
+        c.execute("INSERT INTO logs (usuario, pregunta, respuesta) VALUES (%s, %s, %s)",
+                  (usuario, "Feedback", f"{'Positivo' if positive else 'Negativo'}"))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"mensaje": "Feedback registrado"})
+    except Exception as e:
+        logging.error(f"Error en /feedback: {str(e)}")
+        return jsonify({"error": f"Error al registrar feedback: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()
