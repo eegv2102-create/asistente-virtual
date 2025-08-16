@@ -233,7 +233,7 @@ const cargarChat = index => {
         return;
     }
     container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    container.scrollTop = container.scrollHeight;
+    container.scrollTop = container.scrollHeight; // Añadido para desplazamiento al cargar chat
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
@@ -287,7 +287,7 @@ const cargarConversacionActual = () => {
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container || !currentConversation.mensajes?.length) return;
     container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    container.scrollTop = container.scrollHeight;
+    container.scrollTop = container.scrollHeight; // Añadido para desplazamiento al cargar
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
@@ -363,7 +363,7 @@ const sendMessage = () => {
     userDiv.classList.add('user');
     userDiv.textContent = pregunta;
     container.appendChild(userDiv);
-    container.scrollTop = container.scrollHeight;
+    container.scrollTop = container.scrollHeight; // Añadido para desplazamiento
 
     fetch('/respuesta', {
         method: 'POST',
@@ -386,14 +386,14 @@ const sendMessage = () => {
                         if (window.Prism) Prism.highlightAllUnder(botDiv);
                         speakText(respuesta);
                         guardarMensaje(pregunta, respuesta);
-                        container.scrollTop = container.scrollHeight;
+                        container.scrollTop = container.scrollHeight; // Añadido para desplazamiento
                         addCopyButtonListeners();
                         return;
                     }
                     const chunk = decoder.decode(value);
                     respuesta += chunk;
                     botDiv.innerHTML = marked.parse(respuesta);
-                    container.scrollTop = container.scrollHeight;
+                    container.scrollTop = container.scrollHeight; // Añadido para desplazamiento en streaming
                     read();
                 }).catch(error => {
                     botDiv.classList.remove('typing');
@@ -414,10 +414,10 @@ const sendMessage = () => {
                     }
                     botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                     container.appendChild(botDiv);
+                    container.scrollTop = container.scrollHeight; // Añadido para desplazamiento
                     if (window.Prism) Prism.highlightAllUnder(botDiv);
                     speakText(data.respuesta);
                     guardarMensaje(pregunta, data.respuesta);
-                    container.scrollTop = container.scrollHeight;
                     addCopyButtonListeners();
                 }
             }).catch(error => {
@@ -457,10 +457,10 @@ const buscarTema = () => {
                 }
                 botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                 container.appendChild(botDiv);
+                container.scrollTop = container.scrollHeight; // Añadido para desplazamiento
                 if (window.Prism) Prism.highlightAllUnder(botDiv);
                 speakText(data.respuesta);
                 guardarMensaje(`Explica ${query}`, data.respuesta);
-                container.scrollTop = container.scrollHeight;
                 addCopyButtonListeners();
             }
         }).catch(error => {
@@ -485,10 +485,10 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
             botDiv.classList.add('bot');
             botDiv.innerHTML = marked.parse(data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
             container.appendChild(botDiv);
+            container.scrollTop = container.scrollHeight; // Añadido para desplazamiento
             if (window.Prism) Prism.highlightAllUnder(botDiv);
             speakText(data.respuesta);
             guardarMensaje(`Respuesta Quiz ${tema}`, data.respuesta);
-            container.scrollTop = container.scrollHeight;
             addCopyButtonListeners();
         }).catch(error => {
             mostrarNotificacion(`Error en quiz: ${error.message}`, 'error');
@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const recomendacion = `Te recomiendo estudiar: ${data.recomendacion}`;
                         botDiv.innerHTML = marked.parse(recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                         container.appendChild(botDiv);
-                        container.scrollTop = container.scrollHeight;
+                        container.scrollTop = container.scrollHeight; // Añadido para desplazamiento
                         speakText(recomendacion);
                         guardarMensaje('Recomendación', recomendacion);
                         if (window.Prism) Prism.highlightAllUnder(botDiv);
@@ -627,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     opcionesHtml += '</div>';
                     const pregunta = `${data.pregunta}<br>Opciones:<br>${opcionesHtml}`;
                     container.innerHTML += `<div class="bot">${marked.parse(pregunta)}<button class="copy-btn" data-text="${data.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
-                    container.scrollTop = container.scrollHeight;
+                    container.scrollTop = container.scrollHeight; // Añadido para desplazamiento
                     guardarMensaje('Quiz', `${data.pregunta}\nOpciones: ${data.opciones.join(', ')}`);
                     getElements('.quiz-option').forEach(btn => {
                         btn.addEventListener('click', () => {
