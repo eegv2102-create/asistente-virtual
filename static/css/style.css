@@ -273,31 +273,7 @@ h3 {
 #btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
 #btn-resume-speech::after { content: "Reanudar Voz de IA"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
 
-#btn-start-voice:hover::after,
-#btn-stop-voice:hover::after,
-#btn-pause-speech:hover::after,
-#btn-resume-speech:hover::after {
-    opacity: 1;
-    visibility: visible;
-}
-
-#btn-start-voice::after,
-#btn-stop-voice::after,
-#btn-pause-speech::after,
-#btn-resume-speech::after {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity var(--transition);
-    z-index: 1001; /* Asegura que esté por encima de otros elementos */
-}
-
+#send-btn::before { content: "\f1d8"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
 #send-btn::after { content: "Enviar"; top: -35px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; padding: 4px 8px; z-index: 1001; }
 
 #btn-start-voice:hover::after,
@@ -708,7 +684,7 @@ body:not(.modo-claro) .bot {
     align-items: center;
     justify-content: center;
     position: relative;
-    font-size: clamp(14px, 2vw, 16px);
+    font-size: 0; /* Elimina texto para mostrar solo iconos */
 }
 
 .input-group button:hover {
