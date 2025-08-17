@@ -28,12 +28,19 @@ const scrollToBottom = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (!chatbox || !container) return;
-    // Retraso mayor para móviles
+    // Aumentar retraso para asegurar DOM actualizado, especialmente en móviles
     setTimeout(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
-        // Respaldo para navegadores móviles
-        container.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 100); // Aumentado de 0ms a 100ms para dar tiempo al DOM
+        // Respaldo: forzar scroll al último mensaje
+        const lastMessage = container.lastElementChild;
+        if (lastMessage) {
+            lastMessage.scrollIntoView({ behavior: 'auto', block: 'end' }); // Usar 'auto' para evitar conflictos
+        }
+        // Forzar recalculo de scroll en móviles
+        if (window.innerWidth <= 768) {
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+    }, 300); // Aumentado a 300ms para móviles y PC
 };
 
 const speakText = text => {
@@ -246,9 +253,7 @@ const cargarChat = index => {
         return;
     }
     container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    setTimeout(() => {
-        chatbox.scrollTop = chatbox.scrollHeight;
-    }, 0);
+    scrollToBottom();
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
@@ -292,6 +297,7 @@ const nuevaConversacion = () => {
     if (input) input.value = '';
     localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
     mostrarNotificacion('Nuevo chat creado', 'success');
+    scrollToBottom();
 };
 
 const limpiarChat = () => {
@@ -304,9 +310,7 @@ const cargarConversacionActual = () => {
     const container = chatbox?.querySelector('.message-container');
     if (!container || !chatbox || !currentConversation.mensajes?.length) return;
     container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    setTimeout(() => {
-        chatbox.scrollTop = chatbox.scrollHeight;
-    }, 0);
+    scrollToBottom();
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
@@ -590,45 +594,37 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarAnalytics();
 
     // Evento input para forzar scroll al escribir
-    const input = elements.input;
-    const chatbox = elements.chatbox;
-    const container = chatbox?.querySelector('.message-container');
-    if (input && chatbox) {
-        input.addEventListener('input', () => {
+    if (elements.input && elements.chatbox) {
+        elements.input.addEventListener('input', () => {
             scrollToBottom();
         });
-        // Forzar scroll al enfocar el input, con retraso para teclado virtual
-        input.addEventListener('focus', () => {
+        // Forzar scroll al enfocar el input
+        elements.input.addEventListener('focus', () => {
             setTimeout(() => {
                 scrollToBottom();
-                input.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            }, 300); // Aumentado a 300ms para esperar al teclado virtual
+                elements.input.scrollIntoView({ behavior: 'auto', block: 'end' });
+            }, 500); // Retraso para teclado virtual
         });
     }
 
-    // MutationObserver para detectar cambios dinámicos y scrollear automáticamente
-    if (container && chatbox) {
+    // MutationObserver para detectar cambios en el chat
+    const container = elements.chatbox?.querySelector('.message-container');
+    if (container && elements.chatbox) {
         const observer = new MutationObserver(() => {
             scrollToBottom();
         });
         observer.observe(container, { childList: true, subtree: true });
     }
 
-    // Ajustar dinámicamente la altura de #chatbox y padding-bottom
-    if (window.visualViewport) {
+    // Ajustar dinámicamente altura y padding para teclado virtual
+    if (window.visualViewport && elements.chatbox) {
         window.visualViewport.addEventListener('resize', () => {
-            const chatbox = getElement('#chatbox');
-            const input = getElement('#input');
-            if (chatbox && input) {
-                const viewportHeight = window.visualViewport.height;
-                const windowHeight = window.innerHeight;
-                const keyboardHeight = windowHeight - viewportHeight;
-                // Ajustar altura de chatbox para que ocupe el viewport disponible
-                chatbox.style.height = `${viewportHeight - 150}px`; // 150px para input y márgenes
-                chatbox.style.paddingBottom = `${Math.max(200, keyboardHeight + 50)}px`; // Aumentado para mayor espacio
-                input.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                scrollToBottom();
-            }
+            const viewportHeight = window.visualViewport.height;
+            const windowHeight = window.innerHeight;
+            const keyboardHeight = windowHeight - viewportHeight;
+            elements.chatbox.style.height = `${viewportHeight - 100}px`; // Ajustado para input
+            elements.chatbox.style.paddingBottom = `${Math.max(250, keyboardHeight + 50)}px`; // Más espacio
+            scrollToBottom();
         });
     }
 
@@ -637,8 +633,6 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.input.addEventListener('keypress', e => {
             if (e.key === 'Enter') sendMessage();
         });
-    } else {
-        console.error('sendBtn o input no encontrados');
     }
 
     if (elements.clearBtn) {
