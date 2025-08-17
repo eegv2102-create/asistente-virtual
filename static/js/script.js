@@ -78,7 +78,6 @@ const speakText = text => {
             canvas.style.opacity = '1';
             draw();
         }
-        scrollToBottom(); // Asegurar scroll tras iniciar la voz
     }).catch(error => {
         console.error('TTS /tts falló, usando speechSynthesis fallback', error);
         const utterance = new SpeechSynthesisUtterance(text);
@@ -86,7 +85,6 @@ const speakText = text => {
         speechSynthesis.speak(utterance);
         currentAudio = utterance;
         if (botMessage) botMessage.classList.remove('speaking');
-        scrollToBottom();
     });
 };
 
@@ -209,7 +207,6 @@ const guardarMensaje = (pregunta, respuesta, video_url = null) => {
     historial[currentConversation.id].mensajes = currentConversation.mensajes;
     localStorage.setItem('chatHistory', JSON.stringify(historial));
     actualizarListaChats();
-    scrollToBottom(); // Asegurar scroll tras guardar mensaje
 };
 
 const actualizarListaChats = () => {
@@ -251,8 +248,7 @@ const cargarChat = index => {
     container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
     setTimeout(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
-        container.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 100); // Aumentado a 100ms para móviles
+    }, 0);
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
@@ -296,7 +292,6 @@ const nuevaConversacion = () => {
     if (input) input.value = '';
     localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
     mostrarNotificacion('Nuevo chat creado', 'success');
-    scrollToBottom();
 };
 
 const limpiarChat = () => {
@@ -311,8 +306,7 @@ const cargarConversacionActual = () => {
     container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
     setTimeout(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
-        container.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 100); // Aumentado a 100ms para móviles
+    }, 0);
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
@@ -824,7 +818,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
-            scrollToBottom(); // Asegurar scroll tras abrir/cerrar menú
         });
 
         elements.menuToggleRight.addEventListener('click', () => {
@@ -838,7 +831,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
-            scrollToBottom(); // Asegurar scroll tras abrir/cerrar menú
         });
 
         document.addEventListener('click', (event) => {
@@ -863,7 +855,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     rightSection.style.transform = 'translateX(100%)';
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
-                scrollToBottom(); // Asegurar scroll tras cerrar menús
             }
         });
     }
@@ -872,7 +863,6 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.toggleAprendizajeBtn.addEventListener('click', () => {
             const aprendizajeCard = getElement('#aprendizajeCard');
             if (aprendizajeCard) aprendizajeCard.classList.toggle('active');
-            scrollToBottom(); // Asegurar scroll tras abrir/cerrar card
         });
     }
 

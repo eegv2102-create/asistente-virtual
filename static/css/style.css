@@ -322,8 +322,9 @@ h3 {
 
 #btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after, #send-btn::after {
     position: absolute;
-    top: -40px; /* Posición arriba */
-    left: -10px; /* Ligeramente a la izquierda */
+    top: -40px; /* Mantener arriba */
+    left: -150px; /* Mover más a la izquierda para diagonal */
+    transform: translateY(-50%) translateX(-50%); /* Ajuste para diagonal arriba-izquierda */
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
@@ -443,7 +444,7 @@ h3 {
     position: relative;
     height: calc(100% - 90px); /* Ajustado dinámicamente en JS */
     margin-bottom: 10px;
-    scroll-behavior: smooth; /* Mantenido para scroll suave */
+    scroll-behavior: smooth;
 }
 
 #chatbox[aria-live="polite"] {
@@ -537,6 +538,7 @@ h3 {
     box-shadow: var(--shadow);
     border: 2px solid color-mix(in srgb, var(--border), var(--accent) 20%);
     font-weight: 400;
+    animation: none; /* Desactivar animaciones para evitar interferencias con scroll */
 }
 
 .user:hover, .bot:hover {
@@ -726,14 +728,14 @@ body:not(.modo-claro) .bot {
     padding: var(--spacing);
     border-top: 3px solid color-mix(in srgb, var(--border), var(--accent) 40%);
     background: color-mix(in srgb, var(--bg), #000 10%);
-    position: fixed; /* Cambiado a fixed para móviles */
+    position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 30;
     box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
     align-items: center;
-    min-height: 60px; /* Asegura espacio para botones */
+    min-height: 60px;
 }
 
 .input-group button {
@@ -772,6 +774,7 @@ body:not(.modo-claro) .bot {
     overflow: hidden;
     height: 100%;
     transition: transform 0.3s ease;
+    z-index: 50; /* Aumentado para asegurar interacción */
 }
 
 .tab-buttons {
@@ -973,6 +976,7 @@ body:not(.modo-claro) .bot {
 
 .menu-toggle-right {
     right: calc(var(--spacing) * 1.5);
+    z-index: 70; /* Aumentado para asegurar interacción */
 }
 
 .menu-toggle:hover, .menu-toggle-right:hover {
@@ -1114,6 +1118,7 @@ body:not(.modo-claro) .bot {
         transform: translateX(100%);
         right: 0;
         width: min(300px, 80vw);
+        z-index: 50; /* Aumentado para interacción */
     }
 
     .right-section.active {
@@ -1169,15 +1174,15 @@ body:not(.modo-claro) .bot {
     }
 
     .tab-content > div.active {
-        padding-bottom: 200px; /* Aumentado para teclado virtual */
+        padding-bottom: 200px;
         overflow-y: auto;
     }
 
     #chatbox {
         margin-bottom: 12px;
-        padding-bottom: 200px; /* Aumentado para teclado virtual */
+        padding-bottom: 200px;
         scroll-padding-bottom: 200px;
-        height: calc(100% - 90px); /* Ajustado dinámicamente en JS */
+        height: calc(100% - 90px);
     }
 
     .search-container {
@@ -1187,7 +1192,7 @@ body:not(.modo-claro) .bot {
 
     .user, .bot {
         max-width: 90%;
-        animation: none; /* Desactivar animaciones en móviles para mejorar rendimiento */
+        animation: none; /* Desactivar animaciones en móviles */
     }
 
     .left-section button::after, .nivel-btn::after {
