@@ -1033,7 +1033,6 @@ body:not(.modo-claro) .bot {
         position: fixed;
         top: 50px;
         bottom: 0;
-        width: 60px; /* Limitado al tamaño de los iconos */
         z-index: 20;
         transition: transform 0.3s ease;
         border: 1px solid var(--border);
@@ -1042,6 +1041,7 @@ body:not(.modo-claro) .bot {
 
     .left-section {
         transform: translateX(-100%);
+        width: 60px; /* Mantener ancho limitado para iconos */
     }
 
     .left-section.active {
@@ -1050,10 +1050,14 @@ body:not(.modo-claro) .bot {
 
     .right-section {
         transform: translateX(100%);
+        right: 0;
+        width: min(300px, 80vw); /* Ajustado: Ancho responsivo */
     }
 
     .right-section.active {
         transform: translateX(0);
+        overflow-y: auto; /* Permitir scroll en contenido */
+        border-left: 1px solid var(--border); /* Separación visual */
     }
 
     .menu-toggle, .menu-toggle-right {
@@ -1067,6 +1071,8 @@ body:not(.modo-claro) .bot {
         right: 0;
         padding: var(--spacing);
         flex-wrap: wrap;
+        z-index: 20;
+        min-height: 60px; /* Asegurar altura consistente */
     }
 
     .input-group button {
@@ -1076,19 +1082,32 @@ body:not(.modo-claro) .bot {
     }
 
     .right-section .tab-buttons {
-        flex-direction: column; /* Ajuste vertical para pestañas */
+        flex-direction: row;
+        justify-content: space-between;
         gap: calc(var(--spacing) / 2);
+        padding: calc(var(--spacing) / 2);
     }
 
     .right-section .tab-btn {
-        width: 100%; /* Ocupar todo el ancho */
-        padding: calc(var(--spacing) * 0.5);
-        font-size: 14px; /* Tamaño legible en móvil */
+        font-size: 12px;
+        padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 0.75);
+    }
+
+    @media (max-width: 400px) {
+        .right-section .tab-buttons {
+            flex-direction: column;
+            gap: calc(var(--spacing) / 2);
+        }
     }
 
     .tab-content > div.active {
-        padding-bottom: 60px; /* Espacio para evitar superposición con input-group */
-        overflow-y: auto; /* Scroll para historial completo */
+        padding-bottom: 80px;
+        overflow-y: auto;
+    }
+
+    #chatbox {
+        margin-bottom: 70px;
+        padding-bottom: 80px; /* Añadido: Espacio para evitar solapamiento */
     }
 
     .search-container {
@@ -1114,8 +1133,10 @@ body:not(.modo-claro) .bot {
         margin-right: 4px;
     }
 
-    #chatbox {
-        margin-bottom: 70px; /* Espacio adicional para input-group en móvil */
+    #chat-list li {
+        font-size: 12px;
+        padding: calc(var(--spacing) * 1);
+        min-height: auto;
     }
 }
 
