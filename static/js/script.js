@@ -1,5 +1,4 @@
-// script.js (Modificado: Eliminadas funciones de modo aprendizaje. Agregado mensaje bienvenida al cargar. Ajustes para nuevo layout, botones fusionados (toggle-voice-user para pause/resume voz usuario), diferenciados pause/play voz IA (pause-ia-voice, play-ia-voice). Funciones para nuevo/eliminar chat. Responsive handlers. Descargas TXT/PDF funcionan como antes.)
-let vozActiva = true, isListening = false, recognition = null, voicesLoaded = false;
+let vozActiva = true, isListening = false, recognition = null;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
 const { jsPDF } = window.jspdf;
@@ -9,13 +8,10 @@ const getElements = selector => document.querySelectorAll(selector);
 
 const mostrarNotificacion = (mensaje, tipo = 'info') => {
     const card = getElement('#notification-card');
-    if (!card) {
-        console.error('Elemento #notification-card no encontrado');
-        return;
-    }
+    if (!card) return;
     card.innerHTML = `
         <p>${mensaje}</p>
-        <button onclick="this.parentElement.classList.remove('active')">Cerrar</button>
+        <button aria-label="Cerrar notificación" onclick="this.parentElement.classList.remove('active')">Cerrar</button>
     `;
     card.classList.add('active', tipo);
     card.style.animation = 'fadeIn 0.5s ease-out';
@@ -31,13 +27,6 @@ const scrollToBottom = () => {
     if (!chatbox || !container) return;
     requestAnimationFrame(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
-        const lastMessage = container.lastElementChild;
-        if (lastMessage) {
-            lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-        if (window.innerWidth <= 768) {
-            chatbox.scrollTop = chatbox.scrollHeight;
-        }
     });
 };
 
@@ -109,36 +98,52 @@ const speakText = text => {
 };
 
 const toggleVoiceUser = () => {
-    // Toggle para voz usuario (microfono)
+    if (!('webkitSpeechRecognition' in window)) {
+        mostrarNotificacion('Reconocimiento de voz no soportado', 'error');
+        return;
+    }
     if (isListening) {
         recognition.stop();
         isListening = false;
-        mostrarNotificacion('Voz usuario pausada');
+        getElement('#toggle-voice-user').querySelector('i').classList.remove('fa-microphone-slash');
+        getElement('#toggle-voice-user').querySelector('i').classList.add('fa-microphone');
+        mostrarNotificacion('Voz usuario desactivada');
     } else {
-        startListening();
+        recognition = new webkitSpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.onresult = event => {
+            const transcript = event.results[0][0].transcript;
+            getElement('#input').value = transcript;
+            sendMessage();
+        };
+        recognition.start();
         isListening = true;
-        mostrarNotificacion('Voz usuario activa');
+        getElement('#toggle-voice-user').querySelector('i').classList.remove('fa-microphone');
+        getElement('#toggle-voice-user').querySelector('i').classList.add('fa-microphone-slash');
+        mostrarNotificacion('Voz usuario activada');
     }
 };
 
 const pauseIAVoice = () => {
-    if (currentAudio) currentAudio.pause();
-    mostrarNotificacion('Voz IA pausada');
+    if (currentAudio) {
+        currentAudio.pause();
+        mostrarNotificacion('Voz IA pausada');
+    }
 };
 
 const playIAVoice = () => {
-    if (currentAudio && currentAudio.paused) currentAudio.play();
-    mostrarNotificacion('Voz IA reanudada');
+    if (currentAudio && currentAudio.paused) {
+        currentAudio.play();
+        mostrarNotificacion('Voz IA reanudada');
+    }
 };
 
 const newChat = () => {
-    // Limpiar chat actual
     getElement('#chatbox .message-container').innerHTML = '';
     mostrarNotificacion('Nuevo chat iniciado');
 };
 
 const deleteChat = () => {
-    // Eliminar chat actual (limpiar)
     getElement('#chatbox .message-container').innerHTML = '';
     mostrarNotificacion('Chat eliminado');
 };
@@ -175,7 +180,45 @@ const exportarPdf = () => {
     doc.save('chat.pdf');
 };
 
+const sendMessage = () => {
+    const input = getElement('#input');
+    const pregunta = input.value.trim();
+    if (!pregunta) return;
+    const messageContainer = getElement('.message-container');
+    const userMsg = document.createElement('div');
+    userMsg.classList.add('user');
+    userMsg.textContent = pregunta;
+    messageContainer.appendChild(userMsg);
+    scrollToBottom();
+    input.value = '';
+    fetch('/preguntar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta })
+    }).then(res => res.json()).then(data => {
+        if (data.respuesta) {
+            const botMsg = document.createElement('div');
+            botMsg.classList.add('bot');
+            botMsg.textContent = data.respuesta;
+            messageContainer.appendChild(botMsg);
+            scrollToBottom();
+            speakText(data.respuesta);
+        }
+    }).catch(error => {
+        mostrarNotificacion(`Error: ${error.message}`, 'error');
+    });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/js/sw.js').then(reg => {
+            console.log('Service Worker registrado', reg);
+        }).catch(err => {
+            console.error('Error al registrar Service Worker', err);
+        });
+    }
+
     // Cargar progreso y bienvenida
     fetch('/progreso').then(res => res.json()).then(data => {
         if (data.bienvenida) {
@@ -189,7 +232,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Event listeners para nuevos botones
+    // Cargar avatares
+    fetch('/avatars').then(res => res.json()).then(data => {
+        const avatarOptions = getElement('#avatar-options');
+        data.forEach(avatar => {
+            const img = document.createElement('img');
+            img.src = avatar.url;
+            img.alt = `Avatar ${avatar.nombre}`;
+            img.title = avatar.nombre;
+            img.dataset.avatarId = avatar.avatar_id;
+            img.addEventListener('click', () => {
+                selectedAvatar = avatar.avatar_id;
+                localStorage.setItem('selectedAvatar', selectedAvatar);
+                getElements('.avatar-selection img').forEach(i => i.classList.remove('selected'));
+                img.classList.add('selected');
+            });
+            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
+            avatarOptions.appendChild(img);
+        });
+    });
+
+    // Event listeners
     getElement('#toggle-voice-user').addEventListener('click', toggleVoiceUser);
     getElement('#pause-ia-voice').addEventListener('click', pauseIAVoice);
     getElement('#play-ia-voice').addEventListener('click', playIAVoice);
@@ -197,10 +260,28 @@ document.addEventListener('DOMContentLoaded', () => {
     getElement('#delete-chat').addEventListener('click', deleteChat);
     getElement('#export-txt').addEventListener('click', exportarTxt);
     getElement('#export-pdf').addEventListener('click', exportarPdf);
-
-    // Toggle dark mode (como antes, pero en historial controls)
     getElement('#toggle-dark-mode').addEventListener('click', () => {
         document.body.classList.toggle('modo-claro');
+        mostrarNotificacion(document.body.classList.contains('modo-claro') ? 'Modo claro activado' : 'Modo oscuro activado');
+    });
+    getElement('#send').addEventListener('click', sendMessage);
+    getElement('#input').addEventListener('keypress', e => {
+        if (e.key === 'Enter') sendMessage();
+    });
+    getElement('#send-feedback').addEventListener('click', () => {
+        const comentario = getElement('#feedback-input').value.trim();
+        if (!comentario) {
+            mostrarNotificacion('Por favor, escribe un comentario', 'error');
+            return;
+        }
+        fetch('/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comentario })
+        }).then(res => res.json()).then(data => {
+            mostrarNotificacion(data.mensaje || data.error, data.error ? 'error' : 'success');
+            getElement('#feedback-input').value = '';
+        });
     });
 
     // Niveles
@@ -213,44 +294,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ nivel })
             }).then(res => res.json()).then(data => {
                 mostrarNotificacion(data.mensaje);
-                document.body.className = `nivel-${nivel}`;
+                document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
             });
         });
     });
 
-    // Enviar pregunta
-    getElement('#send').addEventListener('click', () => {
-        const input = getElement('#input');
-        const pregunta = input.value.trim();
-        if (!pregunta) return;
-        const messageContainer = getElement('.message-container');
-        const userMsg = document.createElement('div');
-        userMsg.classList.add('user');
-        userMsg.textContent = pregunta;
-        messageContainer.appendChild(userMsg);
-        scrollToBottom();
-        input.value = '';
-        fetch('/preguntar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pregunta })
-        }).then(res => res.json()).then(data => {
-            if (data.respuesta) {
-                const botMsg = document.createElement('div');
-                botMsg.classList.add('bot');
-                botMsg.textContent = data.respuesta;
-                messageContainer.appendChild(botMsg);
-                scrollToBottom();
-                speakText(data.respuesta);
-            }
+    // Tooltips
+    getElements('[data-tooltip]').forEach(btn => {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'custom-tooltip';
+        tooltip.textContent = btn.dataset.tooltip;
+        tooltip.style.position = 'absolute';
+        tooltip.style.background = 'rgba(0, 0, 0, 0.95)';
+        tooltip.style.color = '#fff';
+        tooltip.style.padding = '8px 12px';
+        tooltip.style.borderRadius = '6px';
+        tooltip.style.fontSize = '12px';
+        tooltip.style.zIndex = '10000';
+        tooltip.style.opacity = '0';
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.transition = 'opacity 0.3s ease, visibility 0.3s ease';
+        document.body.appendChild(tooltip);
+
+        btn.addEventListener('mouseenter', (e) => {
+            const rect = btn.getBoundingClientRect();
+            tooltip.style.top = `${rect.top + rect.height + 5}px`;
+            tooltip.style.left = `${rect.left + rect.width / 2}px`;
+            tooltip.style.transform = 'translateX(-50%)';
+            tooltip.style.opacity = '1';
+            tooltip.style.visibility = 'visible';
+        });
+
+        btn.addEventListener('mouseleave', () => {
+            tooltip.style.opacity = '0';
+            tooltip.style.visibility = 'hidden';
+        });
+
+        btn.addEventListener('focus', (e) => {
+            const rect = btn.getBoundingClientRect();
+            tooltip.style.top = `${rect.top + rect.height + 5}px`;
+            tooltip.style.left = `${rect.left + rect.width / 2}px`;
+            tooltip.style.transform = 'translateX(-50%)';
+            tooltip.style.opacity = '1';
+            tooltip.style.visibility = 'visible';
+        });
+
+        btn.addEventListener('blur', () => {
+            tooltip.style.opacity = '0';
+            tooltip.style.visibility = 'hidden';
         });
     });
-
-    // Responsive menu toggles si es necesario (para left/right en móvil)
-    if (window.innerWidth <= 768) {
-        // Agregar toggles si no están, pero asumimos se manejan con CSS position fixed y class active
-        const leftSection = getElement('.left-section');
-        const rightSection = getElement('.right-section');
-        // Añadir botones toggle si es necesario, pero por simplicidad, asumir touch/click abre/cierra
-    }
 });

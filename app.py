@@ -1,4 +1,3 @@
-# app.py (Modificado: Eliminadas referencias a prerequisitos.json y funciones relacionadas. Eliminada ruta /aprender y cualquier código de modo aprendizaje. Modificado /preguntar para usar Groq con prompts diferenciados por nivel, incluyendo ejemplos de código y estilo de enseñanza. Agregado mensaje de bienvenida al cargar progreso. Ajustes menores para consistencia.)
 import time
 import json
 import os
@@ -8,7 +7,6 @@ import socket
 import webbrowser
 from flask import Flask, render_template, request, jsonify
 from fuzzywuzzy import process
-from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from gtts import gTTS
@@ -23,12 +21,13 @@ import bleach
 # Cargar variables de entorno
 load_dotenv()
 
-app = Flask(__name__)
+# Configuración de Flask para Render
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 # Configuración de logging optimizada para Render
 logging.basicConfig(
     filename='app.log',
-    level=logging.INFO,  # Reducido a INFO para menos ruido en logs
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -37,7 +36,7 @@ try:
     from nlp import buscar_respuesta, classify_intent, normalize
 except ImportError as e:
     logging.error(f"No se pudo importar nlp.py: {str(e)}")
-    def buscar_respuesta(pregunta, k=3):
+    def buscar_respuesta(pregunta, k=3, nivel="basico"):
         logging.warning("Usando buscar_respuesta de respaldo")
         return []
     def classify_intent(pregunta):
@@ -54,19 +53,20 @@ except ImportError as e:
         return pregunta.lower()
 
 # Rate limiting ajustado para Render
-limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])  # Aumentado para mayor flexibilidad
+limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])
 
 def init_db():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        # Cambiar nivel predeterminado a 'basico'
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', nivel TEXT DEFAULT 'basico', avatar_id TEXT DEFAULT 'default')''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS feedback
+                     (id SERIAL PRIMARY KEY, usuario TEXT, comentario TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", "/static/animations/default.json"))
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
@@ -277,7 +277,6 @@ def quiz():
         progreso = cargar_progreso(usuario)
         nivel = progreso["nivel"]
         dificultad = "facil" if nivel == "basico" else "medio" if nivel == "intermedio" else "dificil"
-        # Usar temas.json por nivel
         base_pregunta = temas.get(tema, {}).get(nivel, temas[tema].split('.')[0])
         pregunta = f"¿Qué describe mejor {tema} en nivel {dificultad}?"
         opciones = [base_pregunta.split('.')[0]]
@@ -365,9 +364,29 @@ def tts():
         logging.error(f"Error en /tts: {str(e)}")
         return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
 
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    try:
+        data = request.get_json()
+        if not data or "comentario" not in data:
+            return jsonify({"error": "Falta el comentario"}), 400
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        comentario = bleach.clean(data.get("comentario").strip()[:1000])
+        if not comentario:
+            return jsonify({"error": "Comentario vacío"}), 400
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        c = conn.cursor()
+        c.execute("INSERT INTO feedback (usuario, comentario) VALUES (%s, %s)", (usuario, comentario))
+        conn.commit()
+        conn.close()
+        logging.info(f"Feedback recibido de {usuario}: {comentario}")
+        return jsonify({"mensaje": "Gracias por tu retroalimentación"})
+    except Exception as e:
+        logging.error(f"Error en /feedback: {str(e)}")
+        return jsonify({"error": f"Error al procesar retroalimentación: {str(e)}"}), 500
+
 if __name__ == "__main__":
     init_db()
-    # Deshabilitar webbrowser.open en Render (solo para desarrollo local)
     if os.getenv("RENDER", "false").lower() != "true":
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -376,4 +395,4 @@ if __name__ == "__main__":
             webbrowser.open("http://localhost:5000")
         except OSError:
             logging.warning("Puerto 5000 en uso.")
-    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))  # Ajuste para Render
+    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

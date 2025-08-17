@@ -1,18 +1,16 @@
-/* style.css (Modificado: Ajustes para nuevo layout, responsive PC/móvil, botones fusionados/diferenciados, posiciones de controles abajo de historial, niveles abajo de avatar.) */
 /* Variables globales */
 :root {
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     --radius: 8px;
     --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.15s ease;
-    --spacing: 6px;
+    --spacing: 8px;
     --font-base: 16px;
     --font-scale: 1.1;
-    --spacing-base: 6px;
 }
 
-/* Fluid typography with fixed base for consistent zoom */
+/* Fluid typography */
 html {
-    font-size: 16px;
+    font-size: var(--font-base);
 }
 
 /* Enhanced accessibility */
@@ -126,7 +124,6 @@ body {
     overflow: hidden;
     transition: var(--transition);
     line-height: 1.5;
-    zoom: 100%;
 }
 
 .container {
@@ -158,8 +155,6 @@ h3 {
     position: sticky;
     top: 0;
     z-index: 10;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 .main-layout {
@@ -187,12 +182,7 @@ h3 {
     flex-direction: column;
     gap: calc(var(--spacing) / 2);
     align-items: center;
-    position: sticky;
-    top: 0;
-    height: 100%;
-    z-index: 30;
-    transition: transform 0.3s ease;
-    overflow-y: visible;
+    position: relative;
 }
 
 .historial-controls {
@@ -219,9 +209,14 @@ h3 {
     color: white;
     border: none;
     cursor: pointer;
+    transition: var(--transition);
 }
 
-.input-group {
+.nivel-btn:hover, .nivel-btn:focus {
+    background: var(--button-hover);
+}
+
+.input-group, .feedback-section {
     display: flex;
     align-items: center;
     gap: var(--spacing);
@@ -230,7 +225,7 @@ h3 {
     border-top: 1px solid var(--border);
 }
 
-#input {
+#input, #feedback-input {
     flex: 1;
     padding: var(--spacing);
     border: 1px solid var(--border);
@@ -249,8 +244,66 @@ button {
     transition: var(--transition);
 }
 
-button:hover {
+button:hover, button:focus {
     background: var(--button-hover);
+}
+
+.message-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+}
+
+.user, .bot {
+    padding: var(--spacing);
+    border-radius: var(--radius);
+    max-width: 80%;
+    margin: 0 10px;
+}
+
+.user {
+    background: var(--user-bg);
+    align-self: flex-end;
+}
+
+.bot {
+    background: var(--bot-bg);
+    align-self: flex-start;
+}
+
+#notification-card {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--spacing);
+    display: none;
+}
+
+#notification-card.active {
+    display: block;
+}
+
+.avatar-selection img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.avatar-selection img:hover, .avatar-selection img:focus {
+    border: 2px solid var(--accent);
+}
+
+#chat-list li {
+    padding: var(--spacing);
+    cursor: pointer;
+}
+
+#chat-list li:hover, #chat-list li:focus {
+    background: var(--chat-bg);
 }
 
 /* Responsive para móvil */
@@ -281,7 +334,28 @@ button:hover {
         transform: translateX(0);
     }
 
-    .input-group {
+    .input-group, .feedback-section {
         flex-wrap: wrap;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
     }
+
+    #chatbox {
+        margin-bottom: 100px;
+    }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius);
 }
