@@ -1,108 +1,67 @@
+<!-- index.html (Modificado: Eliminado modo aprendizaje. Reorganizado layout: left-section para historial de chats, right-section para asistente (avatar y configs, con niveles abajo, modo oscuro/claro abajo de historial en left, descargas TXT/PDF abajo de historial). Input group con botones nuevo/eliminar chat a izquierda, fusionado pause/resume voz en toggle, diferenciados pause/play voz IA, enviar al lado. Logos/iconos conservados. Responsive para PC/móvil.) -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💻 Tesis</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" as="style" onload="this.rel='stylesheet'">
-    <!-- Librerías -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.18/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <title>💻 Asistente de Programación Avanzada</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body class="nivel-intermedio">
-    <!-- Botones menú con aria-expanded -->
-    <button class="menu-toggle" aria-label="Abrir menú izquierdo" aria-expanded="false"><i class="fas fa-bars"></i></button>
-    <button class="menu-toggle-right" aria-label="Abrir menú derecho" aria-expanded="false"><i class="fas fa-bars"></i></button>
-
+<body class="nivel-basico">
     <div class="container">
         <h2>💻 Asistente de Programación Avanzada</h2>
         <div class="main-layout">
-            <!-- Barra lateral izquierda -->
-            <div class="left-section" role="region" aria-label="Controles de navegación">
-                <button id="toggle-aprendizaje" aria-label="Modo aprendizaje" data-tooltip="Modo aprendizaje"><i class="fas fa-book"></i></button>
-                <button id="modo-btn" aria-label="Modo claro y oscuro" data-tooltip="Modo claro/oscuro"><i class="fas fa-sun"></i></button>
-                <button id="voice-btn" aria-label="Activar o desactivar voz" data-tooltip="Activar/desactivar voz"><i class="fas fa-volume-up"></i></button>
-                <button id="exportTxtBtn" aria-label="Exportar chat a TXT" data-tooltip="Exportar TXT"><i class="fas fa-file-alt"></i></button>
-                <button id="exportPdfBtn" aria-label="Exportar chat a PDF" data-tooltip="Exportar PDF"><i class="fas fa-file-pdf"></i></button>
-                <button id="btn-clear" aria-label="Limpiar chat actual" data-tooltip="Limpiar chat"><i class="fas fa-trash"></i></button>
-                <button id="new-chat-btn" aria-label="Generar nuevo chat" data-tooltip="Nuevo chat"><i class="fas fa-plus"></i></button>
-                <button id="quiz-btn" aria-label="Generar un quiz" data-tooltip="Generar Quiz"><i class="fas fa-question-circle"></i></button>
-                <button id="recommend-btn" aria-label="Recomendar un tema" data-tooltip="Recomendar tema"><i class="fas fa-lightbulb"></i></button>
-                <div class="level-buttons">
-                    <button class="nivel-btn" data-nivel="basico" aria-label="Nivel Básico" data-tooltip="Básico"><i class="fas fa-seedling"></i></button>
-                    <button class="nivel-btn active" data-nivel="intermedio" aria-label="Nivel Intermedio" data-tooltip="Intermedio"><i class="fas fa-star"></i></button>
-                    <button class="nivel-btn" data-nivel="avanzado" aria-label="Nivel Avanzado" data-tooltip="Avanzado"><i class="fas fa-fire"></i></button>
+            <!-- Historial a izquierda -->
+            <div class="left-section">
+                <h3>Historial de Chats</h3>
+                <ul id="chat-list"></ul>
+                <div class="historial-controls">
+                    <button id="toggle-dark-mode" data-tooltip="Modo Oscuro/Claro"><i class="fas fa-moon"></i></button>
+                    <button id="export-txt" data-tooltip="Exportar TXT"><i class="fas fa-file-alt"></i></button>
+                    <button id="export-pdf" data-tooltip="Exportar PDF"><i class="fas fa-file-pdf"></i></button>
                 </div>
             </div>
-            <!-- Centro: chat -->
-            <div class="center-section" role="region" aria-label="Área de chat">
-                <div class="chat-content">
-                    <div class="search-container">
-                        <div class="search-group">
-                            <select id="tema-filter" aria-label="Filtrar por tema">
-                                <option value="">Filtrar por tema</option>
-                                <option value="poo">POO</option>
-                                <option value="herencia">Herencia</option>
-                                <option value="polimorfismo">Polimorfismo</option>
-                                <option value="singleton">Singleton</option>
-                                <option value="factory">Factory</option>
-                            </select>
-                            <input type="text" id="search-input" placeholder="Buscar tema..." aria-label="Buscar tema" lang="es" maxlength="100">
-                            <button id="search-btn" aria-label="Buscar tema" data-tooltip="Buscar"><i class="fas fa-search"></i></button>
+            <!-- Chat central -->
+            <div class="center-section">
+                <div id="chatbox">
+                    <div class="message-container"></div>
+                </div>
+                <div class="input-group">
+                    <button id="new-chat" data-tooltip="Nuevo Chat"><i class="fas fa-plus"></i></button>
+                    <button id="delete-chat" data-tooltip="Eliminar Chat"><i class="fas fa-trash"></i></button>
+                    <input type="text" id="input" placeholder="Escribe tu pregunta...">
+                    <!-- Fusionado pause/resume voz usuario en toggle -->
+                    <button id="toggle-voice-user" data-tooltip="Pausar/Reanudar Voz Usuario"><i class="fas fa-microphone"></i></button>
+                    <!-- Diferenciado pause/play voz IA -->
+                    <button id="pause-ia-voice" data-tooltip="Pausar Voz IA"><i class="fas fa-pause"></i></button>
+                    <button id="play-ia-voice" data-tooltip="Reproducir Voz IA"><i class="fas fa-play"></i></button>
+                    <button id="send" data-tooltip="Enviar"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+            <!-- Asistente (avatar, niveles) a derecha -->
+            <div class="right-section">
+                <div class="tab-content">
+                    <div id="asistente-tab" class="active">
+                        <h3>Asistente</h3>
+                        <div class="avatar-selection">
+                            <h4>Selecciona tu Avatar</h4>
+                            <div id="avatar-options"></div>
+                            <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
+                            <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
+                        </div>
+                        <!-- Niveles abajo del avatar -->
+                        <div class="niveles">
+                            <button class="nivel-btn basico" data-nivel="basico" data-tooltip="Nivel Básico"><i class="fas fa-seedling"></i></button>
+                            <button class="nivel-btn intermedio" data-nivel="intermedio" data-tooltip="Nivel Intermedio"><i class="fas fa-tools"></i></button>
+                            <button class="nivel-btn avanzado" data-nivel="avanzado" data-tooltip="Nivel Avanzado"><i class="fas fa-rocket"></i></button>
                         </div>
                     </div>
-                    <div id="chatbox" aria-live="polite">
-                        <div class="message-container"></div>
-                    </div>
-                    <div class="input-group">
-                        <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
-                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz"><i class="fas fa-microphone"></i></button>
-                        <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz"><i class="fas fa-stop"></i></button>
-                        <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz"><i class="fas fa-pause"></i></button>
-                        <button id="btn-resume-speech" aria-label="Reanudar voz del asistente" data-tooltip="Reanudar voz"><i class="fas fa-play"></i></button>
-                        <button id="send-btn" aria-label="Enviar mensaje"><i class="fas fa-paper-plane"></i></button>
-                    </div>
                 </div>
             </div>
-            <!-- Barra lateral derecha -->
-            <div class="right-section" role="region" aria-label="Configuración e historial">
-                <div class="tab-buttons">
-                    <button class="tab-btn active" data-tab="asistente" aria-label="Pestaña de asistente">Asistente</button>
-                    <button class="tab-btn" data-tab="historial" aria-label="Pestaña de historial">Historial</button>
-                </div>
-                <div class="tab-content">
-                    <div class="asistente active">
-                        <h3>Selecciona tu Avatar</h3>
-                        <div class="avatar-options"></div>
-                        <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
-                        <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
-                        <div id="analytics-container"></div>
-                    </div>
-                    <div class="historial">
-                        <h3>Historial de Chats</h3>
-                        <ul id="chat-list"></ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="notification-card" class="card" role="alert"></div>
-        <!-- Card para modo aprendizaje -->
-        <div id="aprendizajeCard" class="card">
-            <h3>Modo Aprendizaje</h3>
-            <input type="text" id="nuevaPregunta" placeholder="Nueva pregunta" aria-label="Nueva pregunta" lang="es" maxlength="500">
-            <textarea id="nuevaRespuesta" placeholder="Nueva respuesta" aria-label="Nueva respuesta" lang="es" maxlength="2000"></textarea>
-            <button id="learnBtn" aria-label="Guardar nuevo aprendizaje">Aprender</button>
         </div>
     </div>
-    <script src="/static/js/script.js"></script>
-    <noscript>
-        <div style="color: red; text-align: center; padding: 10px;">
-            Esta aplicación requiere JavaScript para funcionar. Por favor, habilítalo en tu navegador.
-        </div>
-    </noscript>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

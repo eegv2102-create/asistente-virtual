@@ -1,3 +1,4 @@
+# nlp.py (Modificado: Eliminadas referencias a prerrequisitos, ya que no se usan aquí. Ajustado para diferenciar niveles en búsqueda, pero la lógica principal se mueve a Groq en app.py)
 import re
 import json
 import logging
@@ -22,8 +23,21 @@ except (FileNotFoundError, json.JSONDecodeError) as e:
     }
     logging.warning("Usando temas por defecto en nlp.py")
 
-# Construir corpus dinámico basado en nivel por defecto (basico)
+# Inicialización del vectorizador y corpus a nivel de módulo
+vectorizer = TfidfVectorizer()
+corpus = []
+temas = []
+X = None  # Inicialización inicial como None
+
+def build_and_vectorize_corpus(nivel="basico"):
+    """Reconstruye el corpus y vectoriza según el nivel."""
+    global corpus, temas, X
+    corpus, temas = build_corpus(nivel)
+    X = vectorizer.fit_transform(corpus)
+    logging.info(f"Vectorizador TF-IDF inicializado/actualizado para nivel {nivel}")
+
 def build_corpus(nivel="basico"):
+    """Construye el corpus dinámico basado en el nivel."""
     corpus = []
     temas = []
     for tema, levels in temas_dict.items():
@@ -31,14 +45,8 @@ def build_corpus(nivel="basico"):
         corpus.append(levels.get(nivel, levels.get("basico", "")))
     return corpus, temas
 
-corpus, temas = build_corpus("basico")
-vectorizer = TfidfVectorizer()
-try:
-    X = vectorizer.fit_transform(corpus)
-    logging.info("Vectorizador TF-IDF inicializado con nivel básico")
-except Exception as e:
-    logging.error(f"Error al inicializar TF-IDF: {e}")
-    X = None
+# Inicializar el corpus y vectorización al cargar el módulo
+build_and_vectorize_corpus("basico")
 
 def buscar_respuesta(pregunta, k=3, nivel="basico"):
     """
@@ -49,17 +57,14 @@ def buscar_respuesta(pregunta, k=3, nivel="basico"):
         if X is None:
             logging.warning("TF-IDF no inicializado")
             return []
-        # Reconstruir corpus y vectorizar si el nivel cambia
-        global corpus, temas, X
+        # Reconstruir y vectorizar si el nivel cambia
         if nivel != "basico" and any(level.get(nivel, "") for level in temas_dict.values()):
-            corpus, temas = build_corpus(nivel)
-            X = vectorizer.fit_transform(corpus)
-            logging.info(f"Vectorizador actualizado para nivel {nivel}")
+            build_and_vectorize_corpus(nivel)
         pregunta_vec = vectorizer.transform([pregunta.lower()])
         similitudes = cosine_similarity(pregunta_vec, X).flatten()
         top_indices = similitudes.argsort()[-k:][::-1]
         results = []
-        umbral = 0.3 if nivel == "basico" else 0.5 if nivel == "intermedio" else 0.7  # Umbral ajustado por nivel
+        umbral = 0.3 if nivel == "basico" else 0.5 if nivel == "intermedio" else 0.7
         for idx in top_indices:
             score = float(similitudes[idx])
             if score > umbral:
