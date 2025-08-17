@@ -2,7 +2,7 @@
 :root {
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     --radius: 8px;
-    --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+    --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.2s ease; /* Reducido para tooltips */
     --spacing: 6px;
     --font-base: 16px;
     --font-scale: 1.1;
@@ -248,12 +248,13 @@ h3 {
     text-align: center;
     opacity: 0 !important;
     visibility: hidden !important;
-    transition: opacity var(--transition), visibility var(--transition);
+    transition: opacity 0.2s ease, visibility 0.2s ease; /* Reducido para respuesta rápida */
+    transition-delay: 0s; /* Sin retraso */
     box-shadow: var(--shadow);
     z-index: 10000; /* Aumentado para garantizar visibilidad */
     white-space: nowrap;
     margin-left: 10px;
-    pointer-events: none; /* Evita que el tooltip interfiera */
+    pointer-events: none;
 }
 
 .left-section button:hover::after, .nivel-btn:hover::after {
@@ -271,12 +272,12 @@ h3 {
     border-radius: 4px;
     font-size: 11px;
     text-align: center;
-    z-index: 10000; /* Aumentado para garantizar visibilidad */
+    z-index: 10000;
     white-space: nowrap;
     box-shadow: var(--shadow);
     pointer-events: none;
     opacity: 0;
-    transition: opacity var(--transition);
+    transition: opacity 0.2s ease; /* Reducido para respuesta rápida */
 }
 
 .custom-tooltip.active {
@@ -299,16 +300,16 @@ h3 {
 
 /* Iconos para botones de voz en .input-group */
 #btn-start-voice::before { content: "\f130"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-start-voice::after { content: "Iniciar Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
+#btn-start-voice::after { content: "Iniciar Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity 0.2s ease; box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
 
 #btn-stop-voice::before { content: "\f04d"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-stop-voice::after { content: "Detener Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
+#btn-stop-voice::after { content: "Detener Voz"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity 0.2s ease; box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
 
 #btn-pause-speech::before { content: "\f04c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-pause-speech::after { content: "Pausar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
+#btn-pause-speech::after { content: "Pausar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity 0.2s ease; box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
 
 #btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-resume-speech::after { content: "Reanudar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity var(--transition); box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
+#btn-resume-speech::after { content: "Reanudar Voz de IA"; position: absolute; top: 50%; right: 105%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; max-width: 120px; text-align: center; opacity: 0 !important; visibility: hidden !important; transition: opacity 0.2s ease; box-shadow: var(--shadow); white-space: nowrap; z-index: 10000; }
 
 #btn-start-voice:hover::after,
 #btn-stop-voice:hover::after,
@@ -698,11 +699,12 @@ body:not(.modo-claro) .bot {
     display: flex;
     gap: calc(var(--spacing) / 2);
     padding: var(--spacing);
-    border-top: 1px solid var(--border);
+    border-top: 2px solid color-mix(in srgb, var(--border), var(--accent) 30%); /* Línea divisoria más visible */
     background: var(--bg);
     position: sticky;
     bottom: 0;
-    z-index: 20;
+    z-index: 30; /* Aumentado para estar sobre otros elementos */
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1); /* Sombra suave para destacar */
 }
 
 .input-group button {
@@ -1053,7 +1055,8 @@ body:not(.modo-claro) .bot {
     }
 
     .left-section.active, .right-section.active {
-        display: flex;
+        display: flex !important;
+        visibility: visible !important;
         position: fixed;
         top: 50px;
         bottom: 0;
@@ -1061,6 +1064,7 @@ body:not(.modo-claro) .bot {
         transition: transform 0.3s ease;
         border: 1px solid var(--border);
         border-radius: var(--radius);
+        max-height: calc(100vh - 80px); /* Limita altura para no tapar input-group */
     }
 
     .left-section {
@@ -1070,6 +1074,7 @@ body:not(.modo-claro) .bot {
 
     .left-section.active {
         transform: translateX(0);
+        overflow-y: auto; /* Permite desplazamiento si es necesario */
     }
 
     .right-section {
@@ -1086,6 +1091,7 @@ body:not(.modo-claro) .bot {
 
     .menu-toggle, .menu-toggle-right {
         display: block;
+        z-index: 40; /* Asegura visibilidad */
     }
 
     .input-group {
@@ -1095,9 +1101,11 @@ body:not(.modo-claro) .bot {
         right: 0;
         padding: var(--spacing);
         flex-wrap: wrap;
-        z-index: 20;
-        min-height: 50px;
+        z-index: 30; /* Aumentado */
+        min-height: 60px; /* Ajustado para mejor visibilidad */
+        border-top: 2px solid color-mix(in srgb, var(--border), var(--accent) 30%); /* Línea divisoria más visible */
         background: var(--bg);
+        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1); /* Sombra para destacar */
     }
 
     .input-group button {
@@ -1126,14 +1134,15 @@ body:not(.modo-claro) .bot {
     }
 
     .tab-content > div.active {
-        padding-bottom: 120px;
+        padding-bottom: 150px; /* Aumentado para teclado */
         overflow-y: auto;
     }
 
     #chatbox {
-        margin-bottom: 70px;
-        padding-bottom: 120px;
-        scroll-padding-bottom: 120px;
+        margin-bottom: 80px; /* Aumentado para evitar solapamiento */
+        padding-bottom: 150px; /* Aumentado para teclado */
+        scroll-padding-bottom: 150px; /* Asegura scroll al último mensaje */
+        height: calc(100vh - 200px); /* Limita altura para dejar espacio al input-group */
     }
 
     .search-container {
@@ -1170,7 +1179,7 @@ body:not(.modo-claro) .bot {
         padding: calc(var(--spacing) * 1);
         min-height: 40px;
         font-size: 14px;
-        z-index: 25;
+        z-index: 35; /* Aumentado para estar sobre otros elementos */
     }
 }
 
@@ -1200,9 +1209,10 @@ body:not(.modo-claro) .bot {
         text-align: center;
         opacity: 0 !important;
         visibility: hidden !important;
-        transition: opacity var(--transition), visibility var(--transition);
+        transition: opacity 0.2s ease, visibility 0.2s ease; /* Reducido para respuesta rápida */
+        transition-delay: 0s;
         box-shadow: var(--shadow);
-        z-index: 10000; /* Aumentado para garantizar visibilidad */
+        z-index: 10000;
         white-space: nowrap;
         margin-left: 10px;
         pointer-events: none;
@@ -1211,6 +1221,11 @@ body:not(.modo-claro) .bot {
     .left-section button:hover::after, .nivel-btn:hover::after {
         opacity: 1 !important;
         visibility: visible !important;
+    }
+
+    .input-group {
+        border-top: 2px solid color-mix(in srgb, var(--border), var(--accent) 30%); /* Línea divisoria más visible */
+        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1); /* Sombra para destacar */
     }
 }
 
@@ -1287,4 +1302,5 @@ body:not(.modo-claro) .bot {
     padding: calc(var(--spacing) * 1.5);
     min-height: 50px;
     font-size: 16px;
+    z-index: 35; /* Aumentado para estar sobre otros elementos */
 }
