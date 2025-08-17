@@ -599,6 +599,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatbox.scrollTop = chatbox.scrollHeight;
             }, 0);
         });
+        // Forzar scroll al enfocar el input
+        input.addEventListener('focus', () => {
+            setTimeout(() => {
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }, 100);
+        });
     }
 
     // MutationObserver para detectar cambios dinámicos y scrollear automáticamente
@@ -619,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const viewportHeight = window.visualViewport.height;
                 const windowHeight = window.innerHeight;
                 const keyboardHeight = windowHeight - viewportHeight;
-                chatbox.style.paddingBottom = `${Math.max(120, keyboardHeight + 20)}px`;
+                chatbox.style.paddingBottom = `${Math.max(150, keyboardHeight + 30)}px`;
             }
         });
     }
@@ -809,7 +815,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (leftSection) {
                 leftSection.classList.toggle('active');
                 elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                // Si se abre el menú izquierdo, cerrar el derecho
                 if (leftSection.classList.contains('active') && rightSection.classList.contains('active')) {
                     rightSection.classList.remove('active');
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
@@ -823,7 +828,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                // Si se abre el menú derecho, cerrar el izquierdo
                 if (rightSection.classList.contains('active') && leftSection.classList.contains('active')) {
                     leftSection.classList.remove('active');
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
@@ -831,7 +835,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Cerrar menús al tocar fuera en móviles
         document.addEventListener('click', (event) => {
             if (window.innerWidth > 768) return;
             const leftSection = getElement('.left-section');
@@ -911,4 +914,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Crear tooltips dinámicos para botones en PC
+    document.querySelectorAll('.left-section button, .nivel-btn').forEach(btn => {
+        const tooltipText = btn.dataset.tooltip;
+        if (!tooltipText) return;
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'custom-tooltip';
+        tooltip.textContent = tooltipText;
+        tooltip.style.position = 'absolute';
+        tooltip.style.background = 'rgba(0, 0, 0, 0.95)';
+        tooltip.style.color = '#fff';
+        tooltip.style.padding = '8px 12px';
+        tooltip.style.borderRadius = '6px';
+        tooltip.style.fontSize = '12px';
+        tooltip.style.zIndex = '10000';
+        tooltip.style.opacity = '0';
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.transition = 'opacity 0.3s ease, visibility 0.3s ease';
+        tooltip.style.pointerEvents = 'none';
+        document.body.appendChild(tooltip);
+
+        btn.addEventListener('mouseenter', (e) => {
+            const rect = btn.getBoundingClientRect();
+            tooltip.style.top = `${rect.top + rect.height / 2}px`;
+            tooltip.style.left = `${rect.left + rect.width + 10}px`;
+            tooltip.style.transform = 'translateY(-50%)';
+            tooltip.style.opacity = '1';
+            tooltip.style.visibility = 'visible';
+        });
+
+        btn.addEventListener('mouseleave', () => {
+            tooltip.style.opacity = '0';
+            tooltip.style.visibility = 'hidden';
+        });
+    });
 });
