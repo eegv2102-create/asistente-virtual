@@ -28,19 +28,16 @@ const scrollToBottom = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (!chatbox || !container) return;
-    // Aumentar retraso para asegurar DOM actualizado, especialmente en móviles
-    setTimeout(() => {
+    requestAnimationFrame(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
-        // Respaldo: forzar scroll al último mensaje
         const lastMessage = container.lastElementChild;
         if (lastMessage) {
-            lastMessage.scrollIntoView({ behavior: 'auto', block: 'end' }); // Usar 'auto' para evitar conflictos
+            lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
-        // Forzar recalculo de scroll en móviles
         if (window.innerWidth <= 768) {
             chatbox.scrollTop = chatbox.scrollHeight;
         }
-    }, 300); // Aumentado a 300ms para móviles y PC
+    });
 };
 
 const speakText = text => {
@@ -55,6 +52,10 @@ const speakText = text => {
         if (!res.ok) throw new Error('Error en TTS');
         return res.blob();
     }).then(blob => {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
         currentAudio = new Audio(URL.createObjectURL(blob));
         currentAudio.play();
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -68,7 +69,7 @@ const speakText = text => {
         const canvas = getElement('#lip-sync-canvas');
         const ctx = canvas?.getContext('2d');
         function draw() {
-            if (!currentAudio.paused && ctx) {
+            if (currentAudio && !currentAudio.paused && !currentAudio.ended && ctx) {
                 analyser.getByteFrequencyData(dataArray);
                 let amplitude = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -79,19 +80,30 @@ const speakText = text => {
                 requestAnimationFrame(draw);
             } else if (botMessage) {
                 botMessage.classList.remove('speaking');
+                if (canvas) canvas.style.opacity = '0';
             }
         }
         if (canvas) {
             canvas.style.opacity = '1';
             draw();
         }
+        currentAudio.onended = () => {
+            if (botMessage) botMessage.classList.remove('speaking');
+            if (canvas) canvas.style.opacity = '0';
+        };
     }).catch(error => {
         console.error('TTS /tts falló, usando speechSynthesis fallback', error);
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'es-ES';
+        utterance.onend = () => {
+            if (botMessage) botMessage.classList.remove('speaking');
+        };
         speechSynthesis.speak(utterance);
         currentAudio = utterance;
-        if (botMessage) botMessage.classList.remove('speaking');
     });
 };
 
@@ -173,9 +185,17 @@ const cargarAvatares = async () => {
         return;
     }
     try {
-        const response = await fetch('/avatars', { cache: 'no-store' }); // Evitar caché en Render
-        if (!response.ok) throw new Error('Error en la respuesta del servidor');
-        const avatares = await response.json();
+        const response = await fetch('/avatars', { cache: 'no-store' });
+        let avatares = [];
+        if (response.ok) {
+            avatares = await response.json();
+        } else {
+            avatares = [
+                { avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png' },
+                { avatar_id: 'poo', nombre: 'POO', url: '/static/img/poo.png' }
+            ];
+            console.warn('Usando avatares estáticos por fallo en /avatars');
+        }
         avatarContainer.innerHTML = '';
         avatares.forEach(avatar => {
             const img = document.createElement('img');
@@ -197,6 +217,28 @@ const cargarAvatares = async () => {
     } catch (error) {
         mostrarNotificacion(`Error al cargar avatares: ${error.message}`, 'error');
         console.error('Error al cargar avatares:', error);
+        const fallbackAvatares = [
+            { avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png' },
+            { avatar_id: 'poo', nombre: 'POO', url: '/static/img/poo.png' }
+        ];
+        avatarContainer.innerHTML = '';
+        fallbackAvatares.forEach(avatar => {
+            const img = document.createElement('img');
+            img.src = avatar.url;
+            img.classList.add('avatar-option');
+            img.dataset.avatar = avatar.avatar_id;
+            img.alt = `Avatar ${avatar.nombre}`;
+            img.title = avatar.nombre;
+            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
+            avatarContainer.appendChild(img);
+            img.addEventListener('click', () => {
+                getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+                img.classList.add('selected');
+                selectedAvatar = avatar.avatar_id;
+                localStorage.setItem('selectedAvatar', selectedAvatar);
+                mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
+            });
+        });
     }
 };
 
@@ -374,7 +416,7 @@ const addCopyButtonListeners = () => {
 const sendMessage = () => {
     const input = getElement('#input');
     const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico'; // Enviar nivel al backend
+    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico';
     const pregunta = input?.value.trim();
     if (!pregunta) return;
     input.value = '';
@@ -397,6 +439,7 @@ const sendMessage = () => {
         body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
     }).then(res => {
         container.classList.remove('loading');
+        if (!res.ok) throw new Error(`Error en /respuesta: ${res.statusText}`);
         if (res.headers.get('content-type') === 'text/event-stream') {
             const botDiv = document.createElement('div');
             botDiv.classList.add('bot', 'typing');
@@ -453,13 +496,14 @@ const sendMessage = () => {
     }).catch(error => {
         container.classList.remove('loading');
         mostrarNotificacion(`Error al enviar mensaje: ${error.message}`, 'error');
+        container.removeChild(userDiv);
     });
 };
 
 const buscarTema = () => {
     const query = getElement('#search-input')?.value.trim().toLowerCase();
     const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico'; // Enviar nivel al backend
+    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico';
     if (!query) {
         mostrarNotificacion('Ingresa una palabra clave para buscar.', 'error');
         return;
@@ -474,6 +518,7 @@ const buscarTema = () => {
         body: JSON.stringify({ pregunta: `Explica ${query}`, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
     }).then(res => {
         container.classList.remove('loading');
+        if (!res.ok) throw new Error(`Error en /respuesta: ${res.statusText}`);
         res.json().then(data => {
             if (data.error) {
                 mostrarNotificacion(data.error, 'error');
@@ -526,7 +571,7 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
 };
 
 const cargarAnalytics = () => {
-    fetch('/analytics?usuario=anonimo', { cache: 'no-store' }) // Evitar caché en Render
+    fetch('/analytics?usuario=anonimo', { cache: 'no-store' })
         .then(res => {
             if (!res.ok) throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
             return res.json();
@@ -593,21 +638,18 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarConversacionActual();
     cargarAnalytics();
 
-    // Evento input para forzar scroll al escribir
     if (elements.input && elements.chatbox) {
         elements.input.addEventListener('input', () => {
             scrollToBottom();
         });
-        // Forzar scroll al enfocar el input
         elements.input.addEventListener('focus', () => {
             setTimeout(() => {
                 scrollToBottom();
                 elements.input.scrollIntoView({ behavior: 'auto', block: 'end' });
-            }, 500); // Retraso para teclado virtual
+            }, 500);
         });
     }
 
-    // MutationObserver para detectar cambios en el chat
     const container = elements.chatbox?.querySelector('.message-container');
     if (container && elements.chatbox) {
         const observer = new MutationObserver(() => {
@@ -616,14 +658,13 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(container, { childList: true, subtree: true });
     }
 
-    // Ajustar dinámicamente altura y padding para teclado virtual
     if (window.visualViewport && elements.chatbox) {
         window.visualViewport.addEventListener('resize', () => {
             const viewportHeight = window.visualViewport.height;
             const windowHeight = window.innerHeight;
             const keyboardHeight = windowHeight - viewportHeight;
-            elements.chatbox.style.height = `${viewportHeight - 100}px`; // Ajustado para input
-            elements.chatbox.style.paddingBottom = `${Math.max(250, keyboardHeight + 50)}px`; // Más espacio
+            elements.chatbox.style.height = `${viewportHeight - 100}px`;
+            elements.chatbox.style.paddingBottom = `${Math.max(250, keyboardHeight + 50)}px`;
             scrollToBottom();
         });
     }
@@ -754,11 +795,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (elements.btnStartVoice && elements.btnStopVoice && elements.btnPauseSpeech && elements.btnResumeSpeech) {
         elements.btnStartVoice.addEventListener('click', () => {
-            if (!('webkitSpeechRecognition' in window)) {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
                 return;
             }
-            recognition = new webkitSpeechRecognition();
+            recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
             recognition.lang = 'es-ES';
             recognition.interimResults = true;
             recognition.continuous = true;
@@ -791,7 +832,12 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             recognition.onend = () => {
-                if (isListening) recognition.start();
+                if (isListening) {
+                    recognition.start();
+                } else {
+                    elements.btnStartVoice.disabled = false;
+                    elements.btnStopVoice.disabled = true;
+                }
             };
         });
 
@@ -801,14 +847,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.menuToggle && elements.menuToggleRight) {
-        // Función para alternar el menú izquierdo
         const toggleLeftMenu = (e) => {
-            e.preventDefault(); // Evitar comportamiento predeterminado
+            e.preventDefault();
             const leftSection = getElement('.left-section');
             if (leftSection) {
                 leftSection.classList.toggle('active');
                 elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                // Cerrar el menú derecho si está abierto
                 const rightSection = getElement('.right-section');
                 if (rightSection && rightSection.classList.contains('active')) {
                     rightSection.classList.remove('active');
@@ -817,14 +861,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Función para alternar el menú derecho
         const toggleRightMenu = (e) => {
             e.preventDefault();
             const rightSection = getElement('.right-section');
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                // Cerrar el menú izquierdo si está abierto
                 const leftSection = getElement('.left-section');
                 if (leftSection && leftSection.classList.contains('active')) {
                     leftSection.classList.remove('active');
@@ -833,19 +875,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Añadir eventos click y touchstart para menús
         elements.menuToggle.addEventListener('click', toggleLeftMenu);
         elements.menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
         elements.menuToggleRight.addEventListener('click', toggleRightMenu);
         elements.menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
 
-        // Cerrar menús al tocar o hacer clic fuera
         const closeMenusOnOutsideInteraction = (e) => {
             const leftSection = getElement('.left-section');
             const rightSection = getElement('.right-section');
             const menuToggle = getElement('.menu-toggle');
             const menuToggleRight = getElement('.menu-toggle-right');
-            // Solo cerrar en móviles
             if (window.innerWidth <= 768) {
                 if (leftSection && leftSection.classList.contains('active') &&
                     !leftSection.contains(e.target) &&
@@ -864,7 +903,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Añadir eventos para cerrar menús
         document.addEventListener('click', closeMenusOnOutsideInteraction);
         document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
     }
@@ -923,7 +961,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Crear tooltips dinámicos para botones en PC
     document.querySelectorAll('.left-section button, .nivel-btn').forEach(btn => {
         const tooltipText = btn.dataset.tooltip;
         if (!tooltipText) return;
