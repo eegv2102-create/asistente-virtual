@@ -678,7 +678,7 @@ body:not(.modo-claro) .bot {
     background: var(--bg);
     position: sticky;
     bottom: 0;
-    z-index: 10;
+    z-index: 20; /* Aumentado para estar sobre otros elementos */
 }
 
 .input-group button {
@@ -1041,7 +1041,7 @@ body:not(.modo-claro) .bot {
 
     .left-section {
         transform: translateX(-100%);
-        width: 60px; /* Mantener ancho limitado para iconos */
+        width: 60px;
     }
 
     .left-section.active {
@@ -1051,13 +1051,13 @@ body:not(.modo-claro) .bot {
     .right-section {
         transform: translateX(100%);
         right: 0;
-        width: min(300px, 80vw); /* Ajustado: Ancho responsivo */
+        width: min(300px, 80vw);
     }
 
     .right-section.active {
         transform: translateX(0);
-        overflow-y: auto; /* Permitir scroll en contenido */
-        border-left: 1px solid var(--border); /* Separación visual */
+        overflow-y: auto;
+        border-left: 1px solid var(--border);
     }
 
     .menu-toggle, .menu-toggle-right {
@@ -1072,7 +1072,8 @@ body:not(.modo-claro) .bot {
         padding: var(--spacing);
         flex-wrap: wrap;
         z-index: 20;
-        min-height: 60px; /* Asegurar altura consistente */
+        min-height: 50px; /* Reducido para ser más compacto */
+        background: var(--bg);
     }
 
     .input-group button {
@@ -1101,13 +1102,14 @@ body:not(.modo-claro) .bot {
     }
 
     .tab-content > div.active {
-        padding-bottom: 80px;
+        padding-bottom: 120px; /* Aumentado para teclado */
         overflow-y: auto;
     }
 
     #chatbox {
         margin-bottom: 70px;
-        padding-bottom: 80px; /* Añadido: Espacio para evitar solapamiento */
+        padding-bottom: 120px; /* Aumentado para evitar solapamiento con teclado */
+        scroll-padding-bottom: 120px; /* Asegura que el scroll respete el teclado */
     }
 
     .search-container {
@@ -1138,6 +1140,14 @@ body:not(.modo-claro) .bot {
         padding: calc(var(--spacing) * 1);
         min-height: auto;
     }
+
+    #input {
+        flex: 1;
+        padding: calc(var(--spacing) * 1);
+        min-height: 40px; /* Reducido para mejor ajuste */
+        font-size: 14px; /* Más legible */
+        z-index: 25; /* Asegura que el input esté sobre otros elementos */
+    }
 }
 
 @media (min-width: 769px) {
@@ -1166,11 +1176,12 @@ body:not(.modo-claro) .bot {
         text-align: center;
         opacity: 0;
         visibility: hidden;
-        transition: opacity var(--transition);
+        transition: opacity var(--transition), visibility var(--transition);
         box-shadow: var(--shadow);
-        z-index: 5000;
+        z-index: 6000; /* Aumentado para evitar solapamiento */
         white-space: nowrap;
         margin-left: 10px;
+        pointer-events: none; /* Evita que el tooltip interfiera con otros elementos */
     }
 
     .left-section button:hover::after, .nivel-btn:hover::after {
