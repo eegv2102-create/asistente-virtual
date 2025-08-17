@@ -321,44 +321,44 @@ h3 {
 #send-btn::after {
     content: attr(data-tooltip); /* Usar data-tooltip para consistencia */
     position: absolute;
-    right: calc(100% + 8px); /* Posicionar a la izquierda del botón */
+    right: calc(100% + 12px); /* Mayor separación para evitar superposición con el input */
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
     padding: 6px 10px;
     border-radius: 4px;
     font-size: 11px;
-    max-width: 150px;
+    max-width: 140px; /* Reducido para evitar colisión con .left-section */
     text-align: center;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
     box-shadow: var(--shadow);
     white-space: nowrap;
-    z-index: 100; /* Mayor que input-group (30) y secciones móviles (50) */
+    z-index: 150; /* Mayor que el input (z-index: 35) y .left-section (z-index: 50) */
     pointer-events: none;
 }
 
 /* Posiciones diagonales específicas para cada botón */
 #btn-start-voice::after {
-    top: -10px; /* Desplazamiento diagonal hacia arriba */
-    transform: translateY(-20%);
+    top: -15px; /* Más arriba para evitar el input */
+    transform: translateY(-10%);
 }
 #btn-stop-voice::after {
-    top: -5px; /* Ligeramente más abajo */
-    transform: translateY(-30%);
+    top: -8px; /* Ligeramente más abajo */
+    transform: translateY(-20%);
 }
 #btn-pause-speech::after {
     top: 0; /* Centro */
-    transform: translateY(-40%);
+    transform: translateY(-30%);
 }
 #btn-resume-speech::after {
-    top: 5px; /* Ligeramente más abajo */
-    transform: translateY(-50%);
+    top: 8px; /* Ligeramente más abajo */
+    transform: translateY(-40%);
 }
 #send-btn::after {
-    top: 10px; /* Más abajo para efecto diagonal */
-    transform: translateY(-60%);
+    top: 15px; /* Más abajo para efecto diagonal */
+    transform: translateY(-50%);
 }
 
 /* Mostrar tooltips al pasar el mouse */
@@ -371,21 +371,41 @@ h3 {
     visibility: visible;
 }
 
-/* En móviles, ajustar tooltips para evitar ocultamiento */
+/* En móviles, mover tooltips arriba para evitar conflictos con .left-section */
 @media (max-width: 768px) {
     #btn-start-voice::after,
     #btn-stop-voice::after,
     #btn-pause-speech::after,
     #btn-resume-speech::after,
     #send-btn::after {
+        right: auto; /* Remover posición izquierda */
+        top: -40px; /* Posicionar arriba de los botones */
+        left: 50%; /* Centrar horizontalmente */
+        transform: translateX(-50%) translateY(-10%); /* Ajustar centrado */
         max-width: 120px; /* Reducir ancho en móviles */
         font-size: 10px; /* Texto más pequeño */
         padding: 4px 8px; /* Menor padding */
-        right: calc(100% + 4px); /* Menor separación */
-        z-index: 100; /* Asegurar visibilidad sobre secciones */
+        z-index: 150; /* Asegurar visibilidad sobre .left-section.active */
     }
 
-    /* Desactivar tooltips en pantallas muy pequeñas si es necesario */
+    /* Ajustar posiciones diagonales en móviles */
+    #btn-start-voice::after {
+        top: -48px; /* Más arriba */
+    }
+    #btn-stop-voice::after {
+        top: -44px;
+    }
+    #btn-pause-speech::after {
+        top: -40px;
+    }
+    #btn-resume-speech::after {
+        top: -36px;
+    }
+    #send-btn::after {
+        top: -32px;
+    }
+
+    /* Desactivar tooltips en pantallas muy pequeñas */
     @media (max-width: 400px) {
         #btn-start-voice::after,
         #btn-stop-voice::after,
@@ -495,7 +515,7 @@ h3 {
     transition: all 0.3s ease;
     height: calc(100% - 90px);
     margin-bottom: 10px;
-    scroll-behavior: auto; /* Cambiado de smooth a auto para evitar conflictos con scroll */
+    scroll-behavior: auto; /* Mantenido para consistencia con scroll */
 }
 
 #chatbox[aria-live="polite"] {
