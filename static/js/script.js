@@ -801,56 +801,72 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.menuToggle && elements.menuToggleRight) {
-        elements.menuToggle.addEventListener('click', () => {
+        // Función para alternar el menú izquierdo
+        const toggleLeftMenu = (e) => {
+            e.preventDefault(); // Evitar comportamiento predeterminado
             const leftSection = getElement('.left-section');
-            const rightSection = getElement('.right-section');
             if (leftSection) {
                 leftSection.classList.toggle('active');
                 elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                if (leftSection.classList.contains('active') && rightSection.classList.contains('active')) {
+                // Cerrar el menú derecho si está abierto
+                const rightSection = getElement('.right-section');
+                if (rightSection && rightSection.classList.contains('active')) {
                     rightSection.classList.remove('active');
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
-        });
+        };
 
-        elements.menuToggleRight.addEventListener('click', () => {
+        // Función para alternar el menú derecho
+        const toggleRightMenu = (e) => {
+            e.preventDefault();
             const rightSection = getElement('.right-section');
-            const leftSection = getElement('.left-section');
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                if (rightSection.classList.contains('active') && leftSection.classList.contains('active')) {
+                // Cerrar el menú izquierdo si está abierto
+                const leftSection = getElement('.left-section');
+                if (leftSection && leftSection.classList.contains('active')) {
                     leftSection.classList.remove('active');
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
-        });
+        };
 
-        document.addEventListener('click', (event) => {
-            if (window.innerWidth > 768) return;
+        // Añadir eventos click y touchstart para menús
+        elements.menuToggle.addEventListener('click', toggleLeftMenu);
+        elements.menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
+        elements.menuToggleRight.addEventListener('click', toggleRightMenu);
+        elements.menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
+
+        // Cerrar menús al tocar o hacer clic fuera
+        const closeMenusOnOutsideInteraction = (e) => {
             const leftSection = getElement('.left-section');
             const rightSection = getElement('.right-section');
             const menuToggle = getElement('.menu-toggle');
             const menuToggleRight = getElement('.menu-toggle-right');
-            if (
-                !leftSection.contains(event.target) &&
-                !rightSection.contains(event.target) &&
-                !menuToggle.contains(event.target) &&
-                !menuToggleRight.contains(event.target)
-            ) {
-                if (leftSection.classList.contains('active')) {
+            // Solo cerrar en móviles
+            if (window.innerWidth <= 768) {
+                if (leftSection && leftSection.classList.contains('active') &&
+                    !leftSection.contains(e.target) &&
+                    !menuToggle.contains(e.target)) {
                     leftSection.classList.remove('active');
                     leftSection.style.transform = 'translateX(-100%)';
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
-                if (rightSection.classList.contains('active')) {
+                if (rightSection && rightSection.classList.contains('active') &&
+                    !rightSection.contains(e.target) &&
+                    !menuToggleRight.contains(e.target)) {
                     rightSection.classList.remove('active');
                     rightSection.style.transform = 'translateX(100%)';
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
-        });
+        };
+
+        // Añadir eventos para cerrar menús
+        document.addEventListener('click', closeMenusOnOutsideInteraction);
+        document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
     }
 
     if (elements.toggleAprendizajeBtn) {
