@@ -59,6 +59,7 @@ def init_db():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
+        # Crear tablas con manejo de errores
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', nivel TEXT DEFAULT 'intermedio', avatar_id TEXT DEFAULT 'default')''')
         c.execute('''CREATE TABLE IF NOT EXISTS aprendizaje
@@ -67,6 +68,7 @@ def init_db():
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
+        # Insertar avatares predeterminados solo si no existen
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", "/static/animations/default.json"))
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
@@ -77,6 +79,7 @@ def init_db():
                      (usuario TEXT, tema TEXT, dominio REAL DEFAULT 0.0, aciertos INTEGER DEFAULT 0, fallos INTEGER DEFAULT 0, ultima_interaccion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                      PRIMARY KEY (usuario, tema))''')
         conn.commit()
+        # Cargar datos iniciales
         try:
             with open("aprendizaje_inicial.json", "r", encoding="utf-8") as f:
                 aprendizaje_inicial = json.load(f)
@@ -90,9 +93,12 @@ def init_db():
         except json.JSONDecodeError as e:
             logging.error(f"Error al parsear aprendizaje_inicial.json: {str(e)}")
         conn.close()
+        logging.info("Base de datos inicializada correctamente")
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
-        raise
+        # No lanzar excepción para permitir que la app continúe
+        return False
+    return True
 
 # Cargar temas.json
 try:
@@ -216,13 +222,13 @@ def consultar_groq_api(pregunta, nivel, temas_aprendidos):
         except FileNotFoundError:
             cache = {}
         client = Groq(api_key=api_key)
-        prompt = f"Eres un tutor de programación en español para estudiantes de Telemática. El usuario está en nivel {nivel} y ha aprendido {temas_aprendidos or 'nada aún'}. Responde a: {pregunta} con una explicación breve y un ejemplo en Java si aplica."
+        prompt = f"Eres un tutor de programación en español para estudiantes de Telemática. El usuario está en nivel {nivel} y ha aprendido {temas_aprendidos or 'nada aún'}. Responde a: {pregunta} con una explicación breve y un ejemplo en Java si aplica. Proporciona una respuesta clara y educativa."
         for _ in range(2):
             try:
                 completion = client.chat.completions.create(
                     model="llama3-8b-8192",
                     messages=[{"role": "user", "content": prompt}],
-                    max_tokens=512,
+                    max_tokens=256,  # Reducido para Render
                     temperature=0.7,
                     stream=False
                 )
@@ -344,11 +350,28 @@ def respuesta():
 
         progreso = cargar_progreso(usuario)
         respuesta_text = buscar_respuesta_app(pregunta, usuario)
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
-        avatar = c.fetchone()
-        conn.close()
+        # Manejo de avatar con respaldo
+        avatar = None
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            c = conn.cursor()
+            c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
+            avatar = c.fetchone()
+            conn.close()
+        except PsycopgError as e:
+            logging.error(f"Error al consultar tabla avatars: {str(e)}")
+            # Forzar inicialización de la base de datos
+            if "relation \"avatars\" does not exist" in str(e).lower():
+                if init_db():
+                    try:
+                        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                        c = conn.cursor()
+                        c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
+                        avatar = c.fetchone()
+                        conn.close()
+                    except PsycopgError as e2:
+                        logging.error(f"Reintento fallido al consultar avatars: {str(e2)}")
+        
         response_data = {
             "respuesta": respuesta_text,
             "avatar_url": avatar[0] if avatar else "/static/img/default-avatar.png",
