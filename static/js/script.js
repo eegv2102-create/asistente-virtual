@@ -611,6 +611,19 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(container, { childList: true, subtree: true });
     }
 
+    // Ajustar padding dinámicamente según el teclado virtual
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            const chatbox = getElement('#chatbox');
+            if (chatbox) {
+                const viewportHeight = window.visualViewport.height;
+                const windowHeight = window.innerHeight;
+                const keyboardHeight = windowHeight - viewportHeight;
+                chatbox.style.paddingBottom = `${Math.max(120, keyboardHeight + 20)}px`;
+            }
+        });
+    }
+
     if (elements.sendBtn && elements.input) {
         elements.sendBtn.addEventListener('click', sendMessage);
         elements.input.addEventListener('keypress', e => {
@@ -792,17 +805,55 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.menuToggle && elements.menuToggleRight) {
         elements.menuToggle.addEventListener('click', () => {
             const leftSection = getElement('.left-section');
+            const rightSection = getElement('.right-section');
             if (leftSection) {
                 leftSection.classList.toggle('active');
                 elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                // Si se abre el menú izquierdo, cerrar el derecho
+                if (leftSection.classList.contains('active') && rightSection.classList.contains('active')) {
+                    rightSection.classList.remove('active');
+                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
             }
         });
 
         elements.menuToggleRight.addEventListener('click', () => {
             const rightSection = getElement('.right-section');
+            const leftSection = getElement('.left-section');
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                // Si se abre el menú derecho, cerrar el izquierdo
+                if (rightSection.classList.contains('active') && leftSection.classList.contains('active')) {
+                    leftSection.classList.remove('active');
+                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
+            }
+        });
+
+        // Cerrar menús al tocar fuera en móviles
+        document.addEventListener('click', (event) => {
+            if (window.innerWidth > 768) return;
+            const leftSection = getElement('.left-section');
+            const rightSection = getElement('.right-section');
+            const menuToggle = getElement('.menu-toggle');
+            const menuToggleRight = getElement('.menu-toggle-right');
+            if (
+                !leftSection.contains(event.target) &&
+                !rightSection.contains(event.target) &&
+                !menuToggle.contains(event.target) &&
+                !menuToggleRight.contains(event.target)
+            ) {
+                if (leftSection.classList.contains('active')) {
+                    leftSection.classList.remove('active');
+                    leftSection.style.transform = 'translateX(-100%)';
+                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
+                if (rightSection.classList.contains('active')) {
+                    rightSection.classList.remove('active');
+                    rightSection.style.transform = 'translateX(100%)';
+                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
             }
         });
     }
