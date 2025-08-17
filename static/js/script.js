@@ -24,6 +24,18 @@ const mostrarNotificacion = (mensaje, tipo = 'info') => {
     }, 5000);
 };
 
+const scrollToBottom = () => {
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!chatbox || !container) return;
+    // Retraso mayor para móviles
+    setTimeout(() => {
+        chatbox.scrollTop = chatbox.scrollHeight;
+        // Respaldo para navegadores móviles
+        container.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100); // Aumentado de 0ms a 100ms para dar tiempo al DOM
+};
+
 const speakText = text => {
     if (!vozActiva || !text) return;
     const botMessage = getElement('.bot:last-child');
@@ -66,6 +78,7 @@ const speakText = text => {
             canvas.style.opacity = '1';
             draw();
         }
+        scrollToBottom(); // Asegurar scroll tras iniciar la voz
     }).catch(error => {
         console.error('TTS /tts falló, usando speechSynthesis fallback', error);
         const utterance = new SpeechSynthesisUtterance(text);
@@ -73,6 +86,7 @@ const speakText = text => {
         speechSynthesis.speak(utterance);
         currentAudio = utterance;
         if (botMessage) botMessage.classList.remove('speaking');
+        scrollToBottom();
     });
 };
 
@@ -195,6 +209,7 @@ const guardarMensaje = (pregunta, respuesta, video_url = null) => {
     historial[currentConversation.id].mensajes = currentConversation.mensajes;
     localStorage.setItem('chatHistory', JSON.stringify(historial));
     actualizarListaChats();
+    scrollToBottom(); // Asegurar scroll tras guardar mensaje
 };
 
 const actualizarListaChats = () => {
@@ -236,7 +251,8 @@ const cargarChat = index => {
     container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
     setTimeout(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
-    }, 0);
+        container.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100); // Aumentado a 100ms para móviles
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
@@ -280,6 +296,7 @@ const nuevaConversacion = () => {
     if (input) input.value = '';
     localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
     mostrarNotificacion('Nuevo chat creado', 'success');
+    scrollToBottom();
 };
 
 const limpiarChat = () => {
@@ -294,7 +311,8 @@ const cargarConversacionActual = () => {
     container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
     setTimeout(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
-    }, 0);
+        container.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100); // Aumentado a 100ms para móviles
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
@@ -371,9 +389,7 @@ const sendMessage = () => {
     userDiv.classList.add('user');
     userDiv.textContent = pregunta;
     container.appendChild(userDiv);
-    setTimeout(() => {
-        chatbox.scrollTop = chatbox.scrollHeight;
-    }, 0);
+    scrollToBottom();
 
     fetch('/respuesta', {
         method: 'POST',
@@ -396,18 +412,14 @@ const sendMessage = () => {
                         if (window.Prism) Prism.highlightAllUnder(botDiv);
                         speakText(respuesta);
                         guardarMensaje(pregunta, respuesta);
-                        setTimeout(() => {
-                            chatbox.scrollTop = chatbox.scrollHeight;
-                        }, 0);
+                        scrollToBottom();
                         addCopyButtonListeners();
                         return;
                     }
                     const chunk = decoder.decode(value);
                     respuesta += chunk;
                     botDiv.innerHTML = marked.parse(respuesta);
-                    setTimeout(() => {
-                        chatbox.scrollTop = chatbox.scrollHeight;
-                    }, 0);
+                    scrollToBottom();
                     read();
                 }).catch(error => {
                     botDiv.classList.remove('typing');
@@ -428,9 +440,7 @@ const sendMessage = () => {
                     }
                     botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                     container.appendChild(botDiv);
-                    setTimeout(() => {
-                        chatbox.scrollTop = chatbox.scrollHeight;
-                    }, 0);
+                    scrollToBottom();
                     if (window.Prism) Prism.highlightAllUnder(botDiv);
                     speakText(data.respuesta);
                     guardarMensaje(pregunta, data.respuesta);
@@ -474,9 +484,7 @@ const buscarTema = () => {
                 }
                 botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                 container.appendChild(botDiv);
-                setTimeout(() => {
-                    chatbox.scrollTop = chatbox.scrollHeight;
-                }, 0);
+                scrollToBottom();
                 if (window.Prism) Prism.highlightAllUnder(botDiv);
                 speakText(data.respuesta);
                 guardarMensaje(`Explica ${query}`, data.respuesta);
@@ -505,9 +513,7 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
             botDiv.classList.add('bot');
             botDiv.innerHTML = marked.parse(data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
             container.appendChild(botDiv);
-            setTimeout(() => {
-                chatbox.scrollTop = chatbox.scrollHeight;
-            }, 0);
+            scrollToBottom();
             if (window.Prism) Prism.highlightAllUnder(botDiv);
             speakText(data.respuesta);
             guardarMensaje(`Respuesta Quiz ${tema}`, data.respuesta);
@@ -595,37 +601,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = chatbox?.querySelector('.message-container');
     if (input && chatbox) {
         input.addEventListener('input', () => {
-            setTimeout(() => {
-                chatbox.scrollTop = chatbox.scrollHeight;
-            }, 0);
+            scrollToBottom();
         });
-        // Forzar scroll al enfocar el input
+        // Forzar scroll al enfocar el input, con retraso para teclado virtual
         input.addEventListener('focus', () => {
             setTimeout(() => {
-                chatbox.scrollTop = chatbox.scrollHeight;
-            }, 100);
+                scrollToBottom();
+                input.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 300); // Aumentado a 300ms para esperar al teclado virtual
         });
     }
 
     // MutationObserver para detectar cambios dinámicos y scrollear automáticamente
     if (container && chatbox) {
         const observer = new MutationObserver(() => {
-            setTimeout(() => {
-                chatbox.scrollTop = chatbox.scrollHeight;
-            }, 0);
+            scrollToBottom();
         });
         observer.observe(container, { childList: true, subtree: true });
     }
 
-    // Ajustar padding dinámicamente según el teclado virtual
+    // Ajustar dinámicamente la altura de #chatbox y padding-bottom
     if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', () => {
             const chatbox = getElement('#chatbox');
-            if (chatbox) {
+            const input = getElement('#input');
+            if (chatbox && input) {
                 const viewportHeight = window.visualViewport.height;
                 const windowHeight = window.innerHeight;
                 const keyboardHeight = windowHeight - viewportHeight;
-                chatbox.style.paddingBottom = `${Math.max(150, keyboardHeight + 30)}px`;
+                // Ajustar altura de chatbox para que ocupe el viewport disponible
+                chatbox.style.height = `${viewportHeight - 150}px`; // 150px para input y márgenes
+                chatbox.style.paddingBottom = `${Math.max(200, keyboardHeight + 50)}px`; // Aumentado para mayor espacio
+                input.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                scrollToBottom();
             }
         });
     }
@@ -660,12 +668,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         const recomendacion = `Te recomiendo estudiar: ${data.recomendacion}`;
                         botDiv.innerHTML = marked.parse(recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                         container.appendChild(botDiv);
-                        setTimeout(() => {
-                            chatbox.scrollTop = chatbox.scrollHeight;
-                        }, 0);
+                        scrollToBottom();
+                        if (window.Prism) Prism.highlightAllUnder(botDiv);
                         speakText(recomendacion);
                         guardarMensaje('Recomendación', recomendacion);
-                        if (window.Prism) Prism.highlightAllUnder(botDiv);
                         addCopyButtonListeners();
                     }
                 }).catch(error => mostrarNotificacion(`Error al recomendar tema: ${error.message}`, 'error'));
@@ -694,9 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     opcionesHtml += '</div>';
                     const pregunta = `${data.pregunta}<br>Opciones:<br>${opcionesHtml}`;
                     container.innerHTML += `<div class="bot">${marked.parse(pregunta)}<button class="copy-btn" data-text="${data.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
-                    setTimeout(() => {
-                        chatbox.scrollTop = chatbox.scrollHeight;
-                    }, 0);
+                    scrollToBottom();
                     guardarMensaje('Quiz', `${data.pregunta}\nOpciones: ${data.opciones.join(', ')}`);
                     getElements('.quiz-option').forEach(btn => {
                         btn.addEventListener('click', () => {
@@ -820,6 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
+            scrollToBottom(); // Asegurar scroll tras abrir/cerrar menú
         });
 
         elements.menuToggleRight.addEventListener('click', () => {
@@ -833,6 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
+            scrollToBottom(); // Asegurar scroll tras abrir/cerrar menú
         });
 
         document.addEventListener('click', (event) => {
@@ -857,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     rightSection.style.transform = 'translateX(100%)';
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
+                scrollToBottom(); // Asegurar scroll tras cerrar menús
             }
         });
     }
@@ -865,6 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.toggleAprendizajeBtn.addEventListener('click', () => {
             const aprendizajeCard = getElement('#aprendizajeCard');
             if (aprendizajeCard) aprendizajeCard.classList.toggle('active');
+            scrollToBottom(); // Asegurar scroll tras abrir/cerrar card
         });
     }
 

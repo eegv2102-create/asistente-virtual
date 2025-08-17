@@ -2,7 +2,7 @@
 :root {
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     --radius: 8px;
-    --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.15s ease; /* Reducido para tooltips */
+    --transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.15s ease;
     --spacing: 6px;
     --font-base: 16px;
     --font-scale: 1.1;
@@ -285,51 +285,52 @@ h3 {
 }
 
 /* Tooltips específicos para botones de la barra izquierda */
-#toggle-aprendizaje::after { content: "Modo Aprendizaje"; }
-#modo-btn::after { content: "Modo Claro/Oscuro"; }
-#voice-btn::after { content: "Activar/Desactivar Voz"; }
+#toggle-aprendizaje::after { content: "Modo aprendizaje"; }
+#modo-btn::after { content: "Modo claro/oscuro"; }
+#voice-btn::after { content: "Activar/desactivar voz"; }
 #exportTxtBtn::after { content: "Exportar TXT"; }
 #exportPdfBtn::after { content: "Exportar PDF"; }
-#btn-clear::after { content: "Limpiar Chat"; }
-#new-chat-btn::after { content: "Nuevo Chat"; }
+#btn-clear::after { content: "Limpiar chat"; }
+#new-chat-btn::after { content: "Nuevo chat"; }
 #quiz-btn::after { content: "Generar Quiz"; }
-#recommend-btn::after { content: "Recomendar Tema"; }
+#recommend-btn::after { content: "Recomendar tema"; }
 .nivel-btn[data-nivel="basico"]::after { content: "Básico"; }
 .nivel-btn[data-nivel="intermedio"]::after { content: "Intermedio"; }
 .nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
 
 /* Iconos y tooltips para botones de voz en .input-group */
-#btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
+#btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech, #send-btn {
     position: relative;
+    box-sizing: border-box; /* Asegura centrado */
 }
 
-#btn-start-voice::before, #btn-stop-voice::before, #btn-pause-speech::before, #btn-resume-speech::before {
+#btn-start-voice::before, #btn-stop-voice::before, #btn-pause-speech::before, #btn-resume-speech::before, #send-btn::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1; /* Asegura que el área de hover cubra todo el botón */
+    z-index: 1;
 }
 
-#btn-start-voice::after { content: "Iniciar Voz"; }
-#btn-stop-voice::after { content: "Detener Voz"; }
-#btn-pause-speech::after { content: "Pausar Voz de IA"; }
-#btn-resume-speech::after { content: "Reanudar Voz de IA"; }
+#btn-start-voice::after { content: "Iniciar reconocimiento de voz"; }
+#btn-stop-voice::after { content: "Detener reconocimiento de voz"; }
+#btn-pause-speech::after { content: "Pausar voz del asistente"; }
+#btn-resume-speech::after { content: "Reanudar voz del asistente"; }
+#send-btn::after { content: "Enviar mensaje"; }
 
-#btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after {
+#btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after, #send-btn::after {
     position: absolute;
-    top: 50%;
-    right: calc(100% + 10px); /* Ajustado para aparecer a la izquierda */
-    transform: translateY(-50%);
+    top: -40px; /* Posición arriba */
+    left: -10px; /* Ligeramente a la izquierda */
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
     padding: 6px 10px;
     border-radius: 4px;
     font-size: 11px;
-    max-width: 120px;
+    max-width: 150px;
     text-align: center;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -337,9 +338,10 @@ h3 {
     box-shadow: var(--shadow);
     white-space: nowrap;
     z-index: 10000;
+    pointer-events: none;
 }
 
-#btn-start-voice:hover::after, #btn-stop-voice:hover::after, #btn-pause-speech:hover::after, #btn-resume-speech:hover::after {
+#btn-start-voice:hover::after, #btn-stop-voice:hover::after, #btn-pause-speech:hover::after, #btn-resume-speech:hover::after, #send-btn:hover::after {
     opacity: 1 !important;
     visibility: visible !important;
 }
@@ -348,7 +350,6 @@ h3 {
 #btn-stop-voice::before { content: "\f04d"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
 #btn-pause-speech::before { content: "\f04c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
 #btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-
 #send-btn::before { content: "\f1d8"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
 
 .nivel-btn.active {
@@ -377,8 +378,9 @@ h3 {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-bottom: 2px solid color-mix(in srgb, var(--border), var(--accent) 30%); /* Línea divisoria clara */
-    padding-bottom: 10px; /* Espacio visual */
+    border-bottom: 3px solid color-mix(in srgb, var(--border), var(--accent) 40%);
+    padding-bottom: 12px;
+    background: var(--chat-bg);
 }
 
 .search-container {
@@ -439,8 +441,9 @@ h3 {
     overflow-y: auto;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     position: relative;
-    transition: all 0.3s ease;
-    height: calc(100% - 80px); /* Limita altura para dejar espacio al input-group */
+    height: calc(100% - 90px); /* Ajustado dinámicamente en JS */
+    margin-bottom: 10px;
+    scroll-behavior: smooth; /* Mantenido para scroll suave */
 }
 
 #chatbox[aria-live="polite"] {
@@ -532,7 +535,6 @@ h3 {
     font-size: 13px;
     line-height: 1.5;
     box-shadow: var(--shadow);
-    animation: fadeIn 0.4s ease-out, slideIn 0.3s ease-out;
     border: 2px solid color-mix(in srgb, var(--border), var(--accent) 20%);
     font-weight: 400;
 }
@@ -540,16 +542,6 @@ h3 {
 .user:hover, .bot:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideIn {
-    from { transform: translateX(-10px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
 }
 
 .user {
@@ -732,16 +724,20 @@ body:not(.modo-claro) .bot {
     display: flex;
     gap: calc(var(--spacing) / 2);
     padding: var(--spacing);
-    border-top: 2px solid color-mix(in srgb, var(--border), var(--accent) 30%); /* Línea divisoria clara */
-    background: color-mix(in srgb, var(--bg), #000 5%); /* Contraste sutil */
-    position: sticky;
+    border-top: 3px solid color-mix(in srgb, var(--border), var(--accent) 40%);
+    background: color-mix(in srgb, var(--bg), #000 10%);
+    position: fixed; /* Cambiado a fixed para móviles */
     bottom: 0;
+    left: 0;
+    right: 0;
     z-index: 30;
-    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
+    align-items: center;
+    min-height: 60px; /* Asegura espacio para botones */
 }
 
 .input-group button {
-    padding: calc(var(--spacing) * 0.75);
+    padding: 0;
     background: linear-gradient(135deg, var(--button-bg), color-mix(in srgb, var(--button-bg), #000 20%));
     color: var(--text);
     border: none;
@@ -756,6 +752,8 @@ body:not(.modo-claro) .bot {
     justify-content: center;
     position: relative;
     font-size: 0;
+    box-sizing: border-box;
+    margin: 0;
 }
 
 .input-group button:hover {
@@ -965,8 +963,8 @@ body:not(.modo-claro) .bot {
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: var(--transition);
-    z-index: 60; /* Aumentado para asegurar clic */
-    pointer-events: auto; /* Asegura eventos táctiles */
+    z-index: 60;
+    pointer-events: auto;
 }
 
 .menu-toggle {
@@ -1091,15 +1089,15 @@ body:not(.modo-claro) .bot {
     .left-section.active, .right-section.active {
         display: flex !important;
         visibility: visible !important;
-        position: fixed;
+        position: fixed !important;
         top: 50px;
         bottom: 0;
-        z-index: 50; /* Aumentado para estar sobre otros elementos */
+        z-index: 50;
         transition: transform 0.3s ease;
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        max-height: calc(100vh - 80px); /* Evita tapar input-group */
-        will-change: transform; /* Optimiza animación */
+        max-height: calc(100vh - 90px);
+        will-change: transform;
     }
 
     .left-section {
@@ -1126,7 +1124,7 @@ body:not(.modo-claro) .bot {
 
     .menu-toggle, .menu-toggle-right {
         display: block !important;
-        z-index: 60; /* Asegura que sean clicables */
+        z-index: 60;
         pointer-events: auto;
     }
 
@@ -1139,15 +1137,16 @@ body:not(.modo-claro) .bot {
         flex-wrap: wrap;
         z-index: 30;
         min-height: 60px;
-        border-top: 2px solid color-mix(in srgb, var(--border), var(--accent) 30%);
-        background: color-mix(in srgb, var(--bg), #000 5%);
-        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+        border-top: 3px solid color-mix(in srgb, var(--border), var(--accent) 40%);
+        background: color-mix(in srgb, var(--bg), #000 10%);
+        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
+        align-items: center;
     }
 
     .input-group button {
         width: 36px;
         height: 36px;
-        margin: 2px 0;
+        margin: 0;
     }
 
     .right-section .tab-buttons {
@@ -1170,15 +1169,15 @@ body:not(.modo-claro) .bot {
     }
 
     .tab-content > div.active {
-        padding-bottom: 160px;
+        padding-bottom: 200px; /* Aumentado para teclado virtual */
         overflow-y: auto;
     }
 
     #chatbox {
-        margin-bottom: 80px;
-        padding-bottom: 160px; /* Aumentado para teclado */
-        scroll-padding-bottom: 160px;
-        height: calc(100% - 80px); /* Limita altura */
+        margin-bottom: 12px;
+        padding-bottom: 200px; /* Aumentado para teclado virtual */
+        scroll-padding-bottom: 200px;
+        height: calc(100% - 90px); /* Ajustado dinámicamente en JS */
     }
 
     .search-container {
@@ -1188,13 +1187,14 @@ body:not(.modo-claro) .bot {
 
     .user, .bot {
         max-width: 90%;
+        animation: none; /* Desactivar animaciones en móviles para mejorar rendimiento */
     }
 
     .left-section button::after, .nivel-btn::after {
         display: none !important;
     }
 
-    #btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after {
+    #btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after, #send-btn::after {
         display: none !important;
     }
 
@@ -1295,6 +1295,7 @@ body:not(.modo-claro) .bot {
     .input-group button {
         width: 40px;
         height: 40px;
+        margin: 0;
     }
 
     .card {
@@ -1334,4 +1335,9 @@ body:not(.modo-claro) .bot {
     min-height: 50px;
     font-size: 16px;
     z-index: 35;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    box-shadow: var(--shadow);
 }
