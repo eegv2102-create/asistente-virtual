@@ -105,21 +105,28 @@ const toggleVoiceUser = () => {
     if (isListening) {
         recognition.stop();
         isListening = false;
-        getElement('#toggle-voice-user').querySelector('i').classList.remove('fa-microphone-slash');
-        getElement('#toggle-voice-user').querySelector('i').classList.add('fa-microphone');
+        const btn = getElement('#toggle-voice-user');
+        if (btn) {
+            btn.querySelector('i').classList.remove('fa-microphone-slash');
+            btn.querySelector('i').classList.add('fa-microphone');
+        }
         mostrarNotificacion('Voz usuario desactivada');
     } else {
         recognition = new webkitSpeechRecognition();
         recognition.lang = 'es-ES';
         recognition.onresult = event => {
             const transcript = event.results[0][0].transcript;
-            getElement('#input').value = transcript;
+            const input = getElement('#input');
+            if (input) input.value = transcript;
             sendMessage();
         };
         recognition.start();
         isListening = true;
-        getElement('#toggle-voice-user').querySelector('i').classList.remove('fa-microphone');
-        getElement('#toggle-voice-user').querySelector('i').classList.add('fa-microphone-slash');
+        const btn = getElement('#toggle-voice-user');
+        if (btn) {
+            btn.querySelector('i').classList.remove('fa-microphone');
+            btn.querySelector('i').classList.add('fa-microphone-slash');
+        }
         mostrarNotificacion('Voz usuario activada');
     }
 };
@@ -128,7 +135,7 @@ const pauseIAVoice = () => {
     if (currentAudio) {
         currentAudio.pause();
         mostrarNotificacion('Voz IA pausada');
-    }
+    };
 };
 
 const playIAVoice = () => {
@@ -139,13 +146,19 @@ const playIAVoice = () => {
 };
 
 const newChat = () => {
-    getElement('#chatbox .message-container').innerHTML = '';
-    mostrarNotificacion('Nuevo chat iniciado');
+    const container = getElement('#chatbox .message-container');
+    if (container) {
+        container.innerHTML = '';
+        mostrarNotificacion('Nuevo chat iniciado');
+    }
 };
 
 const deleteChat = () => {
-    getElement('#chatbox .message-container').innerHTML = '';
-    mostrarNotificacion('Chat eliminado');
+    const container = getElement('#chatbox .message-container');
+    if (container) {
+        container.innerHTML = '';
+        mostrarNotificacion('Chat eliminado');
+    }
 };
 
 const exportarTxt = () => {
@@ -182,9 +195,10 @@ const exportarPdf = () => {
 
 const sendMessage = () => {
     const input = getElement('#input');
+    const messageContainer = getElement('.message-container');
+    if (!input || !messageContainer) return;
     const pregunta = input.value.trim();
     if (!pregunta) return;
-    const messageContainer = getElement('.message-container');
     const userMsg = document.createElement('div');
     userMsg.classList.add('user');
     userMsg.textContent = pregunta;
@@ -195,7 +209,10 @@ const sendMessage = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pregunta })
-    }).then(res => res.json()).then(data => {
+    }).then(res => {
+        if (!res.ok) throw new Error('Error en la solicitud');
+        return res.json();
+    }).then(data => {
         if (data.respuesta) {
             const botMsg = document.createElement('div');
             botMsg.classList.add('bot');
@@ -203,6 +220,8 @@ const sendMessage = () => {
             messageContainer.appendChild(botMsg);
             scrollToBottom();
             speakText(data.respuesta);
+        } else if (data.error) {
+            mostrarNotificacion(`Error: ${data.error}`, 'error');
         }
     }).catch(error => {
         mostrarNotificacion(`Error: ${error.message}`, 'error');
@@ -210,31 +229,33 @@ const sendMessage = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Registrar Service Worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/static/js/sw.js').then(reg => {
-            console.log('Service Worker registrado', reg);
-        }).catch(err => {
-            console.error('Error al registrar Service Worker', err);
-        });
-    }
-
     // Cargar progreso y bienvenida
-    fetch('/progreso').then(res => res.json()).then(data => {
+    fetch('/progreso').then(res => {
+        if (!res.ok) throw new Error('Error al cargar progreso');
+        return res.json();
+    }).then(data => {
         if (data.bienvenida) {
             const messageContainer = getElement('.message-container');
-            const botMsg = document.createElement('div');
-            botMsg.classList.add('bot');
-            botMsg.textContent = data.bienvenida;
-            messageContainer.appendChild(botMsg);
-            scrollToBottom();
-            speakText(data.bienvenida);
+            if (messageContainer) {
+                const botMsg = document.createElement('div');
+                botMsg.classList.add('bot');
+                botMsg.textContent = data.bienvenida;
+                messageContainer.appendChild(botMsg);
+                scrollToBottom();
+                speakText(data.bienvenida);
+            }
         }
+    }).catch(error => {
+        mostrarNotificacion(`Error al cargar bienvenida: ${error.message}`, 'error');
     });
 
     // Cargar avatares
-    fetch('/avatars').then(res => res.json()).then(data => {
+    fetch('/avatars').then(res => {
+        if (!res.ok) throw new Error('Error al cargar avatares');
+        return res.json();
+    }).then(data => {
         const avatarOptions = getElement('#avatar-options');
+        if (!avatarOptions) return;
         data.forEach(avatar => {
             const img = document.createElement('img');
             img.src = avatar.url;
@@ -250,39 +271,48 @@ document.addEventListener('DOMContentLoaded', () => {
             if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
             avatarOptions.appendChild(img);
         });
+    }).catch(error => {
+        mostrarNotificacion(`Error al cargar avatares: ${error.message}`, 'error');
     });
 
     // Event listeners
-    getElement('#toggle-voice-user').addEventListener('click', toggleVoiceUser);
-    getElement('#pause-ia-voice').addEventListener('click', pauseIAVoice);
-    getElement('#play-ia-voice').addEventListener('click', playIAVoice);
-    getElement('#new-chat').addEventListener('click', newChat);
-    getElement('#delete-chat').addEventListener('click', deleteChat);
-    getElement('#export-txt').addEventListener('click', exportarTxt);
-    getElement('#export-pdf').addEventListener('click', exportarPdf);
-    getElement('#toggle-dark-mode').addEventListener('click', () => {
-        document.body.classList.toggle('modo-claro');
-        mostrarNotificacion(document.body.classList.contains('modo-claro') ? 'Modo claro activado' : 'Modo oscuro activado');
-    });
-    getElement('#send').addEventListener('click', sendMessage);
-    getElement('#input').addEventListener('keypress', e => {
-        if (e.key === 'Enter') sendMessage();
-    });
-    getElement('#send-feedback').addEventListener('click', () => {
-        const comentario = getElement('#feedback-input').value.trim();
-        if (!comentario) {
-            mostrarNotificacion('Por favor, escribe un comentario', 'error');
-            return;
-        }
-        fetch('/feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ comentario })
-        }).then(res => res.json()).then(data => {
-            mostrarNotificacion(data.mensaje || data.error, data.error ? 'error' : 'success');
-            getElement('#feedback-input').value = '';
+    const toggleVoiceBtn = getElement('#toggle-voice-user');
+    if (toggleVoiceBtn) toggleVoiceBtn.addEventListener('click', toggleVoiceUser);
+
+    const pauseIABtn = getElement('#pause-ia-voice');
+    if (pauseIABtn) pauseIABtn.addEventListener('click', pauseIAVoice);
+
+    const playIABtn = getElement('#play-ia-voice');
+    if (playIABtn) playIABtn.addEventListener('click', playIAVoice);
+
+    const newChatBtn = getElement('#new-chat');
+    if (newChatBtn) newChatBtn.addEventListener('click', newChat);
+
+    const deleteChatBtn = getElement('#delete-chat');
+    if (deleteChatBtn) deleteChatBtn.addEventListener('click', deleteChat);
+
+    const exportTxtBtn = getElement('#export-txt');
+    if (exportTxtBtn) exportTxtBtn.addEventListener('click', exportarTxt);
+
+    const exportPdfBtn = getElement('#export-pdf');
+    if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportarPdf);
+
+    const toggleDarkModeBtn = getElement('#toggle-dark-mode');
+    if (toggleDarkModeBtn) {
+        toggleDarkModeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('modo-claro');
+            mostrarNotificacion(document.body.classList.contains('modo-claro') ? 'Modo claro activado' : 'Modo oscuro activado');
         });
-    });
+    }
+
+    const sendBtn = getElement('#send');
+    const input = getElement('#input');
+    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    if (input) {
+        input.addEventListener('keypress', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    }
 
     // Niveles
     getElements('.nivel-btn').forEach(btn => {
@@ -292,9 +322,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nivel })
-            }).then(res => res.json()).then(data => {
+            }).then(res => {
+                if (!res.ok) throw new Error('Error al cambiar nivel');
+                return res.json();
+            }).then(data => {
                 mostrarNotificacion(data.mensaje);
                 document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
+            }).catch(error => {
+                mostrarNotificacion(`Error: ${error.message}`, 'error');
             });
         });
     });

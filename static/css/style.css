@@ -190,7 +190,7 @@ h3 {
     justify-content: space-around;
     width: 100%;
     padding: var(--spacing);
-    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
 }
 
 .niveles {
@@ -198,7 +198,7 @@ h3 {
     justify-content: space-around;
     width: 100%;
     padding: var(--spacing);
-    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
 }
 
 .nivel-btn {
@@ -216,7 +216,7 @@ h3 {
     background: var(--button-hover);
 }
 
-.input-group, .feedback-section {
+.input-group {
     display: flex;
     align-items: center;
     gap: var(--spacing);
@@ -225,7 +225,7 @@ h3 {
     border-top: 1px solid var(--border);
 }
 
-#input, #feedback-input {
+#input {
     flex: 1;
     padding: var(--spacing);
     border: 1px solid var(--border);
@@ -248,10 +248,17 @@ button:hover, button:focus {
     background: var(--button-hover);
 }
 
+#chatbox {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing);
+}
+
 .message-container {
     display: flex;
     flex-direction: column;
     gap: var(--spacing);
+    min-height: 100%;
 }
 
 .user, .bot {
@@ -334,7 +341,7 @@ button:hover, button:focus {
         transform: translateX(0);
     }
 
-    .input-group, .feedback-section {
+    .input-group {
         flex-wrap: wrap;
         position: fixed;
         bottom: 0;

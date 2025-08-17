@@ -65,8 +65,6 @@ def init_db():
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS feedback
-                     (id SERIAL PRIMARY KEY, usuario TEXT, comentario TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", "/static/animations/default.json"))
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
@@ -223,12 +221,9 @@ def progreso():
     try:
         usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
         progreso = cargar_progreso(usuario)
-        # Mensaje de bienvenida al cargar
-        if progreso["puntos"] == 0:
-            bienvenida = "¡Bienvenido! Soy tu asistente de programación avanzada. Empieza preguntando sobre un tema."
-            log_interaccion(usuario, "inicio", bienvenida)
-            return jsonify({"progreso": progreso, "bienvenida": bienvenida})
-        return jsonify({"progreso": progreso})
+        bienvenida = "¡Bienvenido! Soy tu asistente de programación avanzada. Empieza preguntando sobre un tema o selecciona un nivel (Básico, Intermedio, Avanzado)."
+        log_interaccion(usuario, "inicio", bienvenida)
+        return jsonify({"progreso": progreso, "bienvenida": bienvenida})
     except Exception as e:
         logging.error(f"Error en /progreso: {str(e)}")
         return jsonify({"error": f"Error al cargar progreso: {str(e)}"}), 500
@@ -363,27 +358,6 @@ def tts():
     except Exception as e:
         logging.error(f"Error en /tts: {str(e)}")
         return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
-
-@app.route("/feedback", methods=["POST"])
-def feedback():
-    try:
-        data = request.get_json()
-        if not data or "comentario" not in data:
-            return jsonify({"error": "Falta el comentario"}), 400
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        comentario = bleach.clean(data.get("comentario").strip()[:1000])
-        if not comentario:
-            return jsonify({"error": "Comentario vacío"}), 400
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("INSERT INTO feedback (usuario, comentario) VALUES (%s, %s)", (usuario, comentario))
-        conn.commit()
-        conn.close()
-        logging.info(f"Feedback recibido de {usuario}: {comentario}")
-        return jsonify({"mensaje": "Gracias por tu retroalimentación"})
-    except Exception as e:
-        logging.error(f"Error en /feedback: {str(e)}")
-        return jsonify({"error": f"Error al procesar retroalimentación: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()

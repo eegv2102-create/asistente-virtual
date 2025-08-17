@@ -13,13 +13,13 @@
         <div class="main-layout">
             <!-- Historial a izquierda -->
             <div class="left-section" role="navigation" aria-label="Historial de chats">
-                <h3>Historial de Chats</h3>
-                <ul id="chat-list" aria-label="Lista de chats"></ul>
                 <div class="historial-controls">
                     <button id="toggle-dark-mode" data-tooltip="Modo Oscuro/Claro" aria-label="Cambiar a modo oscuro o claro"><i class="fas fa-moon"></i></button>
                     <button id="export-txt" data-tooltip="Exportar TXT" aria-label="Exportar chat como TXT"><i class="fas fa-file-alt"></i></button>
                     <button id="export-pdf" data-tooltip="Exportar PDF" aria-label="Exportar chat como PDF"><i class="fas fa-file-pdf"></i></button>
                 </div>
+                <h3>Historial de Chats</h3>
+                <ul id="chat-list" aria-label="Lista de chats"></ul>
             </div>
             <!-- Chat central -->
             <div class="center-section" role="main" aria-label="Área de chat">
@@ -35,13 +35,14 @@
                     <button id="play-ia-voice" data-tooltip="Reproducir Voz IA" aria-label="Reproducir voz de la IA"><i class="fas fa-play"></i></button>
                     <button id="send" data-tooltip="Enviar" aria-label="Enviar pregunta"><i class="fas fa-paper-plane"></i></button>
                 </div>
-                <div class="feedback-section">
-                    <input type="text" id="feedback-input" placeholder="Envía tu retroalimentación..." aria-label="Escribe tu retroalimentación">
-                    <button id="send-feedback" data-tooltip="Enviar Retroalimentación" aria-label="Enviar retroalimentación"><i class="fas fa-comment"></i></button>
-                </div>
             </div>
             <!-- Asistente a derecha -->
             <div class="right-section" role="complementary" aria-label="Configuración del asistente">
+                <div class="niveles">
+                    <button class="nivel-btn basico" data-nivel="basico" data-tooltip="Nivel Básico" aria-label="Seleccionar nivel básico"><i class="fas fa-seedling"></i></button>
+                    <button class="nivel-btn intermedio" data-nivel="intermedio" data-tooltip="Nivel Intermedio" aria-label="Seleccionar nivel intermedio"><i class="fas fa-tools"></i></button>
+                    <button class="nivel-btn avanzado" data-nivel="avanzado" data-tooltip="Nivel Avanzado" aria-label="Seleccionar nivel avanzado"><i class="fas fa-rocket"></i></button>
+                </div>
                 <div class="tab-content">
                     <div id="asistente-tab" class="active">
                         <h3>Asistente</h3>
@@ -50,11 +51,6 @@
                             <div id="avatar-options" role="radiogroup" aria-label="Selección de avatares"></div>
                             <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
                             <canvas id="lip-sync-canvas" width="50" height="50" aria-hidden="true"></canvas>
-                        </div>
-                        <div class="niveles">
-                            <button class="nivel-btn basico" data-nivel="basico" data-tooltip="Nivel Básico" aria-label="Seleccionar nivel básico"><i class="fas fa-seedling"></i></button>
-                            <button class="nivel-btn intermedio" data-nivel="intermedio" data-tooltip="Nivel Intermedio" aria-label="Seleccionar nivel intermedio"><i class="fas fa-tools"></i></button>
-                            <button class="nivel-btn avanzado" data-nivel="avanzado" data-tooltip="Nivel Avanzado" aria-label="Seleccionar nivel avanzado"><i class="fas fa-rocket"></i></button>
                         </div>
                     </div>
                 </div>
