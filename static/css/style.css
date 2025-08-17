@@ -322,9 +322,8 @@ h3 {
 
 #btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after, #send-btn::after {
     position: absolute;
-    top: -40px; /* Mantener arriba */
-    left: -150px; /* Mover más a la izquierda para diagonal */
-    transform: translateY(-50%) translateX(-50%); /* Ajuste para diagonal arriba-izquierda */
+    top: -40px; /* Posición arriba */
+    left: -10px; /* Ligeramente a la izquierda */
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
@@ -442,9 +441,9 @@ h3 {
     overflow-y: auto;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     position: relative;
-    height: calc(100% - 90px); /* Ajustado dinámicamente en JS */
+    transition: all 0.3s ease;
+    height: calc(100% - 90px);
     margin-bottom: 10px;
-    scroll-behavior: smooth;
 }
 
 #chatbox[aria-live="polite"] {
@@ -536,14 +535,24 @@ h3 {
     font-size: 13px;
     line-height: 1.5;
     box-shadow: var(--shadow);
+    animation: fadeIn 0.4s ease-out, slideIn 0.3s ease-out;
     border: 2px solid color-mix(in srgb, var(--border), var(--accent) 20%);
     font-weight: 400;
-    animation: none; /* Desactivar animaciones para evitar interferencias con scroll */
 }
 
 .user:hover, .bot:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-10px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
 .user {
@@ -728,18 +737,15 @@ body:not(.modo-claro) .bot {
     padding: var(--spacing);
     border-top: 3px solid color-mix(in srgb, var(--border), var(--accent) 40%);
     background: color-mix(in srgb, var(--bg), #000 10%);
-    position: fixed;
+    position: sticky;
     bottom: 0;
-    left: 0;
-    right: 0;
     z-index: 30;
     box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
-    align-items: center;
-    min-height: 60px;
+    align-items: center; /* Centrado vertical */
 }
 
 .input-group button {
-    padding: 0;
+    padding: 0; /* Eliminado para centrado */
     background: linear-gradient(135deg, var(--button-bg), color-mix(in srgb, var(--button-bg), #000 20%));
     color: var(--text);
     border: none;
@@ -754,8 +760,8 @@ body:not(.modo-claro) .bot {
     justify-content: center;
     position: relative;
     font-size: 0;
-    box-sizing: border-box;
-    margin: 0;
+    box-sizing: border-box; /* Asegura centrado */
+    margin: 0; /* Elimina márgenes desiguales */
 }
 
 .input-group button:hover {
@@ -774,7 +780,6 @@ body:not(.modo-claro) .bot {
     overflow: hidden;
     height: 100%;
     transition: transform 0.3s ease;
-    z-index: 50; /* Aumentado para asegurar interacción */
 }
 
 .tab-buttons {
@@ -976,7 +981,6 @@ body:not(.modo-claro) .bot {
 
 .menu-toggle-right {
     right: calc(var(--spacing) * 1.5);
-    z-index: 70; /* Aumentado para asegurar interacción */
 }
 
 .menu-toggle:hover, .menu-toggle-right:hover {
@@ -1118,7 +1122,6 @@ body:not(.modo-claro) .bot {
         transform: translateX(100%);
         right: 0;
         width: min(300px, 80vw);
-        z-index: 50; /* Aumentado para interacción */
     }
 
     .right-section.active {
@@ -1151,7 +1154,7 @@ body:not(.modo-claro) .bot {
     .input-group button {
         width: 36px;
         height: 36px;
-        margin: 0;
+        margin: 0; /* Centrado en móviles */
     }
 
     .right-section .tab-buttons {
@@ -1174,14 +1177,14 @@ body:not(.modo-claro) .bot {
     }
 
     .tab-content > div.active {
-        padding-bottom: 200px;
+        padding-bottom: 170px;
         overflow-y: auto;
     }
 
     #chatbox {
         margin-bottom: 12px;
-        padding-bottom: 200px;
-        scroll-padding-bottom: 200px;
+        padding-bottom: 170px;
+        scroll-padding-bottom: 170px;
         height: calc(100% - 90px);
     }
 
@@ -1192,7 +1195,6 @@ body:not(.modo-claro) .bot {
 
     .user, .bot {
         max-width: 90%;
-        animation: none; /* Desactivar animaciones en móviles */
     }
 
     .left-section button::after, .nivel-btn::after {
