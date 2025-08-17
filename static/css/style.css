@@ -298,111 +298,108 @@ h3 {
 .nivel-btn[data-nivel="intermedio"]::after { content: "Intermedio"; }
 .nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
 
-/* Tooltips para botones de voz y enviar en .input-group */
+/* Estilos para botones de voz en .input-group */
 #btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech, #send-btn {
     position: relative;
-    box-sizing: border-box; /* Asegura centrado */
+    box-sizing: border-box;
+    display: flex; /* Asegura centrado de íconos */
+    align-items: center;
+    justify-content: center;
 }
 
+/* Centrar íconos en los botones */
 #btn-start-voice::before, #btn-stop-voice::before, #btn-pause-speech::before, #btn-resume-speech::before, #send-btn::before {
     content: '';
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 16px;
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Centrado perfecto */
     z-index: 1;
 }
 
+/* Tooltips para botones de voz (excluye #send-btn) */
 #btn-start-voice::after,
 #btn-stop-voice::after,
 #btn-pause-speech::after,
-#btn-resume-speech::after,
-#send-btn::after {
-    content: attr(data-tooltip); /* Usar data-tooltip para consistencia */
+#btn-resume-speech::after {
+    content: attr(data-tooltip);
     position: absolute;
-    right: calc(100% + 12px); /* Mayor separación para evitar superposición con el input */
+    right: calc(100% + 12px); /* Separación del botón */
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
     padding: 6px 10px;
     border-radius: 4px;
     font-size: 11px;
-    max-width: 140px; /* Reducido para evitar colisión con .left-section */
+    max-width: 140px;
     text-align: center;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
     box-shadow: var(--shadow);
     white-space: nowrap;
-    z-index: 150; /* Mayor que el input (z-index: 35) y .left-section (z-index: 50) */
+    z-index: 150; /* Mayor que input (z-index: 35) y .left-section (z-index: 50) */
     pointer-events: none;
 }
 
 /* Posiciones diagonales específicas para cada botón */
 #btn-start-voice::after {
-    top: -15px; /* Más arriba para evitar el input */
+    top: -30px; /* Más arriba para evitar el input */
     transform: translateY(-10%);
 }
 #btn-stop-voice::after {
-    top: -8px; /* Ligeramente más abajo */
+    top: -24px; /* Ligeramente más abajo */
     transform: translateY(-20%);
 }
 #btn-pause-speech::after {
-    top: 0; /* Centro */
+    top: -18px; /* Centro */
     transform: translateY(-30%);
 }
 #btn-resume-speech::after {
-    top: 8px; /* Ligeramente más abajo */
+    top: -12px; /* Ligeramente más abajo */
     transform: translateY(-40%);
-}
-#send-btn::after {
-    top: 15px; /* Más abajo para efecto diagonal */
-    transform: translateY(-50%);
 }
 
 /* Mostrar tooltips al pasar el mouse */
 #btn-start-voice:hover::after,
 #btn-stop-voice:hover::after,
 #btn-pause-speech:hover::after,
-#btn-resume-speech:hover::after,
-#send-btn:hover::after {
+#btn-resume-speech:hover::after {
     opacity: 1;
     visibility: visible;
 }
 
-/* En móviles, mover tooltips arriba para evitar conflictos con .left-section */
+/* En móviles, mover tooltips más arriba para evitar conflictos */
 @media (max-width: 768px) {
     #btn-start-voice::after,
     #btn-stop-voice::after,
     #btn-pause-speech::after,
-    #btn-resume-speech::after,
-    #send-btn::after {
-        right: auto; /* Remover posición izquierda */
-        top: -40px; /* Posicionar arriba de los botones */
-        left: 50%; /* Centrar horizontalmente */
-        transform: translateX(-50%) translateY(-10%); /* Ajustar centrado */
-        max-width: 120px; /* Reducir ancho en móviles */
-        font-size: 10px; /* Texto más pequeño */
-        padding: 4px 8px; /* Menor padding */
-        z-index: 150; /* Asegurar visibilidad sobre .left-section.active */
+    #btn-resume-speech::after {
+        right: auto;
+        top: -60px; /* Más arriba para evitar el input */
+        left: 50%;
+        transform: translateX(-50%) translateY(-10%);
+        max-width: 120px;
+        font-size: 10px;
+        padding: 4px 8px;
+        z-index: 150;
     }
 
     /* Ajustar posiciones diagonales en móviles */
     #btn-start-voice::after {
-        top: -48px; /* Más arriba */
+        top: -68px; /* Más arriba */
     }
     #btn-stop-voice::after {
-        top: -44px;
+        top: -62px;
     }
     #btn-pause-speech::after {
-        top: -40px;
+        top: -56px;
     }
     #btn-resume-speech::after {
-        top: -36px;
-    }
-    #send-btn::after {
-        top: -32px;
+        top: -50px;
     }
 
     /* Desactivar tooltips en pantallas muy pequeñas */
@@ -410,18 +407,18 @@ h3 {
         #btn-start-voice::after,
         #btn-stop-voice::after,
         #btn-pause-speech::after,
-        #btn-resume-speech::after,
-        #send-btn::after {
-            display: none; /* Desactivar tooltips en pantallas pequeñas */
+        #btn-resume-speech::after {
+            display: none;
         }
     }
 }
 
-#btn-start-voice::before { content: "\f130"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-stop-voice::before { content: "\f04d"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-pause-speech::before { content: "\f04c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#btn-resume-speech::before { content: "\f04b"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
-#send-btn::before { content: "\f1d8"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
+/* Íconos de los botones */
+#btn-start-voice::before { content: "\f130"; }
+#btn-stop-voice::before { content: "\f04d"; }
+#btn-pause-speech::before { content: "\f04c"; }
+#btn-resume-speech::before { content: "\f04b"; }
+#send-btn::before { content: "\f1d8"; }
 
 .nivel-btn.active {
     background: var(--accent);
@@ -515,7 +512,7 @@ h3 {
     transition: all 0.3s ease;
     height: calc(100% - 90px);
     margin-bottom: 10px;
-    scroll-behavior: auto; /* Mantenido para consistencia con scroll */
+    scroll-behavior: auto;
 }
 
 #chatbox[aria-live="polite"] {
@@ -813,11 +810,11 @@ body:not(.modo-claro) .bot {
     bottom: 0;
     z-index: 30;
     box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
-    align-items: center; /* Centrado vertical */
+    align-items: center;
 }
 
 .input-group button {
-    padding: 0; /* Eliminado para centrado */
+    padding: 0;
     background: linear-gradient(135deg, var(--button-bg), color-mix(in srgb, var(--button-bg), #000 20%));
     color: var(--text);
     border: none;
@@ -832,8 +829,8 @@ body:not(.modo-claro) .bot {
     justify-content: center;
     position: relative;
     font-size: 0;
-    box-sizing: border-box; /* Asegura centrado */
-    margin: 0; /* Elimina márgenes desiguales */
+    box-sizing: border-box;
+    margin: 0;
 }
 
 .input-group button:hover {
@@ -1226,7 +1223,7 @@ body:not(.modo-claro) .bot {
     .input-group button {
         width: 36px;
         height: 36px;
-        margin: 0; /* Centrado en móviles */
+        margin: 0;
     }
 
     .right-section .tab-buttons {
