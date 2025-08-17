@@ -1,37 +1,82 @@
 {
-  "poo": "La Programación Orientada a Objetos organiza el código en clases y objetos.",
-  "clases y objetos": "Una clase es una plantilla para objetos. Un objeto es una instancia de una clase con estado y comportamiento.",
-  "objeto": "Un objeto es una instancia de una clase que encapsula datos y métodos.",
-  "encapsulamiento": "Oculta detalles internos usando getters y setters para controlar el acceso.",
-  "herencia": "Permite que una clase hija herede atributos y métodos de una clase padre, promoviendo reutilización.",
-  "polimorfismo": "Permite que un método actúe diferente según el objeto, mediante sobrecarga o sobreescritura.",
-  "uml": "UML es un lenguaje visual para modelar sistemas, incluyendo diagramas de clases y secuencias.",
-  "mvc": "MVC separa Modelo (datos), Vista (UI) y Controlador (lógica) para mantener el código ordenado.",
-  "archivos": "Permite leer y escribir datos en archivos usando POO, como con clases FileHandler.",
-  "bases de datos": "Permiten almacenar y consultar información de forma organizada, usando ORM como SQLAlchemy.",
-  "pruebas": "Sirven para verificar que el software funciona correctamente, con unit tests en Pytest.",
-  "programación avanzada": "Estudia conceptos complejos como POO, patrones de diseño, MVC y más.",
-  "singleton": "El patrón Singleton asegura que una clase tenga una única instancia y proporciona un punto de acceso global a ella.",
-  "factory": "El patrón Factory permite crear objetos sin especificar la clase exacta del objeto que se va a crear.",
-  "observer": "El patrón Observer define una relación de dependencia uno a muchos entre objetos, de manera que cuando uno cambie, los demás se notifiquen.",
-  "excepciones": "Las excepciones permiten manejar errores de forma controlada usando bloques try-except.",
-  "recursividad": "La recursividad es una técnica donde una función se llama a sí misma para resolver un problema.",
-  "listas": "Las listas son estructuras de datos que almacenan múltiples elementos ordenados.",
-  "diccionarios": "Los diccionarios permiten almacenar pares clave-valor y acceder a los valores por su clave.",
-  "modularidad": "La modularidad permite dividir un programa en partes más pequeñas y reutilizables llamadas módulos.",
-  "decoradores": "Los decoradores en Python son funciones que modifican el comportamiento de otras funciones.",
-  "refactorización": "La refactorización mejora la estructura interna del código sin cambiar su comportamiento externo.",
-  "programación funcional": "La programación funcional se basa en el uso de funciones puras, sin efectos secundarios ni estado mutable.",
-  "patrones de diseño": "Los patrones de diseño son soluciones reutilizables a problemas comunes en el diseño de software. Incluye creacionales, estructurales y comportamentales.",
-  "api rest": "Una API REST es un estilo de arquitectura web que usa HTTP para acceder a recursos mediante endpoints.",
-  "seguridad informática": "Incluye técnicas para proteger sistemas y datos contra accesos no autorizados.",
-  "multihilo": "El multihilo permite ejecutar múltiples hilos concurrentemente para mejorar el rendimiento.",
-  "protocolos de red": "Protocolos como TCP/IP y HTTP son la base de la comunicación en redes.",
-  "versionamiento": "El versionamiento, como con Git, controla cambios en el código a lo largo del tiempo.",
-  "testing unitario": "Las pruebas unitarias verifican el funcionamiento de unidades individuales de código, como funciones.",
-  "programación asíncrona": "La programación asíncrona, como con asyncio en Python, maneja tareas sin bloquear el hilo principal.",
-  "optimización de código": "Técnicas para reducir el tiempo de ejecución y el uso de recursos del código.",
-  "microservicios": "Arquitectura que divide una aplicación en servicios independientes que se comunican entre sí.",
-  "strategy": "El patrón Strategy define un conjunto de algoritmos que pueden intercambiarse dentro de una clase.",
-  "docker": "Docker permite empaquetar aplicaciones en contenedores ligeros."
+  "programacion avanzada": {
+    "basico": "Estudia conceptos complejos como POO, UML, MVC y acceso a datos para desarrollar software en Telemática, con enfoque teórico-práctico.",
+    "intermedio": "Incluye herencia, encapsulamiento, polimorfismo y programación concurrente/distribuida, aplicados a bases de datos relacionales y SQL.",
+    "avanzado": "Integra POO con ORM, pruebas unitarias y buenas prácticas para resolver problemas en ingeniería de software, promoviendo reutilización y escalabilidad."
+  },
+  "poo": {
+    "basico": "La Programación Orientada a Objetos organiza código en clases y objetos, con ventajas como reutilización y comparación con paradigmas procedimentales.",
+    "intermedio": "Conceptos básicos: clases como plantillas, objetos con estado y comportamiento; ventajas en modelamiento y encapsulamiento.",
+    "avanzado": "Aplicación en Telemática: herencia para jerarquías, polimorfismo para flexibilidad, integrado con bases de datos y concurrente/distribuida."
+  },
+  "clases y objetos": {
+    "basico": "Una clase es una plantilla; un objeto es una instancia con datos (atributos) y acciones (métodos).",
+    "intermedio": "Definición de clases, creación de objetos, uso de atributos y métodos en Java o similar.",
+    "avanzado": "Instanciación en contextos concurrentes, con integración a UML para modelar sistemas complejos."
+  },
+  "encapsulamiento": {
+    "basico": "Oculta detalles internos de objetos para proteger datos, usando modificadores de acceso.",
+    "intermedio": "Implementación con getters/setters y modificadores (public, private) para controlar acceso.",
+    "avanzado": "En POO avanzada: asegura seguridad en programación distribuida y bases de datos."
+  },
+  "herencia": {
+    "basico": "Permite que clases hijas hereden de padres para reutilizar código, con beneficios en organización.",
+    "intermedio": "Clases base/derivadas, herencia simple; evita repetición en métodos y atributos.",
+    "avanzado": "Integración con polimorfismo de subtipo y UML; consideraciones en herencia profunda vs. composición."
+  },
+  "polimorfismo": {
+    "basico": "Un método actúa diferente según el objeto, como sobrecarga o sobrescritura.",
+    "intermedio": "Sobrecarga (mismos nombres, parámetros distintos), sobrescritura (redefinir heredados), polimorfismo de subtipo.",
+    "avanzado": "Aplicado en interfaces y clases abstractas; optimiza código concurrente y distribuido."
+  },
+  "clases abstractas": {
+    "basico": "Clases que no se instancian directamente, sirven como base para otras.",
+    "intermedio": "Definición y uso: métodos abstractos que deben implementarse en subclases.",
+    "avanzado": "En patrones de diseño: promueven polimorfismo y abstracción en sistemas grandes."
+  },
+  "interfaces": {
+    "basico": "Definen contratos de comportamiento que clases deben seguir.",
+    "intermedio": "Implementación: clases implementan métodos de interfaces para múltiples herencias virtuales.",
+    "avanzado": "Uso en MVC y ORM: aseguran consistencia en accesos a datos y UI."
+  },
+  "uml": {
+    "basico": "Lenguaje visual para modelar software, con diagramas básicos como clases y secuencias.",
+    "intermedio": "Diagramas: clases (relaciones), secuencia (interacciones), casos de uso (funcionalidades), actividad (flujos).",
+    "avanzado": "Aplicación en diseño POO: integra con patrones y MVC para documentar sistemas complejos."
+  },
+  "patrones de diseno": {
+    "basico": "Soluciones reutilizables a problemas comunes en software (investigación requerida).",
+    "intermedio": "Tipos: creacionales (e.g., Singleton), estructurales (e.g., Adapter), comportamentales (e.g., Observer).",
+    "avanzado": "Integración con POO y UML: aplica en MVC y acceso a datos para escalabilidad."
+  },
+  "mvc": {
+    "basico": "Separa Modelo (datos), Vista (UI) y Controlador (lógica) para código ordenado.",
+    "intermedio": "Implementación básica: Modelo maneja datos, Vista muestra, Controlador procesa inputs.",
+    "avanzado": "En Telemática: integra con POO, UML y bases de datos para apps distribuidas."
+  },
+  "archivos": {
+    "basico": "Acceso a archivos para leer/escribir datos usando POO.",
+    "intermedio": "Clases como FileHandler para manejar archivos en Java/Python.",
+    "avanzado": "Integración con MVC y concurrente: maneja archivos en entornos distribuidos."
+  },
+  "bases de datos": {
+    "basico": "Almacenan datos organizados; repaso SQL DDL para estructuras.",
+    "intermedio": "ORM (e.g., SQLAlchemy) para mapear objetos a tablas relacionales.",
+    "avanzado": "Integración POO/MVC: comandos MDL para manipulación, con pruebas de seguridad."
+  },
+  "pruebas": {
+    "basico": "Verifican que el software funcione; incluye unit tests.",
+    "intermedio": "Buenas prácticas: pruebas unitarias con Pytest, integración con MVC.",
+    "avanzado": "En contextos distribuidos: pruebas concurrentes y de rendimiento."
+  },
+  "comandos sql ddl": {
+    "basico": "Comandos para definir estructuras de bases de datos (CREATE, ALTER).",
+    "intermedio": "Repaso: CREATE TABLE, ALTER TABLE para modelar datos en POO.",
+    "avanzado": "Integración con ORM: mapeo automático de clases a tablas."
+  },
+  "comandos sql mdl": {
+    "basico": "Comandos para manipular datos (INSERT, UPDATE, DELETE).",
+    "intermedio": "Investigación: Uso en accesos desde POO.",
+    "avanzado": "En apps distribuidas: transacciones seguras y queries optimizadas."
+  }
 }

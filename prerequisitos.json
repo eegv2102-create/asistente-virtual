@@ -3,5 +3,15 @@
   "polimorfismo": ["poo", "clases y objetos", "herencia"],
   "singleton": ["poo", "clases y objetos"],
   "factory": ["poo", "clases y objetos"],
-  "observer": ["poo", "clases y objetos"]
+  "observer": ["poo", "clases y objetos"],
+  "clases abstractas": ["poo", "clases y objetos", "herencia"],
+  "interfaces": ["poo", "clases y objetos", "herencia", "polimorfismo"],
+  "uml": ["poo", "clases y objetos"],
+  "patrones de diseno": ["poo", "clases y objetos", "herencia", "polimorfismo"],
+  "mvc": ["poo", "clases y objetos", "uml", "interfaces"],
+  "archivos": ["poo", "clases y objetos"],
+  "bases de datos": ["base de datos", "comandos sql ddl"],
+  "pruebas": ["poo", "clases y objetos"],
+  "comandos sql ddl": ["base de datos"],
+  "comandos sql mdl": ["base de datos", "comandos sql ddl"]
 }

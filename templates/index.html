@@ -6,7 +6,7 @@
     <title>💻 Tesis</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" as="style" onload="this.rel='stylesheet'">
     <!-- Librerías -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.18/marked.min.js"></script>
@@ -14,9 +14,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="nivel-intermedio">
-    <!-- Botones menú -->
-    <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i><span style="display: none;">☰</span></button>
-    <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i><span style="display: none;">☰</span></button>
+    <!-- Botones menú con aria-expanded -->
+    <button class="menu-toggle" aria-label="Abrir menú izquierdo" aria-expanded="false"><i class="fas fa-bars"></i></button>
+    <button class="menu-toggle-right" aria-label="Abrir menú derecho" aria-expanded="false"><i class="fas fa-bars"></i></button>
 
     <div class="container">
         <h2>💻 Asistente de Programación Avanzada</h2>
@@ -99,5 +99,10 @@
         </div>
     </div>
     <script src="/static/js/script.js"></script>
+    <noscript>
+        <div style="color: red; text-align: center; padding: 10px;">
+            Esta aplicación requiere JavaScript para funcionar. Por favor, habilítalo en tu navegador.
+        </div>
+    </noscript>
 </body>
 </html>

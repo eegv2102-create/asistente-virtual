@@ -4,7 +4,7 @@ import logging
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Configuración de logging
+# Configuración de logging optimizada para Render
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Cargar base de conocimientos
@@ -15,40 +15,54 @@ try:
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logging.error(f"Error cargando temas.json: {e}")
     temas_dict = {
-        "poo": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento.",
-        "patrones de diseño": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software.",
-        "multihilos": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento.",
-        "mvc": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."
+        "poo": {"basico": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento."},
+        "patrones de diseño": {"basico": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software."},
+        "multihilos": {"basico": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento."},
+        "mvc": {"basico": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."}
     }
     logging.warning("Usando temas por defecto en nlp.py")
 
-corpus = list(temas_dict.values())
-temas = list(temas_dict.keys())
+# Construir corpus dinámico basado en nivel por defecto (basico)
+def build_corpus(nivel="basico"):
+    corpus = []
+    temas = []
+    for tema, levels in temas_dict.items():
+        temas.append(tema)
+        corpus.append(levels.get(nivel, levels.get("basico", "")))
+    return corpus, temas
 
+corpus, temas = build_corpus("basico")
 vectorizer = TfidfVectorizer()
 try:
     X = vectorizer.fit_transform(corpus)
-    logging.info("Vectorizador TF-IDF inicializado")
+    logging.info("Vectorizador TF-IDF inicializado con nivel básico")
 except Exception as e:
     logging.error(f"Error al inicializar TF-IDF: {e}")
     X = None
 
-def buscar_respuesta(pregunta, k=3):
+def buscar_respuesta(pregunta, k=3, nivel="basico"):
     """
-    Realiza búsqueda semántica con TF-IDF y similitud coseno.
+    Realiza búsqueda semántica con TF-IDF y similitud coseno, filtrando por nivel.
     Devuelve lista de (tema, contenido, score) ordenados por relevancia.
     """
     try:
         if X is None:
             logging.warning("TF-IDF no inicializado")
             return []
+        # Reconstruir corpus y vectorizar si el nivel cambia
+        global corpus, temas, X
+        if nivel != "basico" and any(level.get(nivel, "") for level in temas_dict.values()):
+            corpus, temas = build_corpus(nivel)
+            X = vectorizer.fit_transform(corpus)
+            logging.info(f"Vectorizador actualizado para nivel {nivel}")
         pregunta_vec = vectorizer.transform([pregunta.lower()])
         similitudes = cosine_similarity(pregunta_vec, X).flatten()
         top_indices = similitudes.argsort()[-k:][::-1]
         results = []
+        umbral = 0.3 if nivel == "basico" else 0.5 if nivel == "intermedio" else 0.7  # Umbral ajustado por nivel
         for idx in top_indices:
             score = float(similitudes[idx])
-            if score > 0.4:  # Umbral reducido para capturar más coincidencias
+            if score > umbral:
                 results.append((temas[idx], corpus[idx], score))
         return results
     except Exception as e:

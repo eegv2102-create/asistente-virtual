@@ -49,8 +49,8 @@ const speakText = text => {
     if (botMessage) botMessage.classList.add('speaking');
     fetch('/tts', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({text})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
     }).then(res => {
         if (!res.ok) throw new Error('Error en TTS');
         return res.blob();
@@ -173,7 +173,7 @@ const cargarAvatares = async () => {
         return;
     }
     try {
-        const response = await fetch('/avatars');
+        const response = await fetch('/avatars', { cache: 'no-store' }); // Evitar caché en Render
         if (!response.ok) throw new Error('Error en la respuesta del servidor');
         const avatares = await response.json();
         avatarContainer.innerHTML = '';
@@ -373,6 +373,8 @@ const addCopyButtonListeners = () => {
 
 const sendMessage = () => {
     const input = getElement('#input');
+    const nivelBtnActive = getElement('.nivel-btn.active');
+    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico'; // Enviar nivel al backend
     const pregunta = input?.value.trim();
     if (!pregunta) return;
     input.value = '';
@@ -391,8 +393,8 @@ const sendMessage = () => {
 
     fetch('/respuesta', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({pregunta, usuario: 'anonimo', avatar_id: selectedAvatar, max_length: 200})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
     }).then(res => {
         container.classList.remove('loading');
         if (res.headers.get('content-type') === 'text/event-stream') {
@@ -403,7 +405,7 @@ const sendMessage = () => {
             const decoder = new TextDecoder();
             let respuesta = '';
             function read() {
-                reader.read().then(({done, value}) => {
+                reader.read().then(({ done, value }) => {
                     if (done) {
                         botDiv.classList.remove('typing');
                         botDiv.innerHTML = marked.parse(respuesta) + `<button class="copy-btn" data-text="${respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
@@ -456,6 +458,8 @@ const sendMessage = () => {
 
 const buscarTema = () => {
     const query = getElement('#search-input')?.value.trim().toLowerCase();
+    const nivelBtnActive = getElement('.nivel-btn.active');
+    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico'; // Enviar nivel al backend
     if (!query) {
         mostrarNotificacion('Ingresa una palabra clave para buscar.', 'error');
         return;
@@ -466,8 +470,8 @@ const buscarTema = () => {
     container.classList.add('loading');
     fetch('/respuesta', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({pregunta: `Explica ${query}`, usuario: 'anonimo', avatar_id: selectedAvatar, max_length: 200})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta: `Explica ${query}`, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
     }).then(res => {
         container.classList.remove('loading');
         res.json().then(data => {
@@ -500,8 +504,8 @@ const buscarTema = () => {
 const responderQuiz = (opcion, respuesta_correcta, tema) => {
     fetch('/responder_quiz', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({respuesta: opcion, respuesta_correcta, tema, usuario: 'anonimo'})
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ respuesta: opcion, respuesta_correcta, tema, usuario: 'anonimo' })
     }).then(res => res.json())
         .then(data => {
             const chatbox = getElement('#chatbox');
@@ -522,11 +526,9 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
 };
 
 const cargarAnalytics = () => {
-    fetch('/analytics?usuario=anonimo')
+    fetch('/analytics?usuario=anonimo', { cache: 'no-store' }) // Evitar caché en Render
         .then(res => {
-            if (!res.ok) {
-                throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
-            }
+            if (!res.ok) throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
             return res.json();
         })
         .then(data => {
@@ -552,9 +554,7 @@ const cargarAnalytics = () => {
             console.error('Error al cargar analytics:', error);
             mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
             const container = getElement('#analytics-container');
-            if (container) {
-                container.innerHTML = '<p>Error al cargar estadísticas.</p>';
-            }
+            if (container) container.innerHTML = '<p>Error al cargar estadísticas.</p>';
         });
 };
 
@@ -645,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (elements.recommendBtn) {
         elements.recommendBtn.addEventListener('click', () => {
-            fetch('/recomendacion?usuario=anonimo')
+            fetch('/recomendacion?usuario=anonimo', { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
                     const chatbox = elements.chatbox;
@@ -675,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (elements.quizBtn && elements.chatbox) {
         elements.quizBtn.addEventListener('click', () => {
-            fetch('/quiz?usuario=anonimo')
+            fetch('/quiz?usuario=anonimo', { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
                     const chatbox = elements.chatbox;
@@ -886,8 +886,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             fetch('/aprender', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({pregunta, respuesta, usuario: 'anonimo'})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pregunta, respuesta, usuario: 'anonimo' })
             }).then(res => res.json())
                 .then(data => {
                     if (data.error) {
