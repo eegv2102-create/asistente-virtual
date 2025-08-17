@@ -298,7 +298,7 @@ h3 {
 .nivel-btn[data-nivel="intermedio"]::after { content: "Intermedio"; }
 .nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
 
-/* Iconos y tooltips para botones de voz en .input-group */
+/* Tooltips para botones de voz y enviar en .input-group */
 #btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech, #send-btn {
     position: relative;
     box-sizing: border-box; /* Asegura centrado */
@@ -314,16 +314,14 @@ h3 {
     z-index: 1;
 }
 
-#btn-start-voice::after { content: "Iniciar reconocimiento de voz"; }
-#btn-stop-voice::after { content: "Detener reconocimiento de voz"; }
-#btn-pause-speech::after { content: "Pausar voz del asistente"; }
-#btn-resume-speech::after { content: "Reanudar voz del asistente"; }
-#send-btn::after { content: "Enviar mensaje"; }
-
-#btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after, #send-btn::after {
+#btn-start-voice::after,
+#btn-stop-voice::after,
+#btn-pause-speech::after,
+#btn-resume-speech::after,
+#send-btn::after {
+    content: attr(data-tooltip); /* Usar data-tooltip para consistencia */
     position: absolute;
-    top: -40px; /* Posición arriba */
-    left: -10px; /* Ligeramente a la izquierda */
+    right: calc(100% + 8px); /* Posicionar a la izquierda del botón */
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
@@ -332,18 +330,71 @@ h3 {
     font-size: 11px;
     max-width: 150px;
     text-align: center;
-    opacity: 0 !important;
-    visibility: hidden !important;
+    opacity: 0;
+    visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
     box-shadow: var(--shadow);
     white-space: nowrap;
-    z-index: 10000;
+    z-index: 100; /* Mayor que input-group (30) y secciones móviles (50) */
     pointer-events: none;
 }
 
-#btn-start-voice:hover::after, #btn-stop-voice:hover::after, #btn-pause-speech:hover::after, #btn-resume-speech:hover::after, #send-btn:hover::after {
-    opacity: 1 !important;
-    visibility: visible !important;
+/* Posiciones diagonales específicas para cada botón */
+#btn-start-voice::after {
+    top: -10px; /* Desplazamiento diagonal hacia arriba */
+    transform: translateY(-20%);
+}
+#btn-stop-voice::after {
+    top: -5px; /* Ligeramente más abajo */
+    transform: translateY(-30%);
+}
+#btn-pause-speech::after {
+    top: 0; /* Centro */
+    transform: translateY(-40%);
+}
+#btn-resume-speech::after {
+    top: 5px; /* Ligeramente más abajo */
+    transform: translateY(-50%);
+}
+#send-btn::after {
+    top: 10px; /* Más abajo para efecto diagonal */
+    transform: translateY(-60%);
+}
+
+/* Mostrar tooltips al pasar el mouse */
+#btn-start-voice:hover::after,
+#btn-stop-voice:hover::after,
+#btn-pause-speech:hover::after,
+#btn-resume-speech:hover::after,
+#send-btn:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* En móviles, ajustar tooltips para evitar ocultamiento */
+@media (max-width: 768px) {
+    #btn-start-voice::after,
+    #btn-stop-voice::after,
+    #btn-pause-speech::after,
+    #btn-resume-speech::after,
+    #send-btn::after {
+        max-width: 120px; /* Reducir ancho en móviles */
+        font-size: 10px; /* Texto más pequeño */
+        padding: 4px 8px; /* Menor padding */
+        right: calc(100% + 4px); /* Menor separación */
+        z-index: 100; /* Asegurar visibilidad sobre secciones */
+    }
+
+    /* Desactivar tooltips en pantallas muy pequeñas si es necesario */
+    @media (max-width: 400px) {
+        #btn-start-voice::after,
+        #btn-stop-voice::after,
+        #btn-pause-speech::after,
+        #btn-resume-speech::after,
+        #send-btn::after {
+            display: none; /* Desactivar tooltips en pantallas pequeñas */
+        }
+    }
 }
 
 #btn-start-voice::before { content: "\f130"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 16px; }
@@ -444,6 +495,7 @@ h3 {
     transition: all 0.3s ease;
     height: calc(100% - 90px);
     margin-bottom: 10px;
+    scroll-behavior: auto; /* Cambiado de smooth a auto para evitar conflictos con scroll */
 }
 
 #chatbox[aria-live="polite"] {
@@ -1198,10 +1250,6 @@ body:not(.modo-claro) .bot {
     }
 
     .left-section button::after, .nivel-btn::after {
-        display: none !important;
-    }
-
-    #btn-start-voice::after, #btn-stop-voice::after, #btn-pause-speech::after, #btn-resume-speech::after, #send-btn::after {
         display: none !important;
     }
 
