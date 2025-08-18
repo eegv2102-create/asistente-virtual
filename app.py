@@ -64,9 +64,7 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", "/static/animations/default.json"))
-        c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("poo", "POO Avatar", "/static/img/poo.png", "/static/animations/poo.json"))
+                  ("default", "Avatar Predeterminado", "", ""))
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         conn.commit()
@@ -98,10 +96,21 @@ try:
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logging.error(f"Error cargando prerequisitos.json: {str(e)}")
     prerequisitos = {
-        "patrones de diseño": ["poo"],
-        "multihilos": ["poo"],
-        "mvc": ["poo"],
-        "poo": []
+        "herencia": ["poo", "clases y objetos"],
+        "polimorfismo": ["poo", "clases y objetos", "herencia"],
+        "singleton": ["poo", "clases y objetos"],
+        "factory": ["poo", "clases y objetos"],
+        "observer": ["poo", "clases y objetos"],
+        "clases abstractas": ["poo", "clases y objetos", "herencia"],
+        "interfaces": ["poo", "clases y objetos", "herencia", "polimorfismo"],
+        "uml": ["poo", "clases y objetos"],
+        "patrones de diseno": ["poo", "clases y objetos", "herencia", "polimorfismo"],
+        "mvc": ["poo", "clases y objetos", "uml", "interfaces"],
+        "archivos": ["poo", "clases y objetos"],
+        "bases de datos": ["base de datos", "comandos sql ddl"],
+        "pruebas": ["poo", "clases y objetos"],
+        "comandos sql ddl": ["base de datos"],
+        "comandos sql mdl": ["base de datos", "comandos sql ddl"]
     }
     logging.warning("Usando prerequisitos por defecto")
 
@@ -153,7 +162,11 @@ SINONIMOS = {
     "poo": ["programacion orientada a objetos", "oop", "orientada objetos"],
     "multihilos": ["multithreading", "hilos", "threads", "concurrencia"],
     "patrones de diseño": ["design patterns", "patrones", "patrones diseño"],
-    "mvc": ["modelo vista controlador", "model view controller", "arquitectura mvc"]
+    "mvc": ["modelo vista controlador", "model view controller", "arquitectura mvc"],
+    "singleton": ["singleton pattern", "patron singleton"],
+    "factory": ["factory pattern", "patron fabrica"],
+    "observer": ["observer pattern", "patron observador"],
+    "base de datos": ["database", "bases datos"]
 }
 
 def expandir_pregunta(pregunta):
@@ -199,6 +212,22 @@ def consultar_groq_api(pregunta, temas_aprendidos):
     except Exception as e:
         logging.error(f"Error en Groq: {str(e)}")
         return f"Error al consultar la API: {str(e)}. Intenta de nuevo."
+
+def recomendar_tema(usuario):
+    try:
+        progreso = cargar_progreso(usuario)
+        temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
+        temas_disponibles = [tema for tema in temas.keys() if tema not in temas_aprendidos]
+        if not temas_disponibles:
+            return "¡Felicidades! Has aprendido todos los temas disponibles."
+        for tema in temas_disponibles:
+            prereqs_pendientes = [p for p in prerequisitos.get(tema, []) if p not in temas_aprendidos]
+            if not prereqs_pendientes:
+                return f"Te recomendamos estudiar {tema}: {temas.get(tema, {}).get('basico', temas[tema]['basico'])}"
+        return f"Primero domina: {', '.join(prereqs_pendientes)}. ¿Quieres empezar con {prereqs_pendientes[0]}?"
+    except Exception as e:
+        logging.error(f"Error al recomendar tema: {str(e)}")
+        return "Error al recomendar un tema. Intenta de nuevo."
 
 def buscar_respuesta_app(pregunta, usuario):
     try:
@@ -260,8 +289,8 @@ def respuesta():
         
         response_data = {
             "respuesta": respuesta_text,
-            "avatar_url": avatar[0] if avatar else "/static/img/default-avatar.png",
-            "animation_url": avatar[1] if avatar else "/static/animations/default.json"
+            "avatar_url": avatar[0] if avatar else "",
+            "animation_url": avatar[1] if avatar else ""
         }
         return jsonify(response_data)
     except Exception as e:
@@ -287,14 +316,12 @@ def avatars():
         avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
         conn.close()
         return jsonify(avatars if avatars else [
-            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "/static/img/default-avatar.png", "animation_url": "/static/animations/default.json"},
-            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "/static/img/poo.png", "animation_url": "/static/animations/poo.json"}
+            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "", "animation_url": ""}
         ])
     except PsycopgError as e:
         logging.error(f"Error al obtener avatares: {str(e)}")
         return jsonify([
-            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "/static/img/default-avatar.png", "animation_url": "/static/animations/default.json"},
-            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "/static/img/poo.png", "animation_url": "/static/animations/poo.json"}
+            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "", "animation_url": ""}
         ])
 
 @app.route("/quiz", methods=["GET"])
@@ -355,6 +382,16 @@ def tts():
     except Exception as e:
         logging.error(f"Error en /tts: {str(e)}")
         return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
+
+@app.route("/recommend", methods=["GET"])
+def recommend():
+    try:
+        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
+        recomendacion = recomendar_tema(usuario)
+        return jsonify({"recomendacion": recomendacion})
+    except Exception as e:
+        logging.error(f"Error en /recommend: {str(e)}")
+        return jsonify({"error": f"Error al recomendar tema: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()
