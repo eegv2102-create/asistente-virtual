@@ -249,10 +249,15 @@ def tts():
         if not text:
             logging.error("Texto vacío en /tts")
             return jsonify({"error": "El texto no puede estar vacío"}), 400
-        tts = gTTS(text=text, lang='es')
+        # Validar que el texto solo contenga caracteres válidos
+        if not all(c.isprintable() or c.isspace() for c in text):
+            logging.error("Texto contiene caracteres no válidos")
+            return jsonify({"error": "El texto contiene caracteres no válidos"}), 400
+        tts = gTTS(text=text, lang='es', tld='com.mx')  # Especificar TLD para consistencia
         audio_io = io.BytesIO()
         tts.write_to_fp(audio_io)
         audio_io.seek(0)
+        logging.info("Audio generado exitosamente")
         return send_file(audio_io, mimetype='audio/mp3')
     except Exception as e:
         logging.error(f"Error en /tts: {str(e)}")
