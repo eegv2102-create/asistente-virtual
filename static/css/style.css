@@ -101,6 +101,10 @@ body {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+    position: sticky; /* Título estático */
+    top: 0;
+    background-color: var(--bg-secondary); /* Fondo consistente */
+    z-index: 10; /* Asegura que esté sobre la lista */
 }
 
 .sidebar-content {
@@ -134,14 +138,16 @@ body {
 
 .chat-history {
     flex: 1;
-    overflow-y: scroll; /* Forzar scrollbar */
     max-height: 50vh; /* Ajustado para más espacio */
     min-height: 100px;
-    padding-right: 8px;
+    overflow-y: hidden; /* No scrollbar en el contenedor padre */
 }
 
 #chat-list {
     list-style: none;
+    overflow-y: scroll; /* Barra de desplazamiento solo en la lista */
+    height: 100%; /* Ocupa todo el espacio disponible */
+    padding-right: 8px;
 }
 
 #chat-list li {
@@ -167,16 +173,16 @@ body {
 }
 
 /* Estilos para scrollbar en historial */
-.chat-history::-webkit-scrollbar {
+#chat-list::-webkit-scrollbar {
     width: 8px;
 }
 
-.chat-history::-webkit-scrollbar-thumb {
+#chat-list::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: 4px;
 }
 
-.chat-history::-webkit-scrollbar-track {
+#chat-list::-webkit-scrollbar-track {
     background-color: var(--scrollbar-track);
 }
 
@@ -615,7 +621,12 @@ body {
 
     .chat-history {
         max-height: 50vh; /* Limita el historial en móviles */
-        overflow-y: scroll; /* Forzar scrollbar */
+        overflow-y: hidden; /* Sin scrollbar en el contenedor */
+    }
+
+    #chat-list {
+        height: 100%; /* Asegura que la lista use el espacio disponible */
+        overflow-y: scroll; /* Barra de desplazamiento solo en la lista */
     }
 }
 
