@@ -1,7 +1,7 @@
 let vozActiva = true, isListening = false, recognition = null, voicesLoaded = false;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
-const { jsPDF } = window.jspdf;
+const jsPDF = window.jspdf?.jsPDF || null;
 
 const getElement = selector => document.querySelector(selector);
 const getElements = selector => document.querySelectorAll(selector);
@@ -297,7 +297,10 @@ const actualizarListaChats = () => {
         li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
         li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
     });
-    chatList.scrollTop = chatList.scrollHeight;
+    // Forzar scroll al final y actualizar scrollbar
+    requestAnimationFrame(() => {
+        chatList.scrollTop = chatList.scrollHeight;
+    });
 };
 
 const cargarChat = index => {
@@ -405,6 +408,10 @@ const exportarTxt = () => {
 };
 
 const exportarPdf = () => {
+    if (!jsPDF) {
+        mostrarNotificacion('Error: jsPDF no está disponible. Verifica la carga de la biblioteca.', 'error');
+        return;
+    }
     const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.mensajes.length) {
         mostrarNotificacion('No hay mensajes para exportar', 'error');
@@ -880,6 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.menuToggle && elements.menuToggleRight) {
         const toggleLeftMenu = (e) => {
             e.preventDefault();
+            e.stopPropagation(); // Prevenir propagación en touch
             const leftSection = getElement('.left-section');
             const rightSection = getElement('.right-section');
             if (leftSection) {
@@ -894,6 +902,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toggleRightMenu = (e) => {
             e.preventDefault();
+            e.stopPropagation(); // Prevenir propagación en touch
             const rightSection = getElement('.right-section');
             const leftSection = getElement('.left-section');
             if (rightSection) {
