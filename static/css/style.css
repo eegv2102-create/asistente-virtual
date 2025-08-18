@@ -508,3 +508,56 @@ body {
         right: 12px;
     }
 }
+/* Título de la app */
+.app-title {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 10px 0;
+    color: var(--text-primary);
+}
+
+/* Iconos en mensajes */
+.user:before {
+    content: "\f007"; /* fa-user */
+    font-family: "Font Awesome 5 Free";
+    margin-right: 8px;
+}
+
+.bot:before {
+    content: "\f4e6"; /* fa-robot */
+    font-family: "Font Awesome 5 Free";
+    margin-right: 8px;
+}
+
+/* Estilos para botones en historial */
+.chat-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.rename-btn, .delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+.rename-btn:hover, .delete-btn:hover {
+    color: var(--accent);
+}
+
+/* Tooltips mejorados */
+.custom-tooltip {
+    position: absolute;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 5px 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px var(--shadow);
+    z-index: 1000;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}

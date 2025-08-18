@@ -207,8 +207,104 @@ def respuesta():
         logging.error(f"Error en /respuesta: {str(e)}")
         return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
 
-# Resto de las rutas (/progreso, /avatars, /quiz, /responder_quiz, /tts, /recommend) permanecen iguales al código original truncado.
-# Asegúrate de incluirlas aquí.
+@app.route("/progreso", methods=["GET"])
+def progreso():
+    usuario = request.args.get("usuario", "anonimo")
+    progreso = cargar_progreso(usuario)
+    return jsonify(progreso)
+
+@app.route("/avatars", methods=["GET"])
+def avatars():
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        c = conn.cursor()
+        c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
+        avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
+        conn.close()
+        return jsonify(avatars)
+    except PsycopgError as e:
+        logging.error(f"Error al consultar avatares: {str(e)}")
+        return jsonify({"error": "Error al cargar avatares"}), 500
+
+@app.route("/quiz", methods=["GET"])
+def quiz():
+    usuario = request.args.get("usuario", "anonimo")
+    temas_disponibles = list(temas.keys())
+    tema = random.choice(temas_disponibles)
+    nivel = request.args.get("nivel", "basico")
+    pregunta = f"¿Qué es {tema} en el contexto de programación?"
+    opciones = [temas[tema][nivel]]
+    for _ in range(3):
+        otro_tema = random.choice(temas_disponibles)
+        while otro_tema == tema:
+            otro_tema = random.choice(temas_disponibles)
+        opciones.append(temas[otro_tema][nivel])
+    random.shuffle(opciones)
+    return jsonify({
+        "tema": tema,
+        "pregunta": pregunta,
+        "opciones": opciones,
+        "respuesta_correcta": temas[tema][nivel]
+    })
+
+@app.route("/responder_quiz", methods=["POST"])
+def responder_quiz():
+    data = request.get_json()
+    usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+    respuesta = bleach.clean(data.get("respuesta", "")[:300])
+    respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300])
+    tema = bleach.clean(data.get("tema", "")[:50])
+    
+    progreso = cargar_progreso(usuario)
+    puntos = progreso["puntos"]
+    temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
+    
+    if respuesta == respuesta_correcta:
+        puntos += 10
+        if tema not in temas_aprendidos:
+            temas_aprendidos.append(tema)
+        mensaje = f"¡Correcto! Has ganado 10 puntos. Tema: {tema}"
+    else:
+        mensaje = f"Incorrecto. La respuesta correcta era: {respuesta_correcta}"
+    
+    guardar_progreso(usuario, puntos, ",".join(temas_aprendidos))
+    return jsonify({"respuesta": mensaje})
+
+@app.route("/tts", methods=["POST"])
+def tts():
+    try:
+        data = request.get_json()
+        text = bleach.clean(data.get("text", "")[:1000])
+        if not text:
+            return jsonify({"error": "El texto no puede estar vacío"}), 400
+        tts = gTTS(text=text, lang='es')
+        audio_io = io.BytesIO()
+        tts.write_to_fp(audio_io)
+        audio_io.seek(0)
+        return send_file(audio_io, mimetype='audio/mp3')
+    except Exception as e:
+        logging.error(f"Error en /tts: {str(e)}")
+        return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
+
+@app.route("/recommend", methods=["GET"])
+def recommend():
+    usuario = request.args.get("usuario", "anonimo")
+    progreso = cargar_progreso(usuario)
+    temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
+    temas_disponibles = list(temas.keys())
+    temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
+    recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
+    return jsonify({"recomendacion": recomendacion})
+
+@app.route("/analytics", methods=["GET"])
+def analytics():
+    usuario = request.args.get("usuario", "anonimo")
+    # Dummy data para evitar 404; expande con lógica real si necesitas
+    data = [
+        {"tema": "POO", "tasa_acierto": 0.8},
+        {"tema": "MVC", "tasa_acierto": 0.6}
+    ]
+    return jsonify(data)
 
 if __name__ == "__main__":
     init_db()
