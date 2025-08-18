@@ -603,67 +603,17 @@ const cargarAnalytics = () => {
         });
 };
 
-const iniciarVoz = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
-        return;
-    }
-    recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
-    recognition.lang = 'es-ES';
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.start();
-    isListening = true;
-    mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
-
-    recognition.onresult = event => {
-        const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
-        const input = getElement('#input');
-        if (input) input.value = transcript;
-        if (event.results[event.results.length - 1].isFinal) {
-            sendMessage();
-            recognition.stop();
-            isListening = false;
-        }
-    };
-
-    recognition.onerror = event => {
-        mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
-        recognition.stop();
-        isListening = false;
-    };
-
-    recognition.onend = () => {
-        if (isListening) {
-            recognition.start();
-        }
-    };
-};
-
-const pausarVoz = () => {
-    if (isListening && recognition) {
-        recognition.stop();
-        isListening = false;
-        mostrarNotificacion('Voz pausada', 'info');
-    }
-};
-
-const pausarIA = () => {
-    pauseSpeech();
-};
-
-const reanudarIA = () => {
-    resumeSpeech();
-};
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
         sendBtn: getElement('#send-btn'),
         voiceBtn: getElement('#voice-btn'),
-        btnToggleVozUsuario: getElement('#btnToggleVozUsuario'),
-        btnToggleVozIA: getElement('#btnToggleVozIA'),
+        btnStartVoice: getElement('#btn-start-voice'),
+        btnStopVoice: getElement('#btn-stop-voice'),
+        btnPauseSpeech: getElement('#btn-pause-speech'),
+        btnResumeSpeech: getElement('#btn-resume-speech'),
         chatbox: getElement('#chatbox'),
+        toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
         modoBtn: getElement('#modo-btn'),
         exportTxtBtn: getElement('#exportTxtBtn'),
         exportPdfBtn: getElement('#exportPdfBtn'),
@@ -843,32 +793,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (elements.btnToggleVozUsuario) {
-        elements.btnToggleVozUsuario.addEventListener('click', () => {
-            if (!isListening) {
-                iniciarVoz();
-                elements.btnToggleVozUsuario.innerHTML = '<i class="fas fa-pause"></i>';
-                elements.btnToggleVozUsuario.title = 'Pausar Voz Usuario';
-            } else {
-                pausarVoz();
-                elements.btnToggleVozUsuario.innerHTML = '<i class="fas fa-play"></i>';
-                elements.btnToggleVozUsuario.title = 'Iniciar Voz Usuario';
+    if (elements.btnStartVoice && elements.btnStopVoice && elements.btnPauseSpeech && elements.btnResumeSpeech) {
+        elements.btnStartVoice.addEventListener('click', () => {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
+                return;
             }
-        });
-    }
+            recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
+            recognition.lang = 'es-ES';
+            recognition.interimResults = true;
+            recognition.continuous = true;
+            recognition.start();
+            isListening = true;
+            elements.btnStartVoice.disabled = true;
+            elements.btnStopVoice.disabled = false;
+            elements.btnPauseSpeech.disabled = true;
+            elements.btnResumeSpeech.disabled = true;
+            mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
 
-    if (elements.btnToggleVozIA) {
-        elements.btnToggleVozIA.addEventListener('click', () => {
-            if (currentAudio && currentAudio.paused) {
-                reanudarIA();
-                elements.btnToggleVozIA.innerHTML = '<i class="fas fa-pause"></i>';
-                elements.btnToggleVozIA.title = 'Pausar Voz IA';
-            } else if (currentAudio && !currentAudio.paused) {
-                pausarIA();
-                elements.btnToggleVozIA.innerHTML = '<i class="fas fa-play"></i>';
-                elements.btnToggleVozIA.title = 'Reanudar Voz IA';
-            }
+            recognition.onresult = event => {
+                const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
+                if (elements.input) elements.input.value = transcript;
+                if (event.results[event.results.length - 1].isFinal) {
+                    sendMessage();
+                    recognition.stop();
+                    isListening = false;
+                    elements.btnStartVoice.disabled = false;
+                    elements.btnStopVoice.disabled = true;
+                }
+            };
+
+            recognition.onerror = event => {
+                mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
+                recognition.stop();
+                isListening = false;
+                elements.btnStartVoice.disabled = false;
+                elements.btnStopVoice.disabled = true;
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    recognition.start();
+                } else {
+                    elements.btnStartVoice.disabled = false;
+                    elements.btnStopVoice.disabled = true;
+                }
+            };
         });
+
+        elements.btnStopVoice.addEventListener('click', stopSpeech);
+        elements.btnPauseSpeech.addEventListener('click', pauseSpeech);
+        elements.btnResumeSpeech.addEventListener('click', resumeSpeech);
     }
 
     if (elements.menuToggle && elements.menuToggleRight) {
@@ -930,6 +905,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.addEventListener('click', closeMenusOnOutsideInteraction);
         document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
+    }
+
+    if (elements.toggleAprendizajeBtn) {
+        elements.toggleAprendizajeBtn.addEventListener('click', () => {
+            const aprendizajeCard = getElement('#aprendizajeCard');
+            if (aprendizajeCard) aprendizajeCard.classList.toggle('active');
+        });
+    }
+
+    if (getElement('#learnBtn')) {
+        getElement('#learnBtn').addEventListener('click', () => {
+            const pregunta = getElement('#nuevaPregunta')?.value.trim();
+            const respuesta = getElement('#nuevaRespuesta')?.value.trim();
+            if (!pregunta || !respuesta) {
+                mostrarNotificacion('Por favor, completa ambos campos.', 'error');
+                return;
+            }
+            fetch('/aprender', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pregunta, respuesta, usuario: 'anonimo' })
+            }).then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        mostrarNotificacion(data.error, 'error');
+                    } else {
+                        mostrarNotificacion('Conocimiento aprendido con éxito', 'success');
+                        getElement('#nuevaPregunta').value = '';
+                        getElement('#nuevaRespuesta').value = '';
+                        getElement('#aprendizajeCard')?.classList.remove('active');
+                    }
+                })
+                .catch(error => {
+                    mostrarNotificacion(`Error al aprender: ${error.message}`, 'error');
+                });
+        });
     }
 
     if (elements.exportTxtBtn) {
