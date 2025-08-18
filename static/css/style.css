@@ -17,6 +17,7 @@
     --button-hover: #16a085;
     --scrollbar-thumb: #1abc9c;
     --scrollbar-track: #f5f6f5;
+    --vh: 1vh; /* Variable para altura dinámica */
 }
 
 body.modo-oscuro {
@@ -57,6 +58,8 @@ body {
     overflow-x: hidden;
     transition: background-color 0.3s, color 0.3s;
     touch-action: manipulation;
+    height: 100vh; /* Para manejar keyboard en iOS */
+    overflow: hidden; /* Evitar scroll de body en móviles */
 }
 
 /* Centrar el título arriba */
@@ -548,12 +551,13 @@ body {
 
 /* Menu Toggles */
 .menu-toggle, .menu-toggle-right {
-    background: none;
-    border: none;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 4px var(--shadow);
     color: var(--text-primary);
     cursor: pointer;
-    font-size: 1.2rem;
-    padding: 8px;
+    font-size: 1.4rem;
+    padding: 10px;
     display: none;
     z-index: 1003;
 }
@@ -600,11 +604,12 @@ body {
         height: auto;
         margin: 0;
         border-radius: 0;
+        height: calc(100 * var(--vh) - 60px); /* Usar --vh para ajustar con teclado */
     }
 
     .left-section, .right-section {
         width: 100%;
-        height: calc(100vh - 60px);
+        height: calc(100 * var(--vh) - 60px);
         position: fixed;
         top: 60px;
         transform: translateX(-100%);
@@ -623,9 +628,9 @@ body {
     }
 
     .main-section {
-        min-height: calc(100vh - 60px);
+        min-height: calc(100 * var(--vh) - 60px);
         margin-top: 60px;
-        height: calc(100vh - 60px);
+        height: calc(100 * var(--vh) - 60px);
         overflow: hidden;
     }
 

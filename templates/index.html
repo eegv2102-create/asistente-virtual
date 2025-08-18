@@ -7,7 +7,9 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- CDN principal para marked -->
     <script src="https://cdn.jsdelivr.net/npm/marked@14.1.2/lib/marked.umd.min.js" integrity="sha256-0jPHqYk/qUkL9r2gW3N4yWSN+3K7h8VKB1W6j0N4z1I=" crossorigin="anonymous"></script>
+    <!-- Fallback local si el CDN falla -->
     <script>
         if (typeof marked === 'undefined') {
             document.write('<script src="{{ url_for('static', filename='js/marked.min.js') }}"><\/script>');
@@ -20,6 +22,7 @@
 <body>
     <h2 class="app-title">💻 Asistente con Avatar Inteligente de Programación Avanzada</h2>
     <div class="container">
+        <!-- Left Sidebar -->
         <aside class="left-section">
             <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false">
                 <i class="fas fa-bars"></i>
@@ -45,6 +48,8 @@
                 </div>
             </div>
         </aside>
+
+        <!-- Main Content -->
         <main class="main-section">
             <div id="chatbox">
                 <div class="message-container"></div>
@@ -69,6 +74,8 @@
                 </div>
             </div>
         </main>
+
+        <!-- Right Sidebar -->
         <aside class="right-section">
             <button class="menu-toggle-right" aria-label="Abrir menú de avatares" aria-expanded="false">
                 <i class="fas fa-bars"></i>
@@ -79,7 +86,11 @@
                 <div class="avatar-options"></div>
             </div>
         </aside>
+
+        <!-- Notification Card -->
         <div id="notification-card"></div>
+
+        <!-- Quiz Modal -->
         <div id="quiz-modal" style="display: none;">
             <div class="modal-content">
                 <h3 id="quiz-question"></h3>

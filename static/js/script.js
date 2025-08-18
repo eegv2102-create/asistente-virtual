@@ -651,6 +651,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     console.log('Elementos encontrados:', elements);
 
+    // Ajuste para viewport dinámico en móviles (maneja teclado)
+    function setViewportHeight() {
+        const viewport = window.visualViewport || window;
+        const vh = viewport.height * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}vh`);
+    }
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setViewportHeight);
+    } else {
+        window.addEventListener('resize', setViewportHeight);
+    }
+    setViewportHeight();
+
     cargarAvatares();
     actualizarListaChats();
     cargarConversacionActual();
