@@ -13,13 +13,16 @@ from groq import Groq
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 load_dotenv()
 
+# Initialize Flask-Limiter with corrected syntax
 limiter = Limiter(
-    app,
-    key_func=get_remote_address,
+    get_remote_address,
+    app=app,
     default_limits=["200 per day", "50 per hour"]
 )
 
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+if not GROQ_API_KEY:
+    logging.error("GROQ_API_KEY not found in environment variables")
 client = Groq(api_key=GROQ_API_KEY)
 
 logging.basicConfig(level=logging.INFO)
@@ -39,11 +42,13 @@ def get_groq_response(prompt, max_tokens=200):
 
 @app.route('/')
 def serve_index():
+    logging.info("Serving index.html")
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/static/<path:path>')
 def serve_static(path):
     try:
+        logging.info(f"Serving static file: {path}")
         return send_from_directory(app.static_folder, path)
     except Exception as e:
         logging.error(f'Error al servir archivo estático {path}: {str(e)}')
