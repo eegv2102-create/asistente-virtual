@@ -13,11 +13,12 @@ from groq import Groq
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 load_dotenv()
 
-# Initialize Flask-Limiter with corrected syntax
+# Configure Flask-Limiter with explicit in-memory storage for now
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
 )
 
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
@@ -26,6 +27,17 @@ if not GROQ_API_KEY:
 client = Groq(api_key=GROQ_API_KEY)
 
 logging.basicConfig(level=logging.INFO)
+
+# Debug route to list static files
+@app.route('/debug_files')
+def debug_files():
+    try:
+        files = os.listdir(app.static_folder)
+        logging.info(f"Static folder contents: {files}")
+        return jsonify({'static_files': files})
+    except Exception as e:
+        logging.error(f"Error listing static files: {str(e)}")
+        return jsonify({'error': f"Error listing static files: {str(e)}"}), 500
 
 def get_groq_response(prompt, max_tokens=200):
     try:
@@ -42,8 +54,16 @@ def get_groq_response(prompt, max_tokens=200):
 
 @app.route('/')
 def serve_index():
-    logging.info("Serving index.html")
-    return send_from_directory(app.static_folder, 'index.html')
+    try:
+        index_path = os.path.join(app.static_folder, 'index.html')
+        logging.info(f"Attempting to serve index.html from {index_path}")
+        if not os.path.exists(index_path):
+            logging.error(f"index.html not found at {index_path}")
+            return jsonify({'error': 'index.html not found'}), 404
+        return send_from_directory(app.static_folder, 'index.html')
+    except Exception as e:
+        logging.error(f'Error serving index.html: {str(e)}')
+        return jsonify({'error': f'Error serving index.html: {str(e)}'}), 500
 
 @app.route('/static/<path:path>')
 def serve_static(path):
