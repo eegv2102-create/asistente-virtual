@@ -1,426 +1,202 @@
-# app.py (Modificado para soportar nuevos endpoints, niveles, y respuestas con Groq diferenciadas por nivel)
-import time
-import json
-import os
-import random
-import logging
-import socket
-import webbrowser
-from flask import Flask, render_template, request, jsonify
-from fuzzywuzzy import process
-from functools import lru_cache
+from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from gtts import gTTS
-import io
-from dotenv import load_dotenv
-from groq import Groq
+import os
+import logging
 import psycopg2
-from psycopg2 import Error as PsycopgError
-import httpx
 import bleach
+from dotenv import load_dotenv
+from gtts import gTTS
+from io import BytesIO
+from groq import Groq
 
-# Cargar variables de entorno
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 load_dotenv()
 
-app = Flask(__name__)
-
-# Configuración de logging optimizada para Render
-logging.basicConfig(
-    filename='app.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
 )
 
-# Funciones de respaldo para nlp.py
-try:
-    from nlp import buscar_respuesta, classify_intent, normalize
-except ImportError as e:
-    logging.error(f"No se pudo importar nlp.py: {str(e)}")
-    def buscar_respuesta(pregunta, k=3, nivel="basico"):
-        logging.warning("Usando buscar_respuesta de respaldo")
-        return []
-    def classify_intent(pregunta):
-        logging.warning("Usando classify_intent de respaldo")
-        if any(word in pregunta.lower() for word in ["hola", "saludos"]):
-            return "saludo"
-        if any(word in pregunta.lower() for word in ["nivel", "cambiar nivel"]):
-            return "cambiar_nivel"
-        if "quiz" in pregunta.lower():
-            return "quiz"
-        return "definicion"
-    def normalize(pregunta):
-        logging.warning("Usando normalize de respaldo")
-        return pregunta.lower()
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+client = Groq(api_key=GROQ_API_KEY)
 
-# Rate limiting ajustado para Render
-limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])
+logging.basicConfig(level=logging.INFO)
 
-def init_db():
+def get_groq_response(prompt, max_tokens=200):
     try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS progreso
-                     (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', nivel TEXT DEFAULT 'basico', avatar_id TEXT DEFAULT 'default')''')
-        c.execute('''CREATE TABLE IF NOT EXISTS aprendizaje
-                     (pregunta TEXT PRIMARY KEY, respuesta TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS avatars
-                     (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
-        c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("default", "Avatar Predeterminado", "", ""))  # Dejamos URL en blanco para D-ID
-        c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("poo", "POO Avatar", "", ""))
-        c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("advanced", "Avanzado Avatar", "", ""))
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
-        c.execute('''CREATE TABLE IF NOT EXISTS progreso_tema
-                     (usuario TEXT, tema TEXT, dominio REAL DEFAULT 0.0, aciertos INTEGER DEFAULT 0, fallos INTEGER DEFAULT 0, ultima_interaccion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                     PRIMARY KEY (usuario, tema))''')
-        conn.commit()
-        # Cargar datos iniciales
-        try:
-            with open("aprendizaje_inicial.json", "r", encoding="utf-8") as f:
-                aprendizaje_inicial = json.load(f)
-            for pregunta, respuesta in aprendizaje_inicial.items():
-                c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                          (pregunta.lower(), respuesta))
-            conn.commit()
-            logging.info("aprendizaje_inicial.json cargado correctamente")
-        except FileNotFoundError:
-            logging.warning("No se encontró aprendizaje_inicial.json")
-        except json.JSONDecodeError as e:
-            logging.error(f"Error al parsear aprendizaje_inicial.json: {str(e)}")
-        conn.close()
-        logging.info("Base de datos inicializada correctamente")
-    except PsycopgError as e:
-        logging.error(f"Error al inicializar la base de datos: {str(e)}")
-        return False
-    return True
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            stream=True
+        )
+        return response
+    except Exception as e:
+        logging.error(f'Error al contactar con Groq API: {str(e)}')
+        return None
 
-# Cargar temas.json y prerequisitos.json
-try:
-    with open("temas.json", "r", encoding="utf-8") as f:
-        temas = json.load(f)
-    logging.info("Temas cargados: %s", list(temas.keys()))
-except (FileNotFoundError, json.JSONDecodeError) as e:
-    logging.error(f"Error cargando temas.json: {str(e)}")
-    temas = temas_dict  # Usar el dict de nlp.py
-    logging.warning("Usando temas por defecto")
+@app.route('/')
+def serve_index():
+    return send_from_directory(app.static_folder, 'index.html')
 
-try:
-    with open("prerequisitos.json", "r", encoding="utf-8") as f:
-        prerequisitos = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError) as e:
-    logging.error(f"Error cargando prerequisitos.json: {str(e)}")
-    prerequisitos = {
-        "patrones de diseño": ["poo"],
-        "multihilos": ["poo"],
-        "mvc": ["poo"],
-        "poo": []
-    }
-    logging.warning("Usando prerequisitos por defecto")
-
-@lru_cache(maxsize=128)
-def cargar_aprendizaje():
+@app.route('/static/<path:path>')
+def serve_static(path):
     try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("SELECT pregunta, respuesta FROM aprendizaje")
-        aprendizaje = dict(c.fetchall())
-        conn.close()
-        logging.debug("Aprendizaje cargado desde la base de datos")
-        return aprendizaje
-    except PsycopgError as e:
-        logging.error(f"Error al cargar aprendizaje: {str(e)}")
-        return {}
+        return send_from_directory(app.static_folder, path)
+    except Exception as e:
+        logging.error(f'Error al servir archivo estático {path}: {str(e)}')
+        return jsonify({'error': f'Archivo no encontrado: {path}'}), 404
 
-@lru_cache(maxsize=128)
-def cargar_progreso(usuario):
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("SELECT puntos, temas_aprendidos, nivel, avatar_id FROM progreso WHERE usuario = %s", (usuario,))
-        row = c.fetchone()
-        conn.close()
-        if row:
-            return {"puntos": row[0], "temas_aprendidos": row[1], "nivel": row[2], "avatar_id": row[3]}
-        return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}
-    except PsycopgError as e:
-        logging.error(f"Error al cargar progreso: {str(e)}")
-        return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}
-
-def guardar_progreso(usuario, puntos, temas_aprendidos, nivel="basico", avatar_id="default"):
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("INSERT INTO progreso (usuario, puntos, temas_aprendidos, nivel, avatar_id) VALUES (%s, %s, %s, %s, %s) "
-                  "ON CONFLICT (usuario) DO UPDATE SET puntos = %s, temas_aprendidos = %s, nivel = %s, avatar_id = %s",
-                  (usuario, puntos, temas_aprendidos, nivel, avatar_id, puntos, temas_aprendidos, nivel, avatar_id))
-        conn.commit()
-        conn.close()
-        logging.info(f"Progreso guardado para usuario {usuario}: puntos={puntos}, nivel={nivel}")
-    except PsycopgError as e:
-        logging.error(f"Error guardando progreso: {str(e)}")
-
-def log_interaccion(usuario, pregunta, respuesta, video_url=None):
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)",
-                  (usuario, pregunta, respuesta, video_url))
-        conn.commit()
-        conn.close()
-    except PsycopgError as e:
-        logging.error(f"Error al loggear interacción: {str(e)}")
-
-def recomendar_tema(usuario):
-    progreso = cargar_progreso(usuario)
-    temas_aprendidos = progreso["temas_aprendidos"].split(",")
-    temas_no_aprendidos = [t for t in temas if t not in temas_aprendidos and all(pr in temas_aprendidos for pr in prerequisitos.get(t, []))]
-    return random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(list(temas.keys()))
-
-def actualizar_dominio(usuario, tema, delta):
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        if delta > 0:
-            c.execute("INSERT INTO progreso_tema (usuario, tema, dominio, aciertos) VALUES (%s, %s, %s, 1) "
-                      "ON CONFLICT (usuario, tema) DO UPDATE SET dominio = progreso_tema.dominio + %s, aciertos = progreso_tema.aciertos + 1, ultima_interaccion = CURRENT_TIMESTAMP",
-                      (usuario, tema, delta, delta))
-        else:
-            c.execute("INSERT INTO progreso_tema (usuario, tema, dominio, fallos) VALUES (%s, %s, %s, 1) "
-                      "ON CONFLICT (usuario, tema) DO UPDATE SET dominio = progreso_tema.dominio + %s, fallos = progreso_tema.fallos + 1, ultima_interaccion = CURRENT_TIMESTAMP",
-                      (usuario, tema, delta, delta))
-        conn.commit()
-        conn.close()
-    except PsycopgError as e:
-        logging.error(f"Error actualizando dominio: {str(e)}")
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/preguntar", methods=["POST"])
+@app.route('/respuesta', methods=['POST'])
 @limiter.limit("10 per minute")
-def preguntar():
+def respuesta():
     try:
         data = request.get_json()
-        pregunta = bleach.clean(data.get("pregunta", "").strip()[:500])
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        if not pregunta:
-            return jsonify({"respuesta": "Por favor, ingresa una pregunta válida."})
-        progreso = cargar_progreso(usuario)
-        nivel = progreso["nivel"]
-        aprendizaje = cargar_aprendizaje()
-        normalized_pregunta = normalize(pregunta)
-        results = buscar_respuesta(normalized_pregunta, nivel=nivel)
-        intent = classify_intent(normalized_pregunta)
-        video_url = None
-        if intent == "saludo":
-            respuesta = "¡Hola! ¿En qué puedo ayudarte con programación avanzada?"
-        elif intent == "cambiar_nivel":
-            respuesta = "Puedes cambiar el nivel en la interfaz."
-        elif results:
-            tema, contenido, score = results[0]
-            prompt = f"Explica {tema} en nivel {nivel} con ejemplos de código: {pregunta}"
-            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-            completion = client.chat.completions.create(
-                model="llama3-70b-8192",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=512
-            )
-            respuesta = completion.choices[0].message.content
-        else:
-            prompt = f"Responde sobre programación avanzada en nivel {nivel} con ejemplos: {pregunta}"
-            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-            completion = client.chat.completions.create(
-                model="llama3-70b-8192",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=512
-            )
-            respuesta = completion.choices[0].message.content
-        log_interaccion(usuario, pregunta, respuesta, video_url)
-        return jsonify({"respuesta": respuesta, "video_url": video_url})
-    except Exception as e:
-        logging.error(f"Error en /preguntar: {str(e)}")
-        return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
+        pregunta = bleach.clean(data.get('pregunta', '')[:1000])
+        usuario = bleach.clean(data.get('usuario', 'anonimo')[:50])
+        avatar_id = bleach.clean(data.get('avatar_id', 'default')[:50])
+        max_length = data.get('max_length', 200)
 
-@app.route("/aprender", methods=["POST"])
-def aprender():
-    try:
-        data = request.get_json()
-        pregunta = bleach.clean(data.get("pregunta", "").strip()[:500]).lower()
-        respuesta = bleach.clean(data.get("respuesta", "").strip()[:2000])
-        if not pregunta or not respuesta:
-            return jsonify({"error": "Pregunta y respuesta son requeridas"}), 400
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        if not pregunta:
+            return jsonify({'error': 'Pregunta vacía'}), 400
+
+        prompt = f"""Actúa como un tutor educativo especializado en el tema de la pregunta. Proporciona una respuesta clara y concisa con un ejemplo relevante. Si la pregunta incluye "ejercicio" o "ejercicios", genera un ejercicio relacionado con el tema. Si incluye "sugiere un tema" o "recomendar tema", sugiere un tema relacionado. Finaliza con: "¿Entendiste? Si necesitas que lo explique de otra manera, házmelo saber." Responde en español, máximo {max_length} tokens. Pregunta: {pregunta}"""
+        response = get_groq_response(prompt, max_length)
+        if not response:
+            return jsonify({'error': 'Error al contactar con el modelo'}), 500
+
+        def generate():
+            for chunk in response:
+                content = chunk.choices[0].delta.content or ''
+                if content:
+                    yield content
+
+        conn = psycopg2.connect(os.getenv('DATABASE_URL'))
         c = conn.cursor()
-        c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT (pregunta) DO UPDATE SET respuesta = %s",
-                  (pregunta, respuesta, respuesta))
+        c.execute('INSERT INTO logs (usuario, pregunta, respuesta, avatar_id, timestamp) VALUES (%s, %s, %s, %s, NOW())',
+                  (usuario, pregunta, '', avatar_id))
         conn.commit()
         conn.close()
-        cargar_aprendizaje.cache_clear()
-        return jsonify({"mensaje": "¡Aprendido con éxito!"})
-    except PsycopgError as e:
-        logging.error(f"Error en /aprender: {str(e)}")
-        return jsonify({"error": f"Error al aprender: {str(e)}"}), 500
 
-@app.route("/progreso", methods=["GET"])
-def progreso():
-    try:
-        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
-        progreso_data = cargar_progreso(usuario)
-        return jsonify(progreso_data)
+        return Response(generate(), content_type='text/event-stream')
+
     except Exception as e:
-        logging.error(f"Error en /progreso: {str(e)}")
-        return jsonify({"error": f"Error al cargar el progreso: {str(e)}"}), 500
+        logging.error(f'Error en /respuesta: {str(e)}')
+        return jsonify({'error': f'Error al procesar la pregunta: {str(e)}'}), 500
 
-@app.route("/actualizar_nivel", methods=["POST"])
-def actualizar_nivel():
-    try:
-        data = request.get_json()
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        nivel = bleach.clean(data.get("nivel", "basico")[:20])
-        
-        if nivel not in ["basico", "intermedio", "avanzado"]:
-            return jsonify({"error": "Nivel inválido"}), 400
-            
-        progreso = cargar_progreso(usuario)
-        guardar_progreso(usuario, progreso["puntos"], progreso["temas_aprendidos"], nivel, progreso["avatar_id"])
-        return jsonify({"mensaje": f"Nivel actualizado a {nivel}"})
-    except Exception as e:
-        logging.error(f"Error en /actualizar_nivel: {str(e)}")
-        return jsonify({"error": f"Error al actualizar el nivel: {str(e)}"}), 500
-
-@app.route("/avatars", methods=["GET"])
-def avatars():
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
-        avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
-        conn.close()
-        return jsonify(avatars if avatars else [
-            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "", "animation_url": ""},
-            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "", "animation_url": ""},
-            {"avatar_id": "advanced", "nombre": "Avanzado Avatar", "url": "", "animation_url": ""}
-        ])
-    except PsycopgError as e:
-        logging.error(f"Error al obtener avatares: {str(e)}")
-        return jsonify([
-            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "", "animation_url": ""},
-            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "", "animation_url": ""},
-            {"avatar_id": "advanced", "nombre": "Avanzado Avatar", "url": "", "animation_url": ""}
-        ])
-
-@app.route("/quiz", methods=["GET"])
+@app.route('/quiz', methods=['GET'])
+@limiter.limit("5 per minute")
 def quiz():
     try:
-        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
-        tema = recomendar_tema(usuario)
-        progreso = cargar_progreso(usuario)
-        nivel = progreso["nivel"]
-        # Usar temas.json por nivel
-        base_pregunta = temas.get(tema, {}).get(nivel, temas[tema]["basico"])
-        pregunta = f"¿Qué describe mejor {tema} en nivel {nivel}?"
-        opciones = [base_pregunta.split('.')[0]]
-        opciones.extend(random.sample([temas[t].get(nivel, temas[t]["basico"]).split('.')[0] for t in temas if t != tema], 2))
-        random.shuffle(opciones)
-        return jsonify({"pregunta": pregunta, "opciones": opciones, "respuesta_correcta": base_pregunta.split('.')[0], "tema": tema})
+        usuario = bleach.clean(request.args.get('usuario', 'anonimo')[:50])
+        prompt = """Genera un quiz educativo en español con una pregunta, cuatro opciones de respuesta (una correcta), y el tema asociado. Formato JSON: {"pregunta": "", "opciones": [], "respuesta_correcta": "", "tema": ""}."""
+        response = get_groq_response(prompt, 200)
+        if not response:
+            return jsonify({'error': 'Error al contactar con el modelo'}), 500
+        full_response = ''
+        for chunk in response:
+            content = chunk.choices[0].delta.content or ''
+            if content:
+                full_response += content
+        import json
+        quiz_data = json.loads(full_response.strip())
+        return jsonify(quiz_data)
     except Exception as e:
-        logging.error(f"Error en /quiz: {str(e)}")
-        return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
+        logging.error(f'Error en /quiz: {str(e)}')
+        return jsonify({'error': f'Error al generar quiz: {str(e)}'}), 500
 
-@app.route("/responder_quiz", methods=["POST"])
+@app.route('/responder_quiz', methods=['POST'])
+@limiter.limit("10 per minute")
 def responder_quiz():
     try:
         data = request.get_json()
-        if not data or "respuesta" not in data or "respuesta_correcta" not in data or "tema" not in data:
-            return jsonify({"error": "Faltan datos en la solicitud"}), 400
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        respuesta = bleach.clean(data.get("respuesta").strip()[:200])
-        respuesta_correcta = bleach.clean(data.get("respuesta_correcta").strip()[:200])
-        tema = bleach.clean(data.get("tema").strip()[:50])
-        progreso = cargar_progreso(usuario)
-        es_correcta = respuesta == respuesta_correcta
-        puntos = 10 if progreso["nivel"] == "basico" else 15 if progreso["nivel"] == "intermedio" else 20
-        delta_dominio = 0.15 if es_correcta else -0.05
-        actualizar_dominio(usuario, tema, delta_dominio)
-        if es_correcta:
-            nuevos_puntos = progreso["puntos"] + puntos
-            temas_aprendidos = progreso["temas_aprendidos"]
-            if tema not in temas_aprendidos.split(","):
-                temas_aprendidos += ("," if temas_aprendidos else "") + tema
-            guardar_progreso(usuario, nuevos_puntos, temas_aprendidos, progreso["nivel"], progreso["avatar_id"])
-            mensaje = f"¡Correcto! Ganaste {puntos} puntos. {temas.get(tema, {}).get(progreso['nivel'], temas[tema]['basico'])} ¿Otro quiz?"
-        else:
-            mensaje = f"Incorrecto. Respuesta correcta: {respuesta_correcta}. ¿Intentar de nuevo?"
-        log_interaccion(usuario, f"Quiz sobre {tema}", mensaje)
-        return jsonify({"respuesta": mensaje, "es_correcta": es_correcta})
-    except Exception as e:
-        logging.error(f"Error en /responder_quiz: {str(e)}")
-        return jsonify({"error": f"Error al procesar la respuesta: {str(e)}"}), 500
+        respuesta = bleach.clean(data.get('respuesta', '')[:500])
+        respuesta_correcta = bleach.clean(data.get('respuesta_correcta', '')[:500])
+        tema = bleach.clean(data.get('tema', '')[:100])
+        usuario = bleach.clean(data.get('usuario', 'anonimo')[:50])
 
-@app.route("/recomendacion", methods=["GET"])
+        es_correcta = respuesta == respuesta_correcta
+        prompt = f"""El usuario respondió un quiz sobre {tema}. Respuesta dada: {respuesta}. Respuesta correcta: {respuesta_correcta}. Proporciona una explicación de por qué es {'' if es_correcta else 'in'}correcta, incluyendo un ejemplo. Finaliza con: "¿Entendiste? Si necesitas que lo explique de otra manera, házmelo saber." Responde en español, máximo 200 tokens."""
+        response = get_groq_response(prompt, 200)
+        if not response:
+            return jsonify({'error': 'Error al contactar con el modelo'}), 500
+        full_response = ''
+        for chunk in response:
+            content = chunk.choices[0].delta.content or ''
+            if content:
+                full_response += content
+        return jsonify({'respuesta': full_response, 'es_correcta': es_correcta})
+    except Exception as e:
+        logging.error(f'Error en /responder_quiz: {str(e)}')
+        return jsonify({'error': f'Error al procesar respuesta: {str(e)}'}), 500
+
+@app.route('/recomendacion', methods=['GET'])
+@limiter.limit("5 per minute")
 def recomendacion():
     try:
-        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
-        recomendacion_tema = recomendar_tema(usuario)
-        return jsonify({"recomendacion": recomendacion_tema})
+        usuario = bleach.clean(request.args.get('usuario', 'anonimo')[:50])
+        prompt = """Sugiere un tema educativo en español para que el usuario estudie, con una breve descripción de por qué es útil. Formato JSON: {"recomendacion": "", "descripcion": ""}."""
+        response = get_groq_response(prompt, 100)
+        if not response:
+            return jsonify({'error': 'Error al contactar con el modelo'}), 500
+        full_response = ''
+        for chunk in response:
+            content = chunk.choices[0].delta.content or ''
+            if content:
+                full_response += content
+        import json
+        rec_data = json.loads(full_response.strip())
+        return jsonify({'recomendacion': rec_data['recomendacion']})
     except Exception as e:
-        logging.error(f"Error en /recomendacion: {str(e)}")
-        return jsonify({"error": f"Error al recomendar tema: {str(e)}"}), 500
+        logging.error(f'Error en /recomendacion: {str(e)}')
+        return jsonify({'error': f'Error al recomendar tema: {str(e)}'}), 500
 
-@app.route("/analytics", methods=["GET"])
-def analytics():
+@app.route('/logs', methods=['GET'])
+@limiter.limit("10 per minute")
+def logs():
     try:
-        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        usuario = bleach.clean(request.args.get('usuario', 'anonimo')[:50])
+        conn = psycopg2.connect(os.getenv('DATABASE_URL'))
         c = conn.cursor()
-        c.execute("SELECT tema, dominio, aciertos, fallos FROM progreso_tema WHERE usuario = %s", (usuario,))
-        data = c.fetchall()
+        c.execute('SELECT pregunta, respuesta, timestamp FROM logs WHERE usuario = %s ORDER BY timestamp DESC', (usuario,))
+        logs = [{'pregunta': row[0], 'respuesta': row[1], 'timestamp': row[2].isoformat()} for row in c.fetchall()]
         conn.close()
-        result = [
-            {
-                "tema": row[0],
-                "dominio": float(row[1]),
-                "tasa_acierto": float(row[2] / (row[2] + row[3] or 1))
-            } for row in data
-        ]
-        return jsonify(result)
-    except PsycopgError as e:
-        logging.error(f"Error en /analytics: {str(e)}")
-        return jsonify([])
+        return jsonify(logs)
+    except Exception as e:
+        logging.error(f'Error en /logs: {str(e)}')
+        return jsonify({'error': f'Error al cargar logs: {str(e)}'}), 500
 
-@app.route("/tts", methods=["POST"])
+@app.route('/avatars', methods=['GET'])
+@limiter.limit("10 per minute")
+def avatars():
+    try:
+        avatars = [
+            {'avatar_id': 'default', 'nombre': 'Default', 'url': '/static/img/default-avatar.png'},
+            {'avatar_id': 'poo', 'nombre': 'POO', 'url': '/static/img/poo.png'}
+        ]
+        return jsonify(avatars)
+    except Exception as e:
+        logging.error(f'Error en /avatars: {str(e)}')
+        return jsonify({'error': f'Error al cargar avatares: {str(e)}'}), 500
+
+@app.route('/tts', methods=['POST'])
+@limiter.limit("10 per minute")
 def tts():
     try:
         data = request.get_json()
-        text = bleach.clean(data.get("text", "").strip()[:300])
+        text = bleach.clean(data.get('text', '')[:1000])
         if not text:
-            return jsonify({"error": "Texto vacío"}), 400
+            return jsonify({'error': 'Texto vacío'}), 400
         tts = gTTS(text=text, lang='es')
-        audio_buffer = io.BytesIO()
-        tts.write_to_fp(audio_buffer)
-        audio_buffer.seek(0)
-        return audio_buffer.read(), 200, {'Content-Type': 'audio/mp3'}
+        audio_io = BytesIO()
+        tts.write_to_fp(audio_io)
+        audio_io.seek(0)
+        return Response(audio_io, mimetype='audio/mp3')
     except Exception as e:
-        logging.error(f"Error en /tts: {str(e)}")
-        return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
+        logging.error(f'Error en /tts: {str(e)}')
+        return jsonify({'error': f'Error al generar TTS: {str(e)}'}), 500
 
-if __name__ == "__main__":
-    init_db()
-    if os.getenv("RENDER", "false").lower() != "true":
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.bind(("0.0.0.0", 5000))
-            sock.close()
-            webbrowser.open("http://localhost:5000")
-        except OSError:
-            logging.warning("Puerto 5000 en uso.")
-    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
+if __name__ == '__main__':
+    app.run(debug=True)
