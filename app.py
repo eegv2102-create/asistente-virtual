@@ -77,7 +77,7 @@ def init_db():
         return False
     return True
 
-# Cargar temas.json y prerequisitos.json (simplificado sin niveles)
+# Cargar temas.json y prerequisitos.json
 try:
     with open("temas.json", "r", encoding="utf-8") as f:
         temas = json.load(f)
@@ -85,10 +85,10 @@ try:
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logging.error(f"Error cargando temas.json: {str(e)}")
     temas = {
-        "poo": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento.",
-        "patrones de diseño": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software.",
-        "multihilos": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento.",
-        "mvc": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."
+        "poo": {"basico": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento."},
+        "patrones de diseño": {"basico": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software."},
+        "multihilos": {"basico": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento."},
+        "mvc": {"basico": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."}
     }
     logging.warning("Usando temas por defecto")
 
@@ -302,10 +302,10 @@ def quiz():
     try:
         usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
         tema = random.choice(list(temas.keys()))
-        base_pregunta = temas.get(tema, temas[tema].split('.')[0])
+        base_pregunta = temas.get(tema, {}).get("basico", temas[tema]["basico"])
         pregunta = f"¿Qué describe mejor {tema}?"
         opciones = [base_pregunta.split('.')[0]]
-        opciones.extend(random.sample([temas[t].split('.')[0] for t in temas if t != tema], 2))
+        opciones.extend(random.sample([temas[t]["basico"].split('.')[0] for t in temas if t != tema], 2))
         random.shuffle(opciones)
         return jsonify({"pregunta": pregunta, "opciones": opciones, "respuesta_correcta": base_pregunta.split('.')[0], "tema": tema})
     except Exception as e:
@@ -331,7 +331,7 @@ def responder_quiz():
             if tema not in temas_aprendidos.split(","):
                 temas_aprendidos += ("," if temas_aprendidos else "") + tema
             guardar_progreso(usuario, nuevos_puntos, temas_aprendidos, progreso["avatar_id"])
-            mensaje = f"¡Correcto! Ganaste {puntos} puntos. {temas.get(tema, temas[tema])} ¿Otro quiz?"
+            mensaje = f"¡Correcto! Ganaste {puntos} puntos. {temas.get(tema, {}).get('basico', temas[tema]['basico'])} ¿Otro quiz?"
         else:
             mensaje = f"Incorrecto. Respuesta correcta: {respuesta_correcta}. ¿Intentar de nuevo?"
         log_interaccion(usuario, f"Quiz sobre {tema}", mensaje)
