@@ -15,8 +15,8 @@
     --button-bg: #1abc9c;
     --button-text: #ffffff;
     --button-hover: #16a085;
-    --scrollbar-thumb: #1abc9c; /* Color de la barra de desplazamiento */
-    --scrollbar-track: #f5f6f5; /* Fondo de la barra de desplazamiento */
+    --scrollbar-thumb: #1abc9c;
+    --scrollbar-track: #f5f6f5;
 }
 
 body.modo-oscuro {
@@ -35,8 +35,8 @@ body.modo-oscuro {
     --button-bg: #1abc9c;
     --button-text: #ffffff;
     --button-hover: #16a085;
-    --scrollbar-thumb: #16a085; /* Ajuste para modo oscuro */
-    --scrollbar-track: #2c2c2c; /* Ajuste para modo oscuro */
+    --scrollbar-thumb: #16a085;
+    --scrollbar-track: #2c2c2c;
 }
 
 /* Reset and Global Styles */
@@ -54,9 +54,9 @@ body {
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
-    overflow-x: hidden; /* Evita barra horizontal */
+    overflow-x: hidden;
     transition: background-color 0.3s, color 0.3s;
-    touch-action: manipulation; /* Mejora scroll en móviles */
+    touch-action: manipulation;
 }
 
 /* Centrar el título arriba */
@@ -75,10 +75,10 @@ body {
 .container {
     display: flex;
     justify-content: space-between;
-    width: 100vw; /* Ajuste al viewport */
-    height: calc(100vh - 60px); /* Espacio para título */
+    width: 100vw;
+    height: calc(100vh - 60px);
     background-color: var(--bg-primary);
-    border-radius: 0; /* Sin bordes en móviles */
+    border-radius: 0;
     overflow: hidden;
 }
 
@@ -92,7 +92,7 @@ body {
     transition: transform 0.3s ease, background-color 0.3s;
     display: flex;
     flex-direction: column;
-    height: 100%; /* Altura completa */
+    height: 100%;
 }
 
 .left-section h3 {
@@ -101,10 +101,10 @@ body {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
-    position: sticky; /* Título estático */
+    position: sticky;
     top: 0;
-    background-color: var(--bg-secondary); /* Fondo consistente */
-    z-index: 10; /* Asegura que esté sobre la lista */
+    background-color: var(--bg-secondary);
+    z-index: 10;
 }
 
 .sidebar-content {
@@ -112,14 +112,14 @@ body {
     flex-direction: column;
     gap: 16px;
     flex: 1;
-    height: calc(100% - 48px); /* Resta altura aproximada del título (h3) */
+    height: calc(100% - 48px);
 }
 
 .sidebar-buttons {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding-bottom: 8px; /* Espacio para separación */
+    padding-bottom: 8px;
 }
 
 #modo-btn, #voice-btn, #quiz-btn, #recommend-btn {
@@ -140,29 +140,29 @@ body {
 
 .chat-history {
     flex: 1;
-    height: calc(100% - 80px); /* Resta altura de botones (aprox. 80px) */
-    border: 1px solid var(--border); /* Borde para delimitar visualmente */
-    border-radius: 8px; /* Bordes redondeados */
-    background-color: var(--bg-primary); /* Fondo para contraste */
-    overflow-y: hidden; /* No scrollbar en el contenedor padre */
-    margin-top: 8px; /* Espacio debajo del título */
+    height: calc(100% - 80px);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--bg-primary);
+    overflow-y: hidden;
+    margin-top: 8px;
 }
 
 #chat-list {
     list-style: none;
-    overflow-y: scroll; /* Barra de desplazamiento solo en la lista */
-    height: 100%; /* Ocupa todo el espacio disponible */
-    padding: 12px; /* Más padding para visibilidad */
+    overflow-y: scroll;
+    height: 100%;
+    padding: 12px;
 }
 
 #chat-list::-webkit-scrollbar {
-    width: 12px; /* Barra más ancha para mayor visibilidad */
+    width: 12px;
 }
 
 #chat-list::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: 6px;
-    border: 3px solid var(--scrollbar-track); /* Mayor contraste */
+    border: 3px solid var(--scrollbar-track);
 }
 
 #chat-list::-webkit-scrollbar-track {
@@ -171,17 +171,17 @@ body {
 }
 
 #chat-list li {
-    padding: 12px 14px; /* Más padding para claridad */
+    padding: 12px 14px;
     cursor: pointer;
     border-radius: 8px;
-    margin-bottom: 10px; /* Más espacio entre chats */
-    background-color: var(--bg-secondary); /* Fondo para cada chat */
+    margin-bottom: 10px;
+    background-color: var(--bg-secondary);
     transition: background-color 0.2s;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid var(--border); /* Borde para cada chat */
-    box-shadow: 0 1px 3px var(--shadow); /* Sombra ligera para profundidad */
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px var(--shadow);
 }
 
 #chat-list li:hover {
@@ -213,25 +213,25 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    height: 100%; /* Asegura altura completa */
+    height: 100%;
 }
 
 #chatbox {
     flex: 1;
     padding: 16px;
-    overflow-y: scroll; /* Forzar scrollbar visible */
+    overflow-y: scroll;
     background-color: var(--bg-secondary);
     transition: background-color 0.3s;
 }
 
 #chatbox::-webkit-scrollbar {
-    width: 12px; /* Barra más ancha */
+    width: 12px;
 }
 
 #chatbox::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: 6px;
-    border: 3px solid var(--scrollbar-track); /* Mayor contraste */
+    border: 3px solid var(--scrollbar-track);
 }
 
 #chatbox::-webkit-scrollbar-track {
@@ -270,20 +270,20 @@ body {
 }
 
 .user:before {
-    content: "\f007"; /* fa-user */
+    content: "\f007";
     font-family: "Font Awesome 5 Free";
-    font-weight: 900; /* Asegura que use la variante sólida */
+    font-weight: 900;
     margin-right: 8px;
-    font-size: 1rem; /* Tamaño consistente */
+    font-size: 1rem;
     vertical-align: middle;
 }
 
 .bot:before {
-    content: "\f544"; /* fa-brain para el bot */
+    content: "\f544";
     font-family: "Font Awesome 5 Free";
-    font-weight: 900; /* Asegura que use la variante sólida */
+    font-weight: 900;
     margin-right: 8px;
-    font-size: 1rem; /* Tamaño consistente */
+    font-size: 1rem;
     vertical-align: middle;
 }
 
@@ -293,14 +293,14 @@ body {
     cursor: pointer;
     margin-left: 8px;
     color: var(--text-secondary);
-    font-size: 1rem; /* Tamaño consistente con los íconos de usuario/bot */
+    font-size: 1rem;
     transition: color 0.2s;
     vertical-align: middle;
-    padding: 0; /* Eliminar padding para alinear mejor */
+    padding: 0;
 }
 
 .copy-btn i.fas.fa-copy {
-    font-size: 1rem; /* Tamaño consistente */
+    font-size: 1rem;
     vertical-align: middle;
 }
 
@@ -314,7 +314,7 @@ body {
     vertical-align: middle;
     margin-right: 8px;
     border-radius: 50%;
-    display: none; /* Ocultar por ahora, ya que no se usa */
+    display: none;
 }
 
 .input-group {
@@ -373,7 +373,7 @@ body {
 }
 
 #voice-toggle-btn.voice-active i {
-    content: "\f131"; /* fa-microphone-slash cuando activo */
+    content: "\f131";
 }
 
 /* Right Section: Avatar Selection */
@@ -384,7 +384,7 @@ body {
     padding: 16px;
     border-left: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s;
-    height: 100%; /* Altura completa */
+    height: 100%;
 }
 
 .right-section h3 {
@@ -604,12 +604,13 @@ body {
 
     .left-section, .right-section {
         width: 100%;
-        height: calc(100vh - 60px); /* Ajuste para móviles */
+        height: calc(100vh - 60px);
         position: fixed;
         top: 60px;
         transform: translateX(-100%);
         z-index: 1001;
         overflow-y: auto;
+        padding: 8px;
     }
 
     .right-section {
@@ -624,6 +625,25 @@ body {
     .main-section {
         min-height: calc(100vh - 60px);
         margin-top: 60px;
+        height: calc(100vh - 60px);
+        overflow: hidden;
+    }
+
+    #chatbox {
+        height: 100%;
+        overflow-y: scroll;
+        padding-bottom: 80px;
+    }
+
+    .input-group {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+        padding: 8px;
+        box-sizing: border-box;
+        border-top: 1px solid var(--border);
     }
 
     .menu-toggle, .menu-toggle-right {
@@ -643,23 +663,30 @@ body {
     }
 
     .app-title {
-        margin-top: 40px;
+        margin-top: 0;
         font-size: 1.5rem;
-        padding: 0 50px;
+        padding: 10px 50px;
         box-sizing: border-box;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-primary);
+        z-index: 1002;
+        border-bottom: 1px solid var(--border);
     }
 
     .chat-history {
-        height: calc(100% - 80px); /* Ajuste para móviles */
-        border: 1px solid var(--border); /* Borde para delimitar */
+        height: calc(100% - 80px);
+        border: 1px solid var(--border);
         border-radius: 8px;
-        overflow-y: hidden; /* Sin scrollbar en el contenedor */
+        overflow-y: hidden;
         margin-top: 8px;
     }
 
     #chat-list {
-        height: 100%; /* Asegura que la lista use el espacio disponible */
-        overflow-y: scroll; /* Barra de desplazamiento solo en la lista */
+        height: 100%;
+        overflow-y: scroll;
         padding: 12px;
     }
 }
@@ -667,7 +694,7 @@ body {
 /* Ajustes para zoom y tamaño original */
 @media screen and (min-width: 1025px) {
     body {
-        zoom: 100%; /* Fuerza 100% en PC grandes */
+        zoom: 100%;
     }
 
     .container {
@@ -680,9 +707,9 @@ body {
 /* Añadir al final de style.css para mejorar tooltips en móviles */
 @media (max-width: 768px) {
     .custom-tooltip {
-        font-size: 10px; /* Reducir tamaño de fuente */
-        padding: 4px 8px; /* Menor padding */
-        max-width: 200px; /* Evitar desborde */
-        white-space: normal; /* Permitir texto multilínea */
+        font-size: 10px;
+        padding: 4px 8px;
+        max-width: 200px;
+        white-space: normal;
     }
 }
