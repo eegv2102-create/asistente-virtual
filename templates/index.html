@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>💻 Asistente con Avatar Inteligente de Programación Avanzada</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- CDN principal para marked -->
-    <script src="https://unpkg.com/marked@4.3.0/lib/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js" integrity="sha256-3H1veWweNaU3As5e3M61r2nJRGIfp1F6w9l7LnxE3aQ=" crossorigin="anonymous"></script>
     <!-- Fallback local si el CDN falla -->
     <script>
         if (typeof marked === 'undefined') {
             document.write('<script src="{{ url_for('static', filename='js/marked.min.js') }}"><\/script>');
         }
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-java.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js" integrity="sha512-5P0X8VJt9iJo1J6SwVnmQ9PcmNBr3jOPblUdOB8r2lSapN0tFFtvaCL1U0iM8T3BdjGch2lOiB7mO3kS7BRXzPQ==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-java.min.js" integrity="sha512-6nW8wT6uS9+XtqV6fKxM7eJqJ1i4hY8g1lU+0Z2eW1pE+w==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAahn1oxM+2Xqkvc2ky2zq+0QKn4jQ==" crossorigin="anonymous"></script>
 </head>
 <body>
     <h2 class="app-title">💻 Asistente de Programación Avanzada</h2>
