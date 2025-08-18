@@ -1,4 +1,3 @@
-# nlp.py (Modificado ligeramente para soportar niveles y mejorar búsqueda semántica)
 import re
 import json
 import logging
@@ -8,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Configuración de logging optimizada para Render
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Cargar base de conocimientos
+# Cargar base de conocimientos (simplificado sin niveles)
 try:
     with open("temas.json", "r", encoding="utf-8") as f:
         temas_dict = json.load(f)
@@ -16,26 +15,10 @@ try:
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logging.error(f"Error cargando temas.json: {e}")
     temas_dict = {
-        "poo": {
-            "basico": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento.",
-            "intermedio": "En POO intermedia, se exploran conceptos como herencia y polimorfismo con ejemplos en Java.",
-            "avanzado": "POO avanzada incluye patrones como Singleton y Factory con implementaciones complejas."
-        },
-        "patrones de diseño": {
-            "basico": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software.",
-            "intermedio": "Patrones intermedios como Observer y Strategy con código de ejemplo.",
-            "avanzado": "Patrones avanzados como Dependency Injection y su uso en frameworks."
-        },
-        "multihilos": {
-            "basico": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento.",
-            "intermedio": "Multihilo en Java con Threads y Runnable, manejo de sincronización.",
-            "avanzado": "Multihilo avanzado con Executors, ForkJoinPool y problemas de concurrencia."
-        },
-        "mvc": {
-            "basico": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados.",
-            "intermedio": "Implementación MVC en aplicaciones web con ejemplos en Spring.",
-            "avanzado": "MVC avanzado con variaciones como MVP o MVVM en entornos reactivos."
-        }
+        "poo": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento.",
+        "patrones de diseño": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software.",
+        "multihilos": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento.",
+        "mvc": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."
     }
     logging.warning("Usando temas por defecto en nlp.py")
 
@@ -45,42 +28,39 @@ corpus = []
 temas = []
 X = None  # Inicialización inicial como None
 
-def build_and_vectorize_corpus(nivel="basico"):
-    """Reconstruye el corpus y vectoriza según el nivel."""
+def build_and_vectorize_corpus():
+    """Reconstruye el corpus y vectoriza."""
     global corpus, temas, X
-    corpus, temas = build_corpus(nivel)
+    corpus, temas = build_corpus()
     X = vectorizer.fit_transform(corpus)
-    logging.info(f"Vectorizador TF-IDF inicializado/actualizado para nivel {nivel}")
+    logging.info("Vectorizador TF-IDF inicializado/actualizado")
 
-def build_corpus(nivel="basico"):
-    """Construye el corpus dinámico basado en el nivel."""
+def build_corpus():
+    """Construye el corpus dinámico."""
     corpus = []
     temas = []
-    for tema, levels in temas_dict.items():
+    for tema, content in temas_dict.items():
         temas.append(tema)
-        corpus.append(levels.get(nivel, levels.get("basico", "")))
+        corpus.append(content)
     return corpus, temas
 
 # Inicializar el corpus y vectorización al cargar el módulo
-build_and_vectorize_corpus("basico")
+build_and_vectorize_corpus()
 
-def buscar_respuesta(pregunta, k=3, nivel="basico"):
+def buscar_respuesta(pregunta, k=3):
     """
-    Realiza búsqueda semántica con TF-IDF y similitud coseno, filtrando por nivel.
+    Realiza búsqueda semántica con TF-IDF y similitud coseno.
     Devuelve lista de (tema, contenido, score) ordenados por relevancia.
     """
     try:
         if X is None:
             logging.warning("TF-IDF no inicializado")
             return []
-        # Reconstruir y vectorizar si el nivel cambia
-        if nivel != "basico" and any(level.get(nivel, "") for level in temas_dict.values()):
-            build_and_vectorize_corpus(nivel)
         pregunta_vec = vectorizer.transform([pregunta.lower()])
         similitudes = cosine_similarity(pregunta_vec, X).flatten()
         top_indices = similitudes.argsort()[-k:][::-1]
         results = []
-        umbral = 0.3 if nivel == "basico" else 0.5 if nivel == "intermedio" else 0.7
+        umbral = 0.3
         for idx in top_indices:
             score = float(similitudes[idx])
             if score > umbral:
@@ -104,8 +84,6 @@ def classify_intent(text):
             return "definicion"
         elif any(word in text_lower for word in ["quiz", "prueba", "examen"]):
             return "quiz"
-        elif any(word in text_lower for word in ["cambiar nivel", "nivel"]):
-            return "cambiar_nivel"
         return "definicion"
     except Exception as e:
         logging.error(f"Error al clasificar intención: {e}")
