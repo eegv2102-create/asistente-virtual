@@ -223,6 +223,9 @@ h3 {
     padding: var(--spacing);
     background: var(--chat-bg);
     border-top: 1px solid var(--border);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
 }
 
 #input {
@@ -259,6 +262,8 @@ button:hover, button:focus {
     flex-direction: column;
     gap: var(--spacing);
     min-height: 100%;
+    visibility: visible;
+    opacity: 1;
 }
 
 .user, .bot {
@@ -311,6 +316,23 @@ button:hover, button:focus {
 
 #chat-list li:hover, #chat-list li:focus {
     background: var(--chat-bg);
+}
+
+/* Tooltips mejorados */
+.custom-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Responsive para móvil */

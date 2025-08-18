@@ -1,6 +1,7 @@
 let vozActiva = true, isListening = false, recognition = null;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
+let isIAVoicePaused = false;
 const { jsPDF } = window.jspdf;
 
 const getElement = selector => document.querySelector(selector);
@@ -48,6 +49,8 @@ const speakText = text => {
         }
         currentAudio = new Audio(URL.createObjectURL(blob));
         currentAudio.play();
+        isIAVoicePaused = false;
+        updateIAVoiceToggle();
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const source = audioCtx.createMediaElementSource(currentAudio);
         const analyser = audioCtx.createAnalyser();
@@ -80,6 +83,8 @@ const speakText = text => {
         currentAudio.onended = () => {
             if (botMessage) botMessage.classList.remove('speaking');
             if (canvas) canvas.style.opacity = '0';
+            isIAVoicePaused = false;
+            updateIAVoiceToggle();
         };
     }).catch(error => {
         console.error('TTS /tts falló, usando speechSynthesis fallback', error);
@@ -94,6 +99,8 @@ const speakText = text => {
         };
         speechSynthesis.speak(utterance);
         currentAudio = utterance;
+        isIAVoicePaused = false;
+        updateIAVoiceToggle();
     });
 };
 
@@ -131,17 +138,29 @@ const toggleVoiceUser = () => {
     }
 };
 
-const pauseIAVoice = () => {
+const toggleIAVoice = () => {
     if (currentAudio) {
-        currentAudio.pause();
-        mostrarNotificacion('Voz IA pausada');
-    };
+        if (isIAVoicePaused) {
+            currentAudio.play();
+            isIAVoicePaused = false;
+            mostrarNotificacion('Voz IA reanudada');
+        } else {
+            currentAudio.pause();
+            isIAVoicePaused = true;
+            mostrarNotificacion('Voz IA pausada');
+        }
+        updateIAVoiceToggle();
+    }
 };
 
-const playIAVoice = () => {
-    if (currentAudio && currentAudio.paused) {
-        currentAudio.play();
-        mostrarNotificacion('Voz IA reanudada');
+const updateIAVoiceToggle = () => {
+    const btn = getElement('#toggle-ia-voice');
+    if (btn) {
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-pause', !isIAVoicePaused);
+            icon.classList.toggle('fa-play', isIAVoicePaused);
+        }
     }
 };
 
@@ -279,11 +298,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleVoiceBtn = getElement('#toggle-voice-user');
     if (toggleVoiceBtn) toggleVoiceBtn.addEventListener('click', toggleVoiceUser);
 
-    const pauseIABtn = getElement('#pause-ia-voice');
-    if (pauseIABtn) pauseIABtn.addEventListener('click', pauseIAVoice);
-
-    const playIABtn = getElement('#play-ia-voice');
-    if (playIABtn) playIABtn.addEventListener('click', playIAVoice);
+    const toggleIABtn = getElement('#toggle-ia-voice');
+    if (toggleIABtn) toggleIABtn.addEventListener('click', toggleIAVoice);
 
     const newChatBtn = getElement('#new-chat');
     if (newChatBtn) newChatBtn.addEventListener('click', newChat);
@@ -334,21 +350,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Tooltips
+    // Tooltips mejorados
     getElements('[data-tooltip]').forEach(btn => {
         const tooltip = document.createElement('div');
         tooltip.className = 'custom-tooltip';
         tooltip.textContent = btn.dataset.tooltip;
-        tooltip.style.position = 'absolute';
-        tooltip.style.background = 'rgba(0, 0, 0, 0.95)';
-        tooltip.style.color = '#fff';
-        tooltip.style.padding = '8px 12px';
-        tooltip.style.borderRadius = '6px';
-        tooltip.style.fontSize = '12px';
-        tooltip.style.zIndex = '10000';
-        tooltip.style.opacity = '0';
-        tooltip.style.visibility = 'hidden';
-        tooltip.style.transition = 'opacity 0.3s ease, visibility 0.3s ease';
         document.body.appendChild(tooltip);
 
         btn.addEventListener('mouseenter', (e) => {
