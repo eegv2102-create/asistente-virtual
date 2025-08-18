@@ -9,7 +9,10 @@ const getElements = selector => document.querySelectorAll(selector);
 
 const mostrarNotificacion = (mensaje, tipo = 'info') => {
     const card = getElement('#notification-card');
-    if (!card) return;
+    if (!card) {
+        console.error('Elemento #notification-card no encontrado');
+        return;
+    }
     card.innerHTML = `
         <p>${mensaje}</p>
         <button aria-label="Cerrar notificación" onclick="this.parentElement.classList.remove('active')">Cerrar</button>
@@ -28,6 +31,10 @@ const scrollToBottom = () => {
     if (!chatbox || !container) return;
     requestAnimationFrame(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
+        const lastMessage = container.lastElementChild;
+        if (lastMessage) {
+            lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
     });
 };
 
@@ -117,7 +124,7 @@ const toggleVoiceUser = () => {
             btn.querySelector('i').classList.remove('fa-microphone-slash');
             btn.querySelector('i').classList.add('fa-microphone');
         }
-        mostrarNotificacion('Voz usuario desactivada');
+        mostrarNotificacion('Voz usuario desactivada', 'success');
     } else {
         recognition = new webkitSpeechRecognition();
         recognition.lang = 'es-ES';
@@ -155,7 +162,7 @@ const toggleVoiceUser = () => {
             btn.querySelector('i').classList.remove('fa-microphone');
             btn.querySelector('i').classList.add('fa-microphone-slash');
         }
-        mostrarNotificacion('Voz usuario activada');
+        mostrarNotificacion('Voz usuario activada', 'success');
     }
 };
 
@@ -164,11 +171,11 @@ const toggleIAVoice = () => {
         if (isIAVoicePaused) {
             currentAudio.play();
             isIAVoicePaused = false;
-            mostrarNotificacion('Voz IA reanudada');
+            mostrarNotificacion('Voz IA reanudada', 'success');
         } else {
             currentAudio.pause();
             isIAVoicePaused = true;
-            mostrarNotificacion('Voz IA pausada');
+            mostrarNotificacion('Voz IA pausada', 'success');
         }
         updateIAVoiceToggle();
     } else {
@@ -191,7 +198,7 @@ const newChat = () => {
     const container = getElement('.message-container');
     if (container) {
         container.innerHTML = '';
-        mostrarNotificacion('Nuevo chat iniciado');
+        mostrarNotificacion('Nuevo chat iniciado', 'success');
         scrollToBottom();
     }
 };
@@ -200,7 +207,7 @@ const deleteChat = () => {
     const container = getElement('.message-container');
     if (container) {
         container.innerHTML = '';
-        mostrarNotificacion('Chat eliminado');
+        mostrarNotificacion('Chat eliminado', 'success');
         scrollToBottom();
     }
 };
@@ -223,7 +230,7 @@ const exportarTxt = () => {
     a.download = 'chat.txt';
     a.click();
     URL.revokeObjectURL(url);
-    mostrarNotificacion('Chat exportado como TXT');
+    mostrarNotificacion('Chat exportado como TXT', 'success');
 };
 
 const exportarPdf = () => {
@@ -244,7 +251,7 @@ const exportarPdf = () => {
         }
     });
     doc.save('chat.pdf');
-    mostrarNotificacion('Chat exportado como PDF');
+    mostrarNotificacion('Chat exportado como PDF', 'success');
 };
 
 const sendMessage = () => {
@@ -306,21 +313,34 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
     speakText(bienvenida);
 
-    // Cargar avatares (por ahora solo el predeterminado)
-    const avatarOptions = getElement('#avatar-options');
-    if (avatarOptions) {
-        const img = getElement('#avatar-options img');
-        if (img && img.dataset.avatarId === selectedAvatar) {
-            img.classList.add('selected');
+    // Cargar avatares
+    fetch('/avatars').then(res => {
+        if (!res.ok) throw new Error('Error al cargar avatares');
+        return res.json();
+    }).then(data => {
+        const avatarOptions = getElement('#avatar-options');
+        if (avatarOptions) {
+            data.forEach(avatar => {
+                const img = document.createElement('img');
+                img.src = avatar.url;
+                img.alt = avatar.nombre;
+                img.title = avatar.nombre;
+                img.dataset.avatarId = avatar.avatar_id;
+                if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
+                img.addEventListener('click', () => {
+                    selectedAvatar = avatar.avatar_id;
+                    localStorage.setItem('selectedAvatar', selectedAvatar);
+                    getElements('.avatar-selection img').forEach(i => i.classList.remove('selected'));
+                    img.classList.add('selected');
+                    mostrarNotificacion(`Avatar ${avatar.nombre} seleccionado`, 'success');
+                });
+                avatarOptions.appendChild(img);
+            });
         }
-        img.addEventListener('click', () => {
-            selectedAvatar = img.dataset.avatarId;
-            localStorage.setItem('selectedAvatar', selectedAvatar);
-            getElements('.avatar-selection img').forEach(i => i.classList.remove('selected'));
-            img.classList.add('selected');
-            mostrarNotificacion('Avatar seleccionado');
-        });
-    }
+    }).catch(error => {
+        console.error('Error al cargar avatares:', error);
+        mostrarNotificacion('Error al cargar avatares', 'error');
+    });
 
     // Event listeners para botones
     const toggleVoiceBtn = getElement('#toggle-voice-user');
@@ -330,10 +350,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleIABtn) toggleIABtn.addEventListener('click', toggleIAVoice);
 
     const newChatBtn = getElement('#new-chat');
-    if (newChatBtn) newChatBtn.addEventListener('click', newChat);
+    if (newChatBtn) newChatBtn.addEventListener('click', () => {
+        if (confirm('¿Estás seguro de iniciar un nuevo chat? Se perderá el chat actual.')) {
+            newChat();
+        }
+    });
 
     const deleteChatBtn = getElement('#delete-chat');
-    if (deleteChatBtn) deleteChatBtn.addEventListener('click', deleteChat);
+    if (deleteChatBtn) deleteChatBtn.addEventListener('click', () => {
+        if (confirm('¿Estás seguro de eliminar el chat actual?')) {
+            deleteChat();
+        }
+    });
 
     const exportTxtBtn = getElement('#export-txt');
     if (exportTxtBtn) exportTxtBtn.addEventListener('click', exportarTxt);
@@ -345,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleDarkModeBtn) {
         toggleDarkModeBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-claro');
-            mostrarNotificacion(document.body.classList.contains('modo-claro') ? 'Modo claro activado' : 'Modo oscuro activado');
+            mostrarNotificacion(document.body.classList.contains('modo-claro') ? 'Modo claro activado' : 'Modo oscuro activado', 'success');
         });
     }
 
@@ -356,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('keypress', e => {
             if (e.key === 'Enter') sendMessage();
         });
-        input.focus(); // Asegura que el input esté listo para escribir
+        input.focus();
     }
 
     // Niveles
@@ -371,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Error al cambiar nivel');
                 return res.json();
             }).then(data => {
-                mostrarNotificacion(data.mensaje || `Nivel ${nivel} seleccionado`);
+                mostrarNotificacion(data.mensaje || `Nivel ${nivel} seleccionado`, 'success');
                 document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
             }).catch(error => {
                 mostrarNotificacion(`Error: ${error.message}`, 'error');
@@ -381,13 +409,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Tooltips mejorados
     getElements('[data-tooltip]').forEach(btn => {
-        let tooltip = btn.querySelector('.custom-tooltip');
-        if (!tooltip) {
-            tooltip = document.createElement('div');
-            tooltip.className = 'custom-tooltip';
-            tooltip.textContent = btn.dataset.tooltip;
-            document.body.appendChild(tooltip);
-        }
+        let tooltip = document.createElement('div');
+        tooltip.className = 'custom-tooltip';
+        tooltip.textContent = btn.dataset.tooltip;
+        document.body.appendChild(tooltip);
 
         const updateTooltipPosition = (e) => {
             const rect = btn.getBoundingClientRect();
@@ -408,5 +433,12 @@ document.addEventListener('DOMContentLoaded', () => {
             tooltip.style.opacity = '0';
             tooltip.style.visibility = 'hidden';
         });
+    });
+
+    // Tooltips para historial
+    getElement('#chat-list').addEventListener('mouseover', e => {
+        if (e.target.tagName === 'LI') {
+            e.target.dataset.tooltip = e.target.textContent;
+        }
     });
 });
