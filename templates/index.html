@@ -7,13 +7,20 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.12/marked.min.js"></script>
+    <!-- CDN principal para marked -->
+    <script src="https://unpkg.com/marked@4.3.0/lib/marked.min.js"></script>
+    <!-- Fallback local si el CDN falla -->
+    <script>
+        if (typeof marked === 'undefined') {
+            document.write('<script src="{{ url_for('static', filename='js/marked.min.js') }}"><\/script>');
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-java.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <h1 class="app-title">Asistente con Avatar Inteligente para Programación Avanzada</h1>
+    <h2 class="app-title">💻 Asistente de Programación Avanzada</h2>
     <div class="container">
         <!-- Left Sidebar -->
         <aside class="left-section">
