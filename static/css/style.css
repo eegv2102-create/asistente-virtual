@@ -20,7 +20,7 @@ html {
     outline-offset: 3px;
 }
 
-/* Modo Oscuro - Nivel Básico (Verde Suave) */
+/* Modos de color */
 .nivel-basico {
     --bg: #1A2B26;
     --text: #E0F2E9;
@@ -35,7 +35,6 @@ html {
     --scrollbar-track: #26332E;
 }
 
-/* Modo Oscuro - Nivel Intermedio (Azul Profundo) */
 .nivel-intermedio {
     --bg: #1A263A;
     --text: #E3F2FD;
@@ -50,7 +49,6 @@ html {
     --scrollbar-track: #222F45;
 }
 
-/* Modo Oscuro - Nivel Avanzado (Rojo Intenso) */
 .nivel-avanzado {
     --bg: #2A1A1A;
     --text: #FFE6E6;
@@ -65,7 +63,6 @@ html {
     --scrollbar-track: #332222;
 }
 
-/* Modo Claro */
 .modo-claro.nivel-basico {
     --bg: #E8F5E9;
     --text: #1A3C1B;
@@ -195,12 +192,14 @@ h3 {
 
 .icon-bar, .level-bar {
     display: flex;
+    flex-wrap: nowrap; /* Asegura alineación horizontal */
+    justify-content: center;
     gap: calc(var(--spacing) / 2);
     padding: var(--spacing);
-    justify-content: center;
+    flex-direction: row; /* Asegura que los iconos estén en fila */
 }
 
-.left-section button, .nivel-btn {
+.left-section button, .nivel-btn, .input-group button {
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -219,16 +218,13 @@ h3 {
     min-height: 30px;
 }
 
-.left-section button:hover, .nivel-btn:hover {
+.left-section button:hover, .nivel-btn:hover, .input-group button:hover {
     background: var(--button-hover);
     transform: scale(1.1);
 }
 
-.custom-tooltip {
+#tooltip {
     position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.95);
     color: #fff;
     padding: 8px 12px;
@@ -241,9 +237,14 @@ h3 {
     pointer-events: none;
 }
 
-.left-section button:hover + .custom-tooltip, .nivel-btn:hover + .custom-tooltip, .input-group button:hover + .custom-tooltip {
+.left-section button:hover + #tooltip,
+.nivel-btn:hover + #tooltip,
+.input-group button:hover + #tooltip {
     opacity: 1;
     visibility: visible;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 #chat-list {
@@ -355,27 +356,6 @@ h3 {
     border-top: 1px solid var(--border);
 }
 
-.input-group button {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: linear-gradient(135deg, var(--button-bg), color-mix(in srgb, var(--button-bg), #000 20%));
-    color: var(--text);
-    cursor: pointer;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow);
-    transition: var(--transition);
-}
-
-.input-group button:hover {
-    background: var(--button-hover);
-    transform: scale(1.1);
-}
-
 #input {
     flex: 1;
     padding: calc(var(--spacing) * 1.5);
@@ -467,6 +447,8 @@ h3 {
     cursor: pointer;
     border: 2px solid transparent;
     transition: var(--transition);
+    background-size: cover;
+    background-position: center;
 }
 
 .avatar-option:hover {
@@ -567,11 +549,11 @@ h3 {
         justify-content: center;
     }
 
-    .menu-toggle {
+    #menu-toggle-left {
         left: calc(var(--spacing) * 1);
     }
 
-    .menu-toggle-right {
+    #menu-toggle-right {
         right: calc(var(--spacing) * 1);
     }
 
@@ -594,12 +576,6 @@ h3 {
         background: color-mix(in srgb, var(--bg), #000 10%);
         box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
         align-items: center;
-    }
-
-    .input-group button {
-        width: 36px;
-        height: 36px;
-        margin: 0;
     }
 
     .right-section .tab-buttons {
@@ -661,7 +637,7 @@ h3 {
         transition: background 0.3s ease, transform 0.2s ease, opacity 0.2s ease;
     }
 
-    .menu-toggle-right {
+    #menu-toggle-right {
         left: auto;
         right: calc(var(--spacing) * 0.5);
     }
