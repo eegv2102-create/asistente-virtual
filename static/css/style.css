@@ -658,3 +658,23 @@ body {
         max-width: none;
     }
 }
+/* Añadir al final de style.css para mejorar tooltips en móviles */
+@media (max-width: 768px) {
+    .custom-tooltip {
+        font-size: 10px; /* Reducir tamaño de fuente */
+        padding: 4px 8px; /* Menor padding */
+        max-width: 200px; /* Evitar desborde */
+        white-space: normal; /* Permitir texto multilínea */
+    }
+}/* Animación para el cambio de ícono en #speech-toggle-btn */
+#speech-toggle-btn i {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+#speech-toggle-btn.speech-paused i {
+    transform: scale(1.1);
+    opacity: 0.8;
+}
+#speech-toggle-btn:not(.speech-paused) i {
+    transform: scale(1);
+    opacity: 1;
+}
