@@ -50,7 +50,7 @@ body {
     min-height: 100vh;
     padding: 10px;
     transition: background-color 0.3s, color 0.3s;
-    overflow-x: hidden; /* Evita barra horizontal */
+    overflow-x: hidden;
 }
 
 /* Centrar el título arriba de todo */
@@ -60,7 +60,7 @@ body {
     margin: 15px 0;
     color: var(--text-primary);
     width: 100%;
-    max-width: 100%; /* Adaptable a cualquier pantalla */
+    max-width: 100%;
     position: relative;
     z-index: 1000;
     display: block;
@@ -71,8 +71,8 @@ body {
     display: flex;
     justify-content: space-between;
     width: 100%;
-    max-width: 100%; /* Adaptable a cualquier pantalla */
-    height: calc(100vh - 80px); /* Espacio para título */
+    max-width: 100%;
+    height: calc(100vh - 80px);
     background-color: var(--bg-primary);
     border-radius: 8px;
     box-shadow: 0 4px 16px var(--shadow);
@@ -89,7 +89,7 @@ body {
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
     display: flex;
     flex-direction: column;
-    z-index: 1001; /* Por encima del contenido principal */
+    z-index: 1001;
 }
 .left-section h3 {
     font-size: 1.1rem;
@@ -127,6 +127,8 @@ body {
     flex: 1;
     overflow-y: auto;
     max-height: calc(100% - 150px);
+    min-height: 100px; /* Asegura espacio mínimo */
+    padding-right: 8px; /* Espacio para scrollbar */
 }
 #chat-list {
     list-style: none;
@@ -452,7 +454,7 @@ body {
     }
     .left-section, .right-section {
         width: 100%;
-        height: calc(100vh - 60px); /* Espacio para título */
+        height: calc(100vh - 60px);
         position: fixed;
         top: 60px;
         transform: translateX(-100%);
@@ -489,6 +491,9 @@ body {
         font-size: 1.5rem;
         padding: 0 50px;
         box-sizing: border-box;
+    }
+    .chat-history {
+        max-height: 50vh; /* Limita el historial en móviles */
     }
 }
 

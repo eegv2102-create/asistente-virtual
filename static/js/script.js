@@ -34,9 +34,6 @@ const scrollToBottom = () => {
         if (lastMessage) {
             lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
-        if (window.innerWidth <= 768) {
-            chatbox.scrollTop = chatbox.scrollHeight;
-        }
     });
 };
 
@@ -510,6 +507,7 @@ const sendMessage = () => {
                     mostrarNotificacion(data.error, 'error');
                     console.error('Error en respuesta:', data.error);
                 } else {
+                    console.log('Respuesta recibida:', data.respuesta); // Depuración
                     const botDiv = document.createElement('div');
                     botDiv.classList.add('bot');
                     let respuestaHtml = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta);
@@ -561,6 +559,7 @@ const buscarTema = () => {
                 mostrarNotificacion(data.error, 'error');
                 console.error('Error en respuesta:', data.error);
             } else {
+                console.log('Respuesta recibida en buscarTema:', data.respuesta); // Depuración
                 const botDiv = document.createElement('div');
                 botDiv.classList.add('bot');
                 let respuestaHtml = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta);
@@ -686,39 +685,6 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarListaChats();
     cargarConversacionActual();
     cargarAnalytics();
-
-    if (elements.input && elements.chatbox) {
-        elements.input.addEventListener('input', () => {
-            scrollToBottom();
-        });
-        elements.input.addEventListener('focus', () => {
-            setTimeout(() => {
-                scrollToBottom();
-                elements.input.scrollIntoView({ behavior: 'auto', block: 'end' });
-            }, 500);
-        });
-    }
-
-    if (elements.chatbox) {
-        const container = elements.chatbox.querySelector('.message-container');
-        if (container) {
-            const observer = new MutationObserver(() => {
-                scrollToBottom();
-            });
-            observer.observe(container, { childList: true, subtree: true });
-        }
-    }
-
-    if (window.visualViewport && elements.chatbox) {
-        window.visualViewport.addEventListener('resize', () => {
-            const viewportHeight = window.visualViewport.height;
-            const windowHeight = window.innerHeight;
-            const keyboardHeight = windowHeight - viewportHeight;
-            elements.chatbox.style.height = `${viewportHeight - 100}px`;
-            elements.chatbox.style.paddingBottom = `${Math.max(250, keyboardHeight + 50)}px`;
-            scrollToBottom();
-        });
-    }
 
     if (elements.sendBtn && elements.input) {
         elements.sendBtn.addEventListener('click', sendMessage);
