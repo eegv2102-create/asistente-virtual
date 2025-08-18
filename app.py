@@ -3,7 +3,7 @@ import json
 import os
 import random
 import logging
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 from fuzzywuzzy import process
 from functools import lru_cache
 from flask_limiter import Limiter
@@ -249,10 +249,11 @@ def respuesta():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
         tema = bleach.clean(data.get("tema", "")[:50])
+        nivel = bleach.clean(data.get("nivel", "basico")[:20])
         if not pregunta:
             return jsonify({"error": "Pregunta vacía"}), 400
         progreso = cargar_progreso(usuario)
-        nivel = progreso["nivel"]
+        nivel = nivel if nivel in ["basico", "intermedio", "avanzado"] else progreso["nivel"]
         temas_aprendidos = progreso["temas_aprendidos"]
         pregunta_normalizada = normalize(pregunta)
         intent = classify_intent(pregunta_normalizada)
@@ -295,6 +296,22 @@ def respuesta():
     except Exception as e:
         logging.error(f"Error en /respuesta: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
+
+@app.route("/tts", methods=["POST"])
+def tts():
+    try:
+        data = request.get_json()
+        text = bleach.clean(data.get("text", "").strip()[:MAX_RESPUESTA_LEN])
+        if not text:
+            return jsonify({"error": "Texto vacío para TTS"}), 400
+        tts = gTTS(text=text, lang='es')
+        audio_io = io.BytesIO()
+        tts.write_to_fp(audio_io)
+        audio_io.seek(0)
+        return send_file(audio_io, mimetype='audio/mpeg')
+    except Exception as e:
+        logging.error(f"Error en /tts: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
 
 @app.route("/progreso", methods=["GET"])
 def progreso():
