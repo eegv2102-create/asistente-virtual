@@ -107,51 +107,41 @@ const speakText = text => {
     });
 };
 
+let isPaused = false;
+
+const togglePauseSpeech = () => {
+    if (isPaused) {
+        resumeSpeech();
+        isPaused = false;
+        getElement('#speech-btn').innerHTML = '<i class="fas fa-pause"></i>';
+    } else {
+        pauseSpeech();
+        isPaused = true;
+        getElement('#speech-btn').innerHTML = '<i class="fas fa-play"></i>';
+    }
+};
+
 const pauseSpeech = () => {
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
     if (currentAudio instanceof Audio) {
         currentAudio.pause();
         mostrarNotificacion('Voz pausada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = true;
-            btnResumeSpeech.disabled = false;
-        }
     } else if ('speechSynthesis' in window && currentAudio) {
         speechSynthesis.pause();
         mostrarNotificacion('Voz pausada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = true;
-            btnResumeSpeech.disabled = false;
-        }
     }
 };
 
 const resumeSpeech = () => {
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
     if (currentAudio instanceof Audio) {
         currentAudio.play();
         mostrarNotificacion('Voz reanudada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = false;
-            btnResumeSpeech.disabled = true;
-        }
     } else if ('speechSynthesis' in window && currentAudio && speechSynthesis.paused) {
         speechSynthesis.resume();
         mostrarNotificacion('Voz reanudada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = false;
-            btnResumeSpeech.disabled = true;
-        }
     }
 };
 
 const stopSpeech = () => {
-    const btnStartVoice = getElement('#btn-start-voice');
-    const btnStopVoice = getElement('#btn-stop-voice');
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
     }
@@ -163,12 +153,6 @@ const stopSpeech = () => {
         try {
             recognition.stop();
             isListening = false;
-            if (btnStartVoice && btnStopVoice && btnPauseSpeech && btnResumeSpeech) {
-                btnStartVoice.disabled = false;
-                btnStopVoice.disabled = true;
-                btnPauseSpeech.disabled = true;
-                btnResumeSpeech.disabled = true;
-            }
             mostrarNotificacion('Voz y reconocimiento detenidos', 'info');
         } catch (error) {
             mostrarNotificacion(`Error al detener voz: ${error.message}`, 'error');
@@ -176,6 +160,52 @@ const stopSpeech = () => {
     }
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.remove('speaking');
+};
+
+const toggleVoiceRecognition = () => {
+    if (isListening) {
+        stopSpeech();
+        getElement('#voice-btn-speech').innerHTML = '<i class="fas fa-microphone"></i>';
+    } else {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
+            return;
+        }
+        recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.start();
+        isListening = true;
+        getElement('#voice-btn-speech').innerHTML = '<i class="fas fa-microphone-slash"></i>';
+        mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
+
+        recognition.onresult = event => {
+            const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
+            getElement('#input').value = transcript;
+            if (event.results[event.results.length - 1].isFinal) {
+                sendMessage();
+                recognition.stop();
+                isListening = false;
+                getElement('#voice-btn-speech').innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        };
+
+        recognition.onerror = event => {
+            mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
+            recognition.stop();
+            isListening = false;
+            getElement('#voice-btn-speech').innerHTML = '<i class="fas fa-microphone"></i>';
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                recognition.start();
+            } else {
+                getElement('#voice-btn-speech').innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        };
+    }
 };
 
 const cargarAvatares = async () => {
@@ -435,25 +465,16 @@ const sendMessage = () => {
     botDiv.classList.add('bot', 'typing');
     container.appendChild(botDiv);
     scrollToBottom();
-    // Integración con Groq Llama3 (reemplaza con tu API key y endpoint de Render si aplica)
-    const groqApiKey = 'TU_CLAVE_API_GROQ_AQUI'; // Reemplaza con tu clave real de Groq
-    fetch('https://api.groq.com/openai/v1/chat/completions', {  // O usa tu endpoint en Render: 'https://tu-app.render.com/chat'
+    // Revertido a tu backend original en Render
+    fetch('/chat', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${groqApiKey}`
-        },
-        body: JSON.stringify({
-            model: 'llama3-70b-8192',  // Modelo Llama3 en Groq
-            messages: [{ role: 'user', content: pregunta }],
-            max_tokens: 500,
-            temperature: 0.7
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta, nivel, avatar: selectedAvatar, usuario: 'anonimo' })
     }).then(res => {
-        if (!res.ok) throw new Error('Error en IA Groq');
+        if (!res.ok) throw new Error('Error en respuesta de IA');
         return res.json();
     }).then(data => {
-        const respuesta = data.choices[0].message.content || 'Respuesta no disponible';
+        const respuesta = data.respuesta || 'Respuesta no disponible';
         botDiv.classList.remove('typing');
         botDiv.innerHTML = marked.parse(respuesta) + `<button class="copy-btn" data-text="${respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         scrollToBottom();
@@ -464,7 +485,7 @@ const sendMessage = () => {
     }).catch(error => {
         botDiv.classList.remove('typing');
         botDiv.textContent = 'Error al generar respuesta.';
-        mostrarNotificacion(`Error en IA: ${error.message}. Verifica tu backend en Render o clave Groq.`, 'error');
+        mostrarNotificacion(`Error en IA: ${error.message}. Verifica tu backend en Render.`, 'error');
     });
 };
 
@@ -486,7 +507,6 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
             guardarMensaje('Respuesta Quiz', feedback);
             if (window.Prism) Prism.highlightAllUnder(container);
             addCopyButtonListeners();
-            cargarAnalytics();
         })
         .catch(error => mostrarNotificacion(`Error al responder quiz: ${error.message}`, 'error'));
 };
@@ -501,40 +521,13 @@ const buscarTema = () => {
     sendMessage();
 };
 
-const cargarAnalytics = () => {
-    fetch('/analytics?usuario=anonimo', { cache: 'no-store' })
-        .then(res => res.json())
-        .then(data => {
-            const container = getElement('#analytics-container');
-            if (!container) {
-                mostrarNotificacion('No se pudieron cargar las estadísticas. Intenta de nuevo.', 'error');
-                container.innerHTML = '<p>No hay estadísticas disponibles.</p>';
-                return;
-            }
-            container.innerHTML = data.map(item => `
-                <div class="progress-bar">
-                    <span>${item.tema}: ${Math.round(item.tasa_acierto * 100)}%</span>
-                    <div class="bar" style="width: ${item.tasa_acierto * 100}%"></div>
-                </div>
-            `).join('');
-        })
-        .catch(error => {
-            console.error('Error al cargar analytics:', error);
-            mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
-            const container = getElement('#analytics-container');
-            if (container) container.innerHTML = '<p>Error al cargar estadísticas.</p>';
-        });
-};
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
         sendBtn: getElement('#send-btn'),
         voiceBtn: getElement('#voice-btn'),
-        btnStartVoice: getElement('#btn-start-voice'),
-        btnStopVoice: getElement('#btn-stop-voice'),
-        btnPauseSpeech: getElement('#btn-pause-speech'),
-        btnResumeSpeech: getElement('#btn-resume-speech'),
+        voiceBtnSpeech: getElement('#voice-btn-speech'),
+        speechBtn: getElement('#speech-btn'),
         chatbox: getElement('#chatbox'),
         modoBtn: getElement('#modo-btn'),
         exportTxtBtn: getElement('#exportTxtBtn'),
@@ -544,21 +537,14 @@ document.addEventListener('DOMContentLoaded', () => {
         recommendBtn: getElement('#recommend-btn'),
         menuToggle: getElement('.menu-toggle'),
         menuToggleRight: getElement('.menu-toggle-right'),
-        searchBtn: getElement('#search-btn'),
-        searchInput: getElement('#search-input'),
         tabButtons: getElements('.tab-btn'),
         quizBtn: getElement('#quiz-btn'),
         nivelBtns: getElements('.nivel-btn')
     };
 
-    Object.entries(elements).forEach(([key, value]) => {
-        if (!value && key !== 'tabButtons' && key !== 'nivelBtns') console.warn(`Elemento ${key} no encontrado en el DOM`);
-    });
-
     cargarAvatares();
     actualizarListaChats();
     cargarConversacionActual();
-    cargarAnalytics();
 
     if (elements.input && elements.chatbox) {
         elements.input.addEventListener('input', () => {
@@ -578,17 +564,6 @@ document.addEventListener('DOMContentLoaded', () => {
             scrollToBottom();
         });
         observer.observe(container, { childList: true, subtree: true });
-    }
-
-    if (window.visualViewport && elements.chatbox) {
-        window.visualViewport.addEventListener('resize', () => {
-            const viewportHeight = window.visualViewport.height;
-            const windowHeight = window.innerHeight;
-            const keyboardHeight = windowHeight - viewportHeight;
-            elements.chatbox.style.height = `${viewportHeight - 100}px`;
-            elements.chatbox.style.paddingBottom = `${Math.max(250, keyboardHeight + 50)}px`;
-            scrollToBottom();
-        });
     }
 
     if (elements.sendBtn && elements.input) {
@@ -626,13 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         addCopyButtonListeners();
                     }
                 }).catch(error => mostrarNotificacion(`Error al recomendar tema: ${error.message}`, 'error'));
-        });
-    }
-
-    if (elements.searchBtn && elements.searchInput) {
-        elements.searchBtn.addEventListener('click', buscarTema);
-        elements.searchInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') buscarTema();
         });
     }
 
@@ -715,57 +683,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (elements.btnStartVoice && elements.btnStopVoice && elements.btnPauseSpeech && elements.btnResumeSpeech) {
-        elements.btnStartVoice.addEventListener('click', () => {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
-                return;
-            }
-            recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
-            recognition.lang = 'es-ES';
-            recognition.interimResults = true;
-            recognition.continuous = true;
-            recognition.start();
-            isListening = true;
-            elements.btnStartVoice.disabled = true;
-            elements.btnStopVoice.disabled = false;
-            elements.btnPauseSpeech.disabled = true;
-            elements.btnResumeSpeech.disabled = true;
-            mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
-
-            recognition.onresult = event => {
-                const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
-                if (elements.input) elements.input.value = transcript;
-                if (event.results[event.results.length - 1].isFinal) {
-                    sendMessage();
-                    recognition.stop();
-                    isListening = false;
-                    elements.btnStartVoice.disabled = false;
-                    elements.btnStopVoice.disabled = true;
-                }
-            };
-
-            recognition.onerror = event => {
-                mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
-                recognition.stop();
-                isListening = false;
-                elements.btnStartVoice.disabled = false;
-                elements.btnStopVoice.disabled = true;
-            };
-
-            recognition.onend = () => {
-                if (isListening) {
-                    recognition.start();
-                } else {
-                    elements.btnStartVoice.disabled = false;
-                    elements.btnStopVoice.disabled = true;
-                }
-            };
-        });
-
-        elements.btnStopVoice.addEventListener('click', stopSpeech);
-        elements.btnPauseSpeech.addEventListener('click', pauseSpeech);
-        elements.btnResumeSpeech.addEventListener('click', resumeSpeech);
+    if (elements.voiceBtnSpeech && elements.speechBtn) {
+        elements.voiceBtnSpeech.addEventListener('click', toggleVoiceRecognition);
+        elements.speechBtn.addEventListener('click', togglePauseSpeech);
     }
 
     if (elements.menuToggle && elements.menuToggleRight) {
@@ -837,16 +757,6 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.exportPdfBtn.addEventListener('click', exportarPdf);
     }
 
-    if (getElement('#tema-filter')) {
-        getElement('#tema-filter').addEventListener('change', () => {
-            const tema = getElement('#tema-filter').value;
-            if (tema) {
-                getElement('#search-input').value = tema;
-                buscarTema();
-            }
-        });
-    }
-
     document.querySelectorAll('.left-section button, .nivel-btn').forEach(btn => {
         const tooltipText = btn.dataset.tooltip;
         if (!tooltipText) return;
@@ -881,4 +791,9 @@ document.addEventListener('DOMContentLoaded', () => {
             tooltip.style.visibility = 'hidden';
         });
     });
+
+    // Chequeo si Font Awesome cargó
+    if (!document.querySelector('link[href*="font-awesome"]')) {
+        console.warn('Font Awesome no cargado, iconos no se verán');
+    }
 });
