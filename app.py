@@ -4,14 +4,13 @@ import os
 import random
 import logging
 import socket
-import webbrowser
-from flask import Flask, render_template, request, jsonify
+import io
+from flask import Flask, render_template, request, jsonify, send_file
 from fuzzywuzzy import process
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from gtts import gTTS
-import io
 from dotenv import load_dotenv
 from groq import Groq
 import psycopg2
@@ -27,7 +26,7 @@ app = Flask(__name__)
 # Configuración de logging optimizada para Render
 logging.basicConfig(
     filename='app.log',
-    level=logging.INFO,  # Reducido a INFO para menos ruido en logs
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -53,13 +52,12 @@ except ImportError as e:
         return pregunta.lower()
 
 # Rate limiting ajustado para Render
-limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])  # Aumentado para mayor flexibilidad
+limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])
 
 def init_db():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        # Cambiar nivel predeterminado a 'basico'
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', nivel TEXT DEFAULT 'basico', avatar_id TEXT DEFAULT 'default')''')
         c.execute('''CREATE TABLE IF NOT EXISTS aprendizaje
@@ -78,7 +76,6 @@ def init_db():
                      (usuario TEXT, tema TEXT, dominio REAL DEFAULT 0.0, aciertos INTEGER DEFAULT 0, fallos INTEGER DEFAULT 0, ultima_interaccion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                      PRIMARY KEY (usuario, tema))''')
         conn.commit()
-        # Cargar datos iniciales
         try:
             with open("aprendizaje_inicial.json", "r", encoding="utf-8") as f:
                 aprendizaje_inicial = json.load(f)
@@ -150,7 +147,7 @@ def cargar_progreso(usuario):
         conn.close()
         if row:
             return {"puntos": row[0], "temas_aprendidos": row[1], "nivel": row[2], "avatar_id": row[3]}
-        return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}  # Default a básico
+        return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}
     except PsycopgError as e:
         logging.error(f"Error al cargar progreso: {str(e)}")
         return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}
@@ -222,7 +219,7 @@ def consultar_groq_api(pregunta, nivel, temas_aprendidos):
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=150,  # Reducido para optimizar en Render
+            max_tokens=150,
             temperature=0.7,
             stream=False
         )
@@ -261,7 +258,6 @@ def buscar_respuesta_app(pregunta, usuario):
                 prereqs_pendientes = [p for p in prerequisitos[tema] if cargar_dominio(usuario, p) < 0.6]
                 if prereqs_pendientes:
                     return f"Primero domina: {', '.join(prereqs_pendientes)}. ¿Quieres empezar con {prereqs_pendientes[0]}?"
-            # Respuesta por nivel desde temas.json
             respuesta = temas.get(tema, {}).get(nivel, fragmento)
             if nivel == "basico":
                 respuesta = f"[Básico] {respuesta.split('.')[0]}. Ejemplo: class Ejemplo {{}} ¿Quieres un quiz?"
@@ -346,7 +342,6 @@ def respuesta():
 
         progreso = cargar_progreso(usuario)
         respuesta_text = buscar_respuesta_app(pregunta, usuario)
-        # Manejo de avatar con respaldo
         avatar = None
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -451,7 +446,6 @@ def quiz():
         progreso = cargar_progreso(usuario)
         nivel = progreso["nivel"]
         dificultad = "facil" if nivel == "basico" else "medio" if nivel == "intermedio" else "dificil"
-        # Usar temas.json por nivel
         base_pregunta = temas.get(tema, {}).get(nivel, temas[tema].split('.')[0])
         pregunta = f"¿Qué describe mejor {tema} en nivel {dificultad}?"
         opciones = [base_pregunta.split('.')[0]]
@@ -528,3 +522,26 @@ def tts():
     try:
         data = request.get_json()
         text = bleach.clean(data.get("text", "").strip()[:300])
+        if not text:
+            return jsonify({"error": "El texto no puede estar vacío"}), 400
+
+        # Generar audio con gTTS
+        tts = gTTS(text=text, lang='es', slow=False)
+        audio_buffer = io.BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+
+        # Devolver el audio como respuesta
+        return send_file(
+            audio_buffer,
+            mimetype="audio/mpeg",
+            as_attachment=True,
+            attachment_filename="respuesta.mp3"
+        )
+    except Exception as e:
+        logging.error(f"Error en /tts: {str(e)}")
+        return jsonify({"error": f"Error al generar el audio: {str(e)}"}), 500
+
+if __name__ == "__main__":
+    init_db()  # Inicializar la base de datos al arrancar
+    app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
