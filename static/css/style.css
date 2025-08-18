@@ -45,7 +45,7 @@ body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     display: flex;
-    flex-direction: column; /* Cambiado para apilar título y contenedor verticalmente */
+    flex-direction: column;
     align-items: center;
     min-height: 100vh;
     padding: 16px;
@@ -59,10 +59,10 @@ body {
     margin: 20px 0;
     color: var(--text-primary);
     width: 100%;
-    max-width: 1280px; /* Igual al max-width del contenedor */
+    max-width: 1280px;
     position: relative;
     z-index: 1000;
-    display: block; /* Asegura que el título ocupe todo el ancho */
+    display: block;
 }
 
 /* Main Layout */
@@ -71,7 +71,7 @@ body {
     justify-content: space-between;
     width: 100%;
     max-width: 1280px;
-    height: 85vh;
+    height: calc(100vh - 80px); /* Ajustado para dejar espacio al título */
     background-color: var(--bg-primary);
     border-radius: 12px;
     box-shadow: 0 4px 16px var(--shadow);
@@ -84,9 +84,10 @@ body {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     padding: 16px;
-    overflow-y: hidden; /* Cambiado para no scroll en sidebar completo */
     border-right: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
+    display: flex;
+    flex-direction: column;
 }
 .left-section h3 {
     font-size: 1.1rem;
@@ -99,6 +100,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 1;
 }
 .sidebar-buttons {
     display: flex;
@@ -121,8 +123,8 @@ body {
 }
 .chat-history {
     flex: 1;
-    overflow-y: auto; /* Scroll independiente para historial */
-    max-height: calc(100% - 150px); /* Ajusta según el espacio de botones */
+    overflow-y: auto;
+    max-height: calc(100% - 150px);
 }
 #chat-list {
     list-style: none;
@@ -421,6 +423,7 @@ body {
     font-size: 1.2rem;
     padding: 8px;
     display: none;
+    z-index: 1100;
 }
 
 /* Responsive Design */
@@ -428,36 +431,53 @@ body {
     .left-section, .right-section {
         width: 200px;
     }
+    .container {
+        max-width: 100%;
+        margin: 0 10px;
+    }
+    .app-title {
+        max-width: 100%;
+        padding: 0 10px;
+    }
 }
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
         height: auto;
+        margin: 0;
+        border-radius: 0;
     }
     .left-section, .right-section {
         width: 100%;
         height: auto;
         position: fixed;
-        top: 0;
-        transform: translateY(-100%);
+        top: 60px; /* Espacio para el título */
+        transform: translateX(-100%); /* Oculta por defecto */
         z-index: 1000;
+        max-height: calc(100vh - 60px); /* Evita que cubra todo */
+        overflow-y: auto;
+    }
+    .right-section {
+        transform: translateX(100%); /* Oculta a la derecha */
     }
     .left-section.active {
-        transform: translateY(0);
+        transform: translateX(0);
         border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 8px var(--shadow);
     }
     .right-section.active {
-        transform: translateY(0);
+        transform: translateX(0);
         border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 8px var(--shadow);
     }
     .main-section {
-        min-height: 80vh;
+        min-height: calc(100vh - 100px); /* Espacio para título y padding */
+        margin-top: 60px; /* Evita que el contenido principal esté detrás del título */
     }
     .menu-toggle, .menu-toggle-right {
         display: block;
         position: fixed;
         top: 12px;
-        z-index: 1100;
     }
     .menu-toggle {
         left: 12px;
@@ -466,7 +486,10 @@ body {
         right: 12px;
     }
     .app-title {
-        margin-top: 50px; /* Espacio para evitar solapamiento con los toggles */
+        margin-top: 50px;
+        font-size: 1.5rem;
+        padding: 0 50px; /* Espacio para los toggles */
+        box-sizing: border-box;
     }
 }
 
