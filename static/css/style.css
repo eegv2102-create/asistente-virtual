@@ -51,6 +51,7 @@ body {
     padding: 10px;
     transition: background-color 0.3s, color 0.3s;
     overflow-x: hidden;
+    touch-action: manipulation; /* Mejora scroll en móviles */
 }
 
 /* Centrar el título arriba de todo */
@@ -90,6 +91,7 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 1001;
+    height: 100%; /* Asegura altura completa */
 }
 .left-section h3 {
     font-size: 1.1rem;
@@ -125,10 +127,10 @@ body {
 }
 .chat-history {
     flex: 1;
-    overflow-y: auto;
-    max-height: calc(100% - 150px);
-    min-height: 100px; /* Asegura espacio mínimo */
-    padding-right: 8px; /* Espacio para scrollbar */
+    overflow-y: scroll; /* Forzar scrollbar */
+    max-height: 50vh; /* Ajustado para más espacio */
+    min-height: 100px;
+    padding-right: 8px;
 }
 #chat-list {
     list-style: none;
@@ -151,6 +153,18 @@ body {
 #chat-list li.selected {
     background-color: var(--accent);
     color: var(--button-text);
+}
+
+/* Estilos para scrollbar en historial */
+.chat-history::-webkit-scrollbar {
+    width: 8px;
+}
+.chat-history::-webkit-scrollbar-thumb {
+    background-color: var(--accent);
+    border-radius: 4px;
+}
+.chat-history::-webkit-scrollbar-track {
+    background-color: var(--bg-secondary);
 }
 
 /* Estilos para tooltips personalizados */
@@ -280,6 +294,7 @@ body {
     border-left: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
     z-index: 1001;
+    height: 100%; /* Asegura altura completa */
 }
 .right-section h3 {
     font-size: 1.1rem;
@@ -494,6 +509,7 @@ body {
     }
     .chat-history {
         max-height: 50vh; /* Limita el historial en móviles */
+        overflow-y: scroll; /* Forzar scrollbar */
     }
 }
 
@@ -524,4 +540,16 @@ body {
 }
 .rename-btn:hover, .delete-btn:hover {
     color: var(--accent);
+}
+
+/* Ajustes para zoom y tamaño original */
+@media screen and (min-width: 1025px) {
+    body {
+        zoom: 100%; /* Fuerza 100% en PC grandes */
+    }
+    .container {
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+    }
 }
