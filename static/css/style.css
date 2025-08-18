@@ -245,27 +245,46 @@ body {
     gap: 12px;
 }
 
+.user, .bot {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 16px;
+    max-width: 70%;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+}
+
 .user {
     align-self: flex-end;
     background-color: var(--message-user-bg);
     color: var(--message-user-text);
-    padding: 10px 16px;
     border-radius: 16px 16px 0 16px;
-    max-width: 70%;
-    word-wrap: break-word;
-    font-size: 0.95rem;
 }
 
 .bot {
     align-self: flex-start;
     background-color: var(--message-bot-bg);
     color: var(--message-bot-text);
-    padding: 10px 16px;
     border-radius: 16px 16px 16px 0;
-    max-width: 70%;
-    word-wrap: break-word;
-    font-size: 0.95rem;
-    position: relative;
+}
+
+.user:before {
+    content: "\f007"; /* fa-user */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900; /* Asegura que use la variante sólida */
+    margin-right: 8px;
+    font-size: 1rem; /* Tamaño consistente */
+    vertical-align: middle;
+}
+
+.bot:before {
+    content: "\f544"; /* fa-brain para el bot */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900; /* Asegura que use la variante sólida */
+    margin-right: 8px;
+    font-size: 1rem; /* Tamaño consistente */
+    vertical-align: middle;
 }
 
 .copy-btn {
@@ -274,12 +293,28 @@ body {
     cursor: pointer;
     margin-left: 8px;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 1rem; /* Tamaño consistente con los íconos de usuario/bot */
     transition: color 0.2s;
+    vertical-align: middle;
+    padding: 0; /* Eliminar padding para alinear mejor */
+}
+
+.copy-btn i.fas.fa-copy {
+    font-size: 1rem; /* Tamaño consistente */
+    vertical-align: middle;
 }
 
 .copy-btn:hover {
     color: var(--accent);
+}
+
+.bot-avatar {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+    margin-right: 8px;
+    border-radius: 50%;
+    display: none; /* Ocultar por ahora, ya que no se usa */
 }
 
 .input-group {
@@ -521,19 +556,6 @@ body {
     padding: 8px;
     display: none;
     z-index: 1003;
-}
-
-/* Iconos en mensajes */
-.user:before {
-    content: "\f007"; /* fa-user */
-    font-family: "Font Awesome 5 Free";
-    margin-right: 8px;
-}
-
-.bot:before {
-    content: "\f544"; /* fa-brain para el bot */
-    font-family: "Font Awesome 5 Free";
-    margin-right: 8px;
 }
 
 /* Estilos para botones en historial */

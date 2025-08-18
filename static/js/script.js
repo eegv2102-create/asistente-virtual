@@ -478,15 +478,13 @@ const sendMessage = () => {
         }
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        if (data.animation_url) {
-            botDiv.innerHTML = `<img src="${data.animation_url}" alt="Avatar" class="selected-avatar">${botDiv.innerHTML}`;
-        }
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + 
+                           `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAllUnder(botDiv);
         speakText(data.respuesta);
-        guardarMensaje(pregunta, data.respuesta, data.animation_url);
+        guardarMensaje(pregunta, data.respuesta, data.avatar_url);
         addCopyButtonListeners();
     }).catch(error => {
         mostrarNotificacion(`Error al obtener respuesta: ${error.message}`, 'error');
