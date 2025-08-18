@@ -72,7 +72,7 @@ body {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     padding: 16px;
-    overflow-y: auto;
+    overflow-y: hidden; /* Cambiado para no scroll en sidebar completo */
     border-right: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
 }
@@ -115,6 +115,8 @@ body {
 
 .chat-history {
     flex: 1;
+    overflow-y: auto; /* Scroll independiente para historial */
+    max-height: calc(100% - 150px); /* Ajusta según el espacio de botones */
 }
 
 #chat-list {
@@ -143,7 +145,20 @@ body {
     color: var(--button-text);
 }
 
-/* Main Section */
+/* Estilos para tooltips personalizados (ya en JS, pero agregamos estilos aquí) */
+.custom-tooltip {
+    position: absolute;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 5px 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px var(--shadow);
+    z-index: 1000;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+/* Resto del CSS sin cambios (main-section, input-group, right-section, notification-card, quiz-modal, etc.) */
 .main-section {
     flex: 1;
     display: flex;
@@ -233,17 +248,14 @@ body {
 }
 
 #new-chat-btn, #btn-clear, #send-btn, #btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
-    padding: 10px;
+    background-color: var(--button-bg);
+    color: var(--button-text);
     border: none;
+    padding: 8px 12px;
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.95rem;
     transition: background-color 0.2s;
-}
-
-#new-chat-btn, #send-btn, #btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
-    background-color: var(--button-bg);
-    color: var(--button-text);
 }
 
 #new-chat-btn:hover, #send-btn:hover, #btn-start-voice:hover, #btn-stop-voice:hover, #btn-pause-speech:hover, #btn-resume-speech:hover {

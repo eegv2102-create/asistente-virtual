@@ -49,6 +49,21 @@
     "intermedio": "Tipos: creacionales (e.g., Singleton), estructurales (e.g., Adapter), comportamentales (e.g., Observer).",
     "avanzado": "Integración con POO y UML: aplica en MVC y acceso a datos para escalabilidad."
   },
+  "singleton": {
+    "basico": "Un patrón de diseño creacional que asegura que una clase tenga una sola instancia.",
+    "intermedio": "Implementación en Java: clase con constructor privado y método estático para obtener la instancia.",
+    "avanzado": "Uso en aplicaciones distribuidas: asegura consistencia en el acceso a recursos compartidos."
+  },
+  "factory": {
+    "basico": "Un patrón de diseño creacional que proporciona una interfaz para crear objetos sin especificar su clase concreta.",
+    "intermedio": "Implementación: métodos fábrica que retornan instancias de clases específicas según parámetros.",
+    "avanzado": "Aplicado en sistemas modulares: facilita la creación dinámica de objetos en MVC o sistemas distribuidos."
+  },
+  "observer": {
+    "basico": "Un patrón de diseño comportamental donde un objeto notifica a otros sobre cambios en su estado.",
+    "intermedio": "Implementación: clases observadoras que se suscriben a un sujeto para recibir actualizaciones.",
+    "avanzado": "Uso en sistemas reactivos: notificaciones en tiempo real en aplicaciones distribuidas."
+  },
   "mvc": {
     "basico": "Separa Modelo (datos), Vista (UI) y Controlador (lógica) para código ordenado.",
     "intermedio": "Implementación básica: Modelo maneja datos, Vista muestra, Controlador procesa inputs.",
@@ -78,5 +93,10 @@
     "basico": "Comandos para manipular datos (INSERT, UPDATE, DELETE).",
     "intermedio": "Investigación: Uso en accesos desde POO.",
     "avanzado": "En apps distribuidas: transacciones seguras y queries optimizadas."
+  },
+  "base de datos": {
+    "basico": "Sistemas para almacenar y gestionar datos estructurados, como bases de datos relacionales.",
+    "intermedio": "Conceptos de normalización y diseño de esquemas relacionales.",
+    "avanzado": "Integración con POO y ORM para aplicaciones escalables."
   }
 }
