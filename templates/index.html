@@ -44,7 +44,7 @@
                 </div>
                 <h3>Historial de Chats</h3>
                 <div class="chat-history">
-                    <ul id="chat-list" role="list"></ul>
+                    <ul id="chat-list" role="list" aria-label="Lista de conversaciones guardadas"></ul>
                 </div>
             </div>
         </aside>
@@ -65,17 +65,11 @@
                 </div>
                 <input type="text" id="input" placeholder="Escribe tu mensaje..." aria-label="Escribir mensaje">
                 <div class="input-buttons right">
-                    <button id="btn-start-voice" data-tooltip="Iniciar reconocimiento de voz">
+                    <button id="voice-toggle-btn" data-tooltip="Iniciar/Detener reconocimiento de voz">
                         <i class="fas fa-microphone"></i>
                     </button>
-                    <button id="btn-stop-voice" data-tooltip="Detener reconocimiento de voz" disabled>
-                        <i class="fas fa-microphone-slash"></i>
-                    </button>
-                    <button id="btn-pause-speech" data-tooltip="Pausar voz de IA" disabled>
+                    <button id="speech-toggle-btn" data-tooltip="Pausar/Reanudar voz de IA">
                         <i class="fas fa-pause"></i>
-                    </button>
-                    <button id="btn-resume-speech" data-tooltip="Reanudar voz de IA" disabled>
-                        <i class="fas fa-play"></i>
                     </button>
                     <button id="send-btn" data-tooltip="Enviar mensaje">
                         <i class="fas fa-paper-plane"></i>

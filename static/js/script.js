@@ -1,6 +1,7 @@
 let vozActiva = true, isListening = false, recognition = null, voicesLoaded = false;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
+let isSpeechPaused = false; // Nueva variable para rastrear el estado de pausa
 const jsPDF = window.jspdf?.jsPDF || null;
 
 const getElement = selector => document.querySelector(selector);
@@ -87,6 +88,12 @@ const speakText = text => {
         currentAudio.onended = () => {
             if (botMessage) botMessage.classList.remove('speaking');
             if (canvas) canvas.style.opacity = '0';
+            isSpeechPaused = false; // Restablecer el estado de pausa
+            const speechToggleBtn = getElement('#speech-toggle-btn');
+            if (speechToggleBtn) {
+                speechToggleBtn.classList.remove('speech-paused');
+                speechToggleBtn.setAttribute('data-tooltip', 'Pausar voz de IA');
+            }
         };
     }).catch(error => {
         console.error('TTS /tts falló, usando speechSynthesis fallback', error);
@@ -98,6 +105,12 @@ const speakText = text => {
         utterance.lang = 'es-ES';
         utterance.onend = () => {
             if (botMessage) botMessage.classList.remove('speaking');
+            isSpeechPaused = false; // Restablecer el estado de pausa
+            const speechToggleBtn = getElement('#speech-toggle-btn');
+            if (speechToggleBtn) {
+                speechToggleBtn.classList.remove('speech-paused');
+                speechToggleBtn.setAttribute('data-tooltip', 'Pausar voz de IA');
+            }
         };
         speechSynthesis.speak(utterance);
         currentAudio = utterance;
@@ -105,50 +118,57 @@ const speakText = text => {
 };
 
 const pauseSpeech = () => {
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
+    const speechToggleBtn = getElement('#speech-toggle-btn');
     if (currentAudio instanceof Audio) {
         currentAudio.pause();
         mostrarNotificacion('Voz pausada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = true;
-            btnResumeSpeech.disabled = false;
+        isSpeechPaused = true;
+        if (speechToggleBtn) {
+            speechToggleBtn.classList.add('speech-paused');
+            speechToggleBtn.setAttribute('data-tooltip', 'Reanudar voz de IA');
         }
     } else if ('speechSynthesis' in window && currentAudio) {
         speechSynthesis.pause();
         mostrarNotificacion('Voz pausada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = true;
-            btnResumeSpeech.disabled = false;
+        isSpeechPaused = true;
+        if (speechToggleBtn) {
+            speechToggleBtn.classList.add('speech-paused');
+            speechToggleBtn.setAttribute('data-tooltip', 'Reanudar voz de IA');
         }
     }
 };
 
 const resumeSpeech = () => {
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
+    const speechToggleBtn = getElement('#speech-toggle-btn');
     if (currentAudio instanceof Audio) {
         currentAudio.play();
         mostrarNotificacion('Voz reanudada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = false;
-            btnResumeSpeech.disabled = true;
+        isSpeechPaused = false;
+        if (speechToggleBtn) {
+            speechToggleBtn.classList.remove('speech-paused');
+            speechToggleBtn.setAttribute('data-tooltip', 'Pausar voz de IA');
         }
     } else if ('speechSynthesis' in window && currentAudio && speechSynthesis.paused) {
         speechSynthesis.resume();
         mostrarNotificacion('Voz reanudada', 'info');
-        if (btnPauseSpeech && btnResumeSpeech) {
-            btnPauseSpeech.disabled = false;
-            btnResumeSpeech.disabled = true;
+        isSpeechPaused = false;
+        if (speechToggleBtn) {
+            speechToggleBtn.classList.remove('speech-paused');
+            speechToggleBtn.setAttribute('data-tooltip', 'Pausar voz de IA');
         }
     }
 };
 
+const toggleSpeech = () => {
+    if (isSpeechPaused) {
+        resumeSpeech();
+    } else {
+        pauseSpeech();
+    }
+};
+
 const stopSpeech = () => {
-    const btnStartVoice = getElement('#btn-start-voice');
-    const btnStopVoice = getElement('#btn-stop-voice');
-    const btnPauseSpeech = getElement('#btn-pause-speech');
-    const btnResumeSpeech = getElement('#btn-resume-speech');
+    const voiceToggleBtn = getElement('#voice-toggle-btn');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
     }
@@ -160,19 +180,83 @@ const stopSpeech = () => {
         try {
             recognition.stop();
             isListening = false;
-            if (btnStartVoice && btnStopVoice && btnPauseSpeech && btnResumeSpeech) {
-                btnStartVoice.disabled = false;
-                btnStopVoice.disabled = true;
-                btnPauseSpeech.disabled = true;
-                btnResumeSpeech.disabled = true;
+            if (voiceToggleBtn) {
+                voiceToggleBtn.classList.remove('voice-active');
+                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
             }
-            mostrarNotificacion('Voz y reconocimiento detenidos', 'info');
+            mostrarNotificacion('Reconocimiento de voz detenido', 'info');
         } catch (error) {
             mostrarNotificacion(`Error al detener voz: ${error.message}`, 'error');
         }
     }
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.remove('speaking');
+    isSpeechPaused = false;
+    const speechToggleBtn = getElement('#speech-toggle-btn');
+    if (speechToggleBtn) {
+        speechToggleBtn.classList.remove('speech-paused');
+        speechToggleBtn.setAttribute('data-tooltip', 'Pausar voz de IA');
+    }
+};
+
+const toggleVoiceRecognition = () => {
+    const voiceToggleBtn = getElement('#voice-toggle-btn');
+    if (!isListening) {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
+            return;
+        }
+        recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.start();
+        isListening = true;
+        if (voiceToggleBtn) {
+            voiceToggleBtn.classList.add('voice-active');
+            voiceToggleBtn.setAttribute('data-tooltip', 'Detener reconocimiento de voz');
+        }
+        mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
+
+        recognition.onresult = event => {
+            const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
+            const input = getElement('#input');
+            if (input) input.value = transcript;
+            if (event.results[event.results.length - 1].isFinal) {
+                sendMessage();
+                recognition.stop();
+                isListening = false;
+                if (voiceToggleBtn) {
+                    voiceToggleBtn.classList.remove('voice-active');
+                    voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
+                }
+            }
+        };
+
+        recognition.onerror = event => {
+            mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
+            console.error('Error en reconocimiento de voz:', event.error);
+            recognition.stop();
+            isListening = false;
+            if (voiceToggleBtn) {
+                voiceToggleBtn.classList.remove('voice-active');
+                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
+            }
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                recognition.start();
+            } else {
+                if (voiceToggleBtn) {
+                    voiceToggleBtn.classList.remove('voice-active');
+                    voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
+                }
+            }
+        };
+    } else {
+        stopSpeech();
+    }
 };
 
 const cargarAvatares = async () => {
@@ -376,7 +460,13 @@ const nuevaConversacion = () => {
 };
 
 const limpiarChat = () => {
-    nuevaConversacion();
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    const input = getElement('#input');
+    if (container) container.innerHTML = ''; // Limpiar solo el contenido del chatbox
+    if (input) input.value = ''; // Limpiar el campo de entrada
+    mostrarNotificacion('Chat limpiado', 'success');
+    scrollToBottom();
 };
 
 const cargarConversacionActual = () => {
@@ -663,10 +753,8 @@ document.addEventListener('DOMContentLoaded', () => {
         input: getElement('#input'),
         sendBtn: getElement('#send-btn'),
         voiceBtn: getElement('#voice-btn'),
-        btnStartVoice: getElement('#btn-start-voice'),
-        btnStopVoice: getElement('#btn-stop-voice'),
-        btnPauseSpeech: getElement('#btn-pause-speech'),
-        btnResumeSpeech: getElement('#btn-resume-speech'),
+        voiceToggleBtn: getElement('#voice-toggle-btn'),
+        speechToggleBtn: getElement('#speech-toggle-btn'),
         chatbox: getElement('#chatbox'),
         toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
         modoBtn: getElement('#modo-btn'),
@@ -830,58 +918,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (elements.btnStartVoice && elements.btnStopVoice && elements.btnPauseSpeech && elements.btnResumeSpeech) {
-        elements.btnStartVoice.addEventListener('click', () => {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
-                return;
-            }
-            recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
-            recognition.lang = 'es-ES';
-            recognition.interimResults = true;
-            recognition.continuous = true;
-            recognition.start();
-            isListening = true;
-            elements.btnStartVoice.disabled = true;
-            elements.btnStopVoice.disabled = false;
-            elements.btnPauseSpeech.disabled = true;
-            elements.btnResumeSpeech.disabled = true;
-            mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
+    if (elements.voiceToggleBtn) {
+        elements.voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
+    }
 
-            recognition.onresult = event => {
-                const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
-                if (elements.input) elements.input.value = transcript;
-                if (event.results[event.results.length - 1].isFinal) {
-                    sendMessage();
-                    recognition.stop();
-                    isListening = false;
-                    elements.btnStartVoice.disabled = false;
-                    elements.btnStopVoice.disabled = true;
-                }
-            };
-
-            recognition.onerror = event => {
-                mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
-                console.error('Error en reconocimiento de voz:', event.error);
-                recognition.stop();
-                isListening = false;
-                elements.btnStartVoice.disabled = false;
-                elements.btnStopVoice.disabled = true;
-            };
-
-            recognition.onend = () => {
-                if (isListening) {
-                    recognition.start();
-                } else {
-                    elements.btnStartVoice.disabled = false;
-                    elements.btnStopVoice.disabled = true;
-                }
-            };
-        });
-
-        elements.btnStopVoice.addEventListener('click', stopSpeech);
-        elements.btnPauseSpeech.addEventListener('click', pauseSpeech);
-        elements.btnResumeSpeech.addEventListener('click', resumeSpeech);
+    if (elements.speechToggleBtn) {
+        elements.speechToggleBtn.addEventListener('click', toggleSpeech);
     }
 
     if (elements.menuToggle && elements.menuToggleRight) {

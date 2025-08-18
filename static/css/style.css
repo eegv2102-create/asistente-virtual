@@ -313,7 +313,7 @@ body {
     border-color: var(--accent);
 }
 
-#new-chat-btn, #btn-clear, #send-btn, #btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
+#new-chat-btn, #btn-clear, #send-btn, #voice-toggle-btn, #speech-toggle-btn {
     background-color: var(--button-bg);
     color: var(--button-text);
     border: none;
@@ -324,7 +324,7 @@ body {
     transition: background-color 0.2s;
 }
 
-#new-chat-btn:hover, #send-btn:hover, #btn-start-voice:hover, #btn-stop-voice:hover, #btn-pause-speech:hover, #btn-resume-speech:hover {
+#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover, #speech-toggle-btn:hover {
     background-color: var(--button-hover);
 }
 
@@ -337,10 +337,12 @@ body {
     background-color: #c0392b;
 }
 
-#btn-stop-voice:disabled, #btn-pause-speech:disabled, #btn-resume-speech:disabled {
-    background-color: var(--border);
-    color: var(--text-secondary);
-    cursor: not-allowed;
+#voice-toggle-btn.voice-active i {
+    content: "\f131"; /* fa-microphone-slash cuando activo */
+}
+
+#speech-toggle-btn.speech-paused i {
+    content: "\f144"; /* fa-play cuando pausado */
 }
 
 /* Right Section: Avatar Selection */
