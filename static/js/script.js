@@ -24,7 +24,7 @@ const mostrarNotificacion = (mensaje, tipo = 'info') => {
 
 const scrollToBottom = () => {
     const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
+    const container = getElement('.message-container');
     if (!chatbox || !container) return;
     requestAnimationFrame(() => {
         chatbox.scrollTop = chatbox.scrollHeight;
@@ -68,7 +68,7 @@ const speakText = text => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.beginPath();
                 ctx.arc(25, 25, amplitude / 10, 0, 2 * Math.PI);
-                ctx.fillStyle = 'red';
+                ctx.fillStyle = var(--accent);
                 ctx.fill();
                 requestAnimationFrame(draw);
             } else if (botMessage) {
@@ -121,11 +121,32 @@ const toggleVoiceUser = () => {
     } else {
         recognition = new webkitSpeechRecognition();
         recognition.lang = 'es-ES';
+        recognition.continuous = false;
+        recognition.interimResults = false;
         recognition.onresult = event => {
             const transcript = event.results[0][0].transcript;
             const input = getElement('#input');
-            if (input) input.value = transcript;
-            sendMessage();
+            if (input) {
+                input.value = transcript;
+                sendMessage();
+            }
+        };
+        recognition.onerror = event => {
+            mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
+            isListening = false;
+            const btn = getElement('#toggle-voice-user');
+            if (btn) {
+                btn.querySelector('i').classList.remove('fa-microphone-slash');
+                btn.querySelector('i').classList.add('fa-microphone');
+            }
+        };
+        recognition.onend = () => {
+            isListening = false;
+            const btn = getElement('#toggle-voice-user');
+            if (btn) {
+                btn.querySelector('i').classList.remove('fa-microphone-slash');
+                btn.querySelector('i').classList.add('fa-microphone');
+            }
         };
         recognition.start();
         isListening = true;
@@ -150,6 +171,8 @@ const toggleIAVoice = () => {
             mostrarNotificacion('Voz IA pausada');
         }
         updateIAVoiceToggle();
+    } else {
+        mostrarNotificacion('No hay audio activo para pausar/reanudar', 'warning');
     }
 };
 
@@ -165,27 +188,33 @@ const updateIAVoiceToggle = () => {
 };
 
 const newChat = () => {
-    const container = getElement('#chatbox .message-container');
+    const container = getElement('.message-container');
     if (container) {
         container.innerHTML = '';
         mostrarNotificacion('Nuevo chat iniciado');
+        scrollToBottom();
     }
 };
 
 const deleteChat = () => {
-    const container = getElement('#chatbox .message-container');
+    const container = getElement('.message-container');
     if (container) {
         container.innerHTML = '';
         mostrarNotificacion('Chat eliminado');
+        scrollToBottom();
     }
 };
 
 const exportarTxt = () => {
     const messages = getElements('.message-container > div');
+    if (messages.length === 0) {
+        mostrarNotificacion('No hay mensajes para exportar', 'warning');
+        return;
+    }
     let txtContent = '';
     messages.forEach(msg => {
         const isUser = msg.classList.contains('user');
-        txtContent += `${isUser ? 'Usuario' : 'Bot'}: ${msg.textContent}\n`;
+        txtContent += `${isUser ? 'Usuario' : 'Asistente'}: ${msg.textContent}\n`;
     });
     const blob = new Blob([txtContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -194,15 +223,20 @@ const exportarTxt = () => {
     a.download = 'chat.txt';
     a.click();
     URL.revokeObjectURL(url);
+    mostrarNotificacion('Chat exportado como TXT');
 };
 
 const exportarPdf = () => {
+    const messages = getElements('.message-container > div');
+    if (messages.length === 0) {
+        mostrarNotificacion('No hay mensajes para exportar', 'warning');
+        return;
+    }
     const doc = new jsPDF();
     let y = 10;
-    const messages = getElements('.message-container > div');
     messages.forEach(msg => {
         const isUser = msg.classList.contains('user');
-        doc.text(`${isUser ? 'Usuario' : 'Bot'}: ${msg.textContent}`, 10, y);
+        doc.text(`${isUser ? 'Usuario' : 'Asistente'}: ${msg.textContent}`, 10, y);
         y += 10;
         if (y > 280) {
             doc.addPage();
@@ -210,14 +244,21 @@ const exportarPdf = () => {
         }
     });
     doc.save('chat.pdf');
+    mostrarNotificacion('Chat exportado como PDF');
 };
 
 const sendMessage = () => {
     const input = getElement('#input');
     const messageContainer = getElement('.message-container');
-    if (!input || !messageContainer) return;
+    if (!input || !messageContainer) {
+        mostrarNotificacion('Error: Área de chat no encontrada', 'error');
+        return;
+    }
     const pregunta = input.value.trim();
-    if (!pregunta) return;
+    if (!pregunta) {
+        mostrarNotificacion('Por favor, escribe un mensaje', 'warning');
+        return;
+    }
     const userMsg = document.createElement('div');
     userMsg.classList.add('user');
     userMsg.textContent = pregunta;
@@ -229,7 +270,7 @@ const sendMessage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pregunta })
     }).then(res => {
-        if (!res.ok) throw new Error('Error en la solicitud');
+        if (!res.ok) throw new Error(`Error en la solicitud: ${res.status}`);
         return res.json();
     }).then(data => {
         if (data.respuesta) {
@@ -248,53 +289,40 @@ const sendMessage = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Cargar progreso y bienvenida
-    fetch('/progreso').then(res => {
-        if (!res.ok) throw new Error('Error al cargar progreso');
-        return res.json();
-    }).then(data => {
-        if (data.bienvenida) {
-            const messageContainer = getElement('.message-container');
-            if (messageContainer) {
-                const botMsg = document.createElement('div');
-                botMsg.classList.add('bot');
-                botMsg.textContent = data.bienvenida;
-                messageContainer.appendChild(botMsg);
-                scrollToBottom();
-                speakText(data.bienvenida);
-            }
+    // Forzar visibilidad del área de chat
+    const messageContainer = getElement('.message-container');
+    if (messageContainer) {
+        messageContainer.style.display = 'flex';
+        messageContainer.style.visibility = 'visible';
+        messageContainer.style.opacity = '1';
+    }
+
+    // Mensaje de bienvenida
+    const bienvenida = '¡Bienvenido al Asistente de Programación Avanzada! Estoy aquí para ayudarte con tus dudas de programación. Escribe o usa el micrófono para comenzar.';
+    const botMsg = document.createElement('div');
+    botMsg.classList.add('bot');
+    botMsg.textContent = bienvenida;
+    messageContainer?.appendChild(botMsg);
+    scrollToBottom();
+    speakText(bienvenida);
+
+    // Cargar avatares (por ahora solo el predeterminado)
+    const avatarOptions = getElement('#avatar-options');
+    if (avatarOptions) {
+        const img = getElement('#avatar-options img');
+        if (img && img.dataset.avatarId === selectedAvatar) {
+            img.classList.add('selected');
         }
-    }).catch(error => {
-        mostrarNotificacion(`Error al cargar bienvenida: ${error.message}`, 'error');
-    });
-
-    // Cargar avatares
-    fetch('/avatars').then(res => {
-        if (!res.ok) throw new Error('Error al cargar avatares');
-        return res.json();
-    }).then(data => {
-        const avatarOptions = getElement('#avatar-options');
-        if (!avatarOptions) return;
-        data.forEach(avatar => {
-            const img = document.createElement('img');
-            img.src = avatar.url;
-            img.alt = `Avatar ${avatar.nombre}`;
-            img.title = avatar.nombre;
-            img.dataset.avatarId = avatar.avatar_id;
-            img.addEventListener('click', () => {
-                selectedAvatar = avatar.avatar_id;
-                localStorage.setItem('selectedAvatar', selectedAvatar);
-                getElements('.avatar-selection img').forEach(i => i.classList.remove('selected'));
-                img.classList.add('selected');
-            });
-            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
-            avatarOptions.appendChild(img);
+        img.addEventListener('click', () => {
+            selectedAvatar = img.dataset.avatarId;
+            localStorage.setItem('selectedAvatar', selectedAvatar);
+            getElements('.avatar-selection img').forEach(i => i.classList.remove('selected'));
+            img.classList.add('selected');
+            mostrarNotificacion('Avatar seleccionado');
         });
-    }).catch(error => {
-        mostrarNotificacion(`Error al cargar avatares: ${error.message}`, 'error');
-    });
+    }
 
-    // Event listeners
+    // Event listeners para botones
     const toggleVoiceBtn = getElement('#toggle-voice-user');
     if (toggleVoiceBtn) toggleVoiceBtn.addEventListener('click', toggleVoiceUser);
 
@@ -328,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.addEventListener('keypress', e => {
             if (e.key === 'Enter') sendMessage();
         });
+        input.focus(); // Asegura que el input esté listo para escribir
     }
 
     // Niveles
@@ -342,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Error al cambiar nivel');
                 return res.json();
             }).then(data => {
-                mostrarNotificacion(data.mensaje);
+                mostrarNotificacion(data.mensaje || `Nivel ${nivel} seleccionado`);
                 document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
             }).catch(error => {
                 mostrarNotificacion(`Error: ${error.message}`, 'error');
@@ -352,34 +381,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Tooltips mejorados
     getElements('[data-tooltip]').forEach(btn => {
-        const tooltip = document.createElement('div');
-        tooltip.className = 'custom-tooltip';
-        tooltip.textContent = btn.dataset.tooltip;
-        document.body.appendChild(tooltip);
+        let tooltip = btn.querySelector('.custom-tooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.className = 'custom-tooltip';
+            tooltip.textContent = btn.dataset.tooltip;
+            document.body.appendChild(tooltip);
+        }
 
-        btn.addEventListener('mouseenter', (e) => {
+        const updateTooltipPosition = (e) => {
             const rect = btn.getBoundingClientRect();
             tooltip.style.top = `${rect.top + rect.height + 5}px`;
             tooltip.style.left = `${rect.left + rect.width / 2}px`;
             tooltip.style.transform = 'translateX(-50%)';
             tooltip.style.opacity = '1';
             tooltip.style.visibility = 'visible';
-        });
+        };
 
+        btn.addEventListener('mouseenter', updateTooltipPosition);
+        btn.addEventListener('focus', updateTooltipPosition);
         btn.addEventListener('mouseleave', () => {
             tooltip.style.opacity = '0';
             tooltip.style.visibility = 'hidden';
         });
-
-        btn.addEventListener('focus', (e) => {
-            const rect = btn.getBoundingClientRect();
-            tooltip.style.top = `${rect.top + rect.height + 5}px`;
-            tooltip.style.left = `${rect.left + rect.width / 2}px`;
-            tooltip.style.transform = 'translateX(-50%)';
-            tooltip.style.opacity = '1';
-            tooltip.style.visibility = 'visible';
-        });
-
         btn.addEventListener('blur', () => {
             tooltip.style.opacity = '0';
             tooltip.style.visibility = 'hidden';
