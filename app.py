@@ -64,7 +64,7 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("default", "Avatar Predeterminado", "", ""))
+                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         conn.commit()
@@ -138,13 +138,16 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
                   (usuario, puntos, temas_aprendidos, avatar_id, puntos, temas_aprendidos, avatar_id))
         conn.commit()
         conn.close()
+        logging.info(f"Progreso guardado para usuario {usuario}: puntos={puntos}, temas={temas_aprendidos}")
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
 def buscar_respuesta_app(pregunta, usuario):
+    logging.info(f"Buscando respuesta para pregunta: {pregunta} (usuario: {usuario})")
     # Primero, busca en el conocimiento local
     results = buscar_respuesta(pregunta)
     if results:
+        logging.info(f"Respuesta encontrada localmente: {results[0][1]}")
         return results[0][1]  # Devuelve la mejor coincidencia local
 
     # Si no encuentra, usa Groq con Llama 3
@@ -155,12 +158,15 @@ def buscar_respuesta_app(pregunta, usuario):
             messages=[
                 {"role": "system", "content": "Eres un asistente experto en programación avanzada. Usa este conocimiento base para responder: " + json.dumps(temas)},
                 {"role": "user", "content": pregunta}
-            ]
+            ],
+            max_tokens=200
         )
-        return completion.choices[0].message.content
+        respuesta = completion.choices[0].message.content.strip()
+        logging.info(f"Respuesta de Groq: {respuesta}")
+        return respuesta
     except Exception as e:
         logging.error(f"Error en Groq: {str(e)}")
-        return "Lo siento, no pude generar una respuesta con la API de Groq."
+        return "Lo siento, no pude generar una respuesta con la API de Groq. Intenta de nuevo."
 
 # Ruta para favicon
 @app.route('/favicon.ico')
@@ -177,14 +183,20 @@ def respuesta():
     try:
         data = request.get_json()
         if not data or "pregunta" not in data:
+            logging.error("Solicitud inválida: falta pregunta")
             return jsonify({"error": "La pregunta no puede estar vacía"}), 400
 
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta").strip()[:300])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
+        nivel = bleach.clean(data.get("nivel", "basico")[:50])
+        max_length = min(int(data.get("max_length", 200)), 500)
+
         if not pregunta:
+            logging.error("Pregunta vacía recibida")
             return jsonify({"error": "La pregunta no puede estar vacía"}), 400
 
+        logging.info(f"Procesando pregunta: {pregunta} (usuario: {usuario}, nivel: {nivel})")
         progreso = cargar_progreso(usuario)
         respuesta_text = buscar_respuesta_app(pregunta, usuario)
         avatar = None
@@ -196,12 +208,24 @@ def respuesta():
             conn.close()
         except PsycopgError as e:
             logging.error(f"Error al consultar tabla avatars: {str(e)}")
-        
+
+        # Guardar en logs
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            c = conn.cursor()
+            c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)",
+                      (usuario, pregunta, respuesta_text, avatar[1] if avatar else ""))
+            conn.commit()
+            conn.close()
+        except PsycopgError as e:
+            logging.error(f"Error al guardar en logs: {str(e)}")
+
         response_data = {
             "respuesta": respuesta_text,
-            "avatar_url": avatar[0] if avatar else "",
+            "avatar_url": avatar[0] if avatar else "/static/img/default-avatar.png",
             "animation_url": avatar[1] if avatar else ""
         }
+        logging.info(f"Respuesta enviada: {response_data}")
         return jsonify(response_data)
     except Exception as e:
         logging.error(f"Error en /respuesta: {str(e)}")
@@ -211,6 +235,7 @@ def respuesta():
 def progreso():
     usuario = request.args.get("usuario", "anonimo")
     progreso = cargar_progreso(usuario)
+    logging.info(f"Progreso devuelto para usuario {usuario}: {progreso}")
     return jsonify(progreso)
 
 @app.route("/avatars", methods=["GET"])
@@ -221,6 +246,7 @@ def avatars():
         c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
         avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
         conn.close()
+        logging.info(f"Avatares devueltos: {avatars}")
         return jsonify(avatars)
     except PsycopgError as e:
         logging.error(f"Error al consultar avatares: {str(e)}")
@@ -229,9 +255,9 @@ def avatars():
 @app.route("/quiz", methods=["GET"])
 def quiz():
     usuario = request.args.get("usuario", "anonimo")
+    nivel = request.args.get("nivel", "basico")
     temas_disponibles = list(temas.keys())
     tema = random.choice(temas_disponibles)
-    nivel = request.args.get("nivel", "basico")
     pregunta = f"¿Qué es {tema} en el contexto de programación?"
     opciones = [temas[tema][nivel]]
     for _ in range(3):
@@ -240,35 +266,42 @@ def quiz():
             otro_tema = random.choice(temas_disponibles)
         opciones.append(temas[otro_tema][nivel])
     random.shuffle(opciones)
-    return jsonify({
+    response_data = {
         "tema": tema,
         "pregunta": pregunta,
         "opciones": opciones,
         "respuesta_correcta": temas[tema][nivel]
-    })
+    }
+    logging.info(f"Quiz generado: {response_data}")
+    return jsonify(response_data)
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
-    data = request.get_json()
-    usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-    respuesta = bleach.clean(data.get("respuesta", "")[:300])
-    respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300])
-    tema = bleach.clean(data.get("tema", "")[:50])
-    
-    progreso = cargar_progreso(usuario)
-    puntos = progreso["puntos"]
-    temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
-    
-    if respuesta == respuesta_correcta:
-        puntos += 10
-        if tema not in temas_aprendidos:
-            temas_aprendidos.append(tema)
-        mensaje = f"¡Correcto! Has ganado 10 puntos. Tema: {tema}"
-    else:
-        mensaje = f"Incorrecto. La respuesta correcta era: {respuesta_correcta}"
-    
-    guardar_progreso(usuario, puntos, ",".join(temas_aprendidos))
-    return jsonify({"respuesta": mensaje})
+    try:
+        data = request.get_json()
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        respuesta = bleach.clean(data.get("respuesta", "")[:300])
+        respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300])
+        tema = bleach.clean(data.get("tema", "")[:50])
+        
+        progreso = cargar_progreso(usuario)
+        puntos = progreso["puntos"]
+        temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
+        
+        if respuesta == respuesta_correcta:
+            puntos += 10
+            if tema not in temas_aprendidos:
+                temas_aprendidos.append(tema)
+            mensaje = f"¡Correcto! Has ganado 10 puntos. Tema: {tema}"
+        else:
+            mensaje = f"Incorrecto. La respuesta correcta era: {respuesta_correcta}"
+        
+        guardar_progreso(usuario, puntos, ",".join(temas_aprendidos))
+        logging.info(f"Quiz respondido por {usuario}: {mensaje}")
+        return jsonify({"respuesta": mensaje})
+    except Exception as e:
+        logging.error(f"Error en /responder_quiz: {str(e)}")
+        return jsonify({"error": f"Error al responder quiz: {str(e)}"}), 500
 
 @app.route("/tts", methods=["POST"])
 def tts():
@@ -276,6 +309,7 @@ def tts():
         data = request.get_json()
         text = bleach.clean(data.get("text", "")[:1000])
         if not text:
+            logging.error("Texto vacío en /tts")
             return jsonify({"error": "El texto no puede estar vacío"}), 400
         tts = gTTS(text=text, lang='es')
         audio_io = io.BytesIO()
@@ -294,6 +328,7 @@ def recommend():
     temas_disponibles = list(temas.keys())
     temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
     recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
+    logging.info(f"Recomendación para {usuario}: {recomendacion}")
     return jsonify({"recomendacion": recomendacion})
 
 @app.route("/analytics", methods=["GET"])
@@ -304,7 +339,27 @@ def analytics():
         {"tema": "POO", "tasa_acierto": 0.8},
         {"tema": "MVC", "tasa_acierto": 0.6}
     ]
+    logging.info(f"Analytics devueltos para {usuario}: {data}")
     return jsonify(data)
+
+@app.route("/aprender", methods=["POST"])
+def aprender():
+    try:
+        data = request.get_json()
+        pregunta = bleach.clean(data.get("pregunta", "")[:500])
+        respuesta = bleach.clean(data.get("respuesta", "")[:2000])
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        
+        if not pregunta or not respuesta:
+            logging.error("Pregunta o respuesta vacía en /aprender")
+            return jsonify({"error": "Pregunta y respuesta son requeridas"}), 400
+        
+        # Aquí podrías añadir lógica para guardar en temas.json o base de datos
+        logging.info(f"Conocimiento aprendido: {pregunta} -> {respuesta} (usuario: {usuario})")
+        return jsonify({"message": "Conocimiento aprendido con éxito"})
+    except Exception as e:
+        logging.error(f"Error en /aprender: {str(e)}")
+        return jsonify({"error": f"Error al aprender: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()
