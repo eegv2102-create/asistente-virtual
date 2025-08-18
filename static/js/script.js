@@ -14,7 +14,7 @@ const mostrarNotificacion = (mensaje, tipo = 'info') => {
     }
     card.innerHTML = `
         <p>${mensaje}</p>
-        <button aria-label="Cerrar notificación" onclick="this.parentElement.classList.remove('active')">Cerrar</button>
+        <button onclick="this.parentElement.classList.remove('active')">Cerrar</button>
     `;
     card.classList.add('active', tipo);
     card.style.animation = 'fadeIn 0.5s ease-out';
@@ -191,7 +191,7 @@ const cargarAvatares = async () => {
             avatares = await response.json();
         } else {
             avatares = [
-                { avatar_id: 'default', nombre: 'Default', url: '/static/img/avatar-default.png' },
+                { avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png' },
                 { avatar_id: 'poo', nombre: 'POO', url: '/static/img/poo.png' }
             ];
             console.warn('Usando avatares estáticos por fallo en /avatars');
@@ -218,7 +218,7 @@ const cargarAvatares = async () => {
         mostrarNotificacion(`Error al cargar avatares: ${error.message}`, 'error');
         console.error('Error al cargar avatares:', error);
         const fallbackAvatares = [
-            { avatar_id: 'default', nombre: 'Default', url: '/static/img/avatar-default.png' },
+            { avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png' },
             { avatar_id: 'poo', nombre: 'POO', url: '/static/img/poo.png' }
         ];
         avatarContainer.innerHTML = '';
@@ -269,431 +269,483 @@ const actualizarListaChats = () => {
     chatList.innerHTML = '';
     historial.forEach((chat, index) => {
         const li = document.createElement('li');
-        li.innerHTML = `<span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`}</span>
-                        <div class="chat-actions">
-                            <button class="rename-btn" aria-label="Renombrar"><i class="fas fa-edit"></i></button>
-                            <button class="delete-btn" aria-label="Eliminar"><i class="fas fa-trash"></i></button>
-                        </div>`;
         li.dataset.index = index;
-        li.dataset.tooltip = chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`;
-        li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`);
+        li.innerHTML = `
+            <span>${chat.nombre}</span>
+            <button class="load-chat" data-index="${index}">Cargar</button>
+            <button class="delete-chat" data-index="${index}">Eliminar</button>
+        `;
         chatList.appendChild(li);
-        li.addEventListener('click', e => e.target.tagName !== 'BUTTON' && cargarChat(index));
-        li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
-        li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
     });
-    chatList.scrollTop = chatList.scrollHeight;
-};
-
-const cargarChat = index => {
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    const chat = historial[index];
-    if (!chat) return;
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        console.error('Elemento #chatbox o .message-container no encontrado');
-        return;
-    }
-    container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    scrollToBottom();
-    localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
-    getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
-    getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
-    if (window.Prism) Prism.highlightAll();
-    addCopyButtonListeners();
-};
-
-const renombrarChat = index => {
-    if (!confirm('¿Renombrar este chat?')) return;
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    const nuevoNombre = prompt('Nuevo nombre para el chat:', historial[index].nombre);
-    if (nuevoNombre) {
-        historial[index].nombre = nuevoNombre;
-        localStorage.setItem('chatHistory', JSON.stringify(historial));
-        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-        if (currentConversation.id === index) {
-            currentConversation.nombre = nuevoNombre;
+    getElements('.load-chat').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = btn.dataset.index;
+            const chat = JSON.parse(localStorage.getItem('chatHistory'))[index];
+            let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+            currentConversation.id = index;
+            currentConversation.mensajes = chat.mensajes;
+            currentConversation.nombre = chat.nombre;
+            currentConversation.timestamp = chat.timestamp;
             localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
-        }
-        actualizarListaChats();
-        mostrarNotificacion(`Chat renombrado a "${nuevoNombre}"`, 'success');
-    }
+            const container = getElement('#chatbox .message-container');
+            container.innerHTML = '';
+            chat.mensajes.forEach(msg => {
+                container.innerHTML += `<div class="user">${msg.pregunta}</div>`;
+                container.innerHTML += `<div class="bot">${marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
+            });
+            scrollToBottom();
+            if (window.Prism) Prism.highlightAllUnder(container);
+            addCopyButtonListeners();
+        });
+    });
+    getElements('.delete-chat').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = btn.dataset.index;
+            let historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            historial.splice(index, 1);
+            localStorage.setItem('chatHistory', JSON.stringify(historial));
+            let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+            if (currentConversation.id == index) {
+                currentConversation = { id: null, mensajes: [] };
+                localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
+                getElement('#chatbox .message-container').innerHTML = '';
+            }
+            actualizarListaChats();
+        });
+    });
 };
 
-const eliminarChat = index => {
-    if (!confirm('¿Eliminar este chat?')) return;
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    historial.splice(index, 1);
-    localStorage.setItem('chatHistory', JSON.stringify(historial));
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-    if (currentConversation.id === index) {
-        localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
-        nuevaConversacion();
-    }
-    actualizarListaChats();
-    mostrarNotificacion('Chat eliminado', 'success');
-};
-
-const nuevaConversacion = () => {
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (container) container.innerHTML = '';
-    const input = getElement('#input');
-    if (input) input.value = '';
-    localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
-    mostrarNotificacion('Nuevo chat creado', 'success');
-    scrollToBottom();
-};
-
-const limpiarChat = () => {
-    if (!confirm('¿Limpiar el chat actual?')) return;
-    nuevaConversacion();
-};
-
-const cargarConversacionActual = () => {
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox || !currentConversation.mensajes?.length) return;
-    container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    scrollToBottom();
-    if (window.Prism) Prism.highlightAll();
-    addCopyButtonListeners();
+const addCopyButtonListeners = () => {
+    getElements('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const text = btn.dataset.text;
+            navigator.clipboard.writeText(text).then(() => {
+                mostrarNotificacion('Texto copiado al portapapeles', 'success');
+            }).catch(err => {
+                mostrarNotificacion(`Error al copiar: ${err.message}`, 'error');
+            });
+        });
+    });
 };
 
 const exportarTxt = () => {
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    if (!currentConversation.mensajes.length) {
-        mostrarNotificacion('No hay mensajes para exportar', 'warning');
+    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+    if (!currentConversation.mensajes || currentConversation.mensajes.length === 0) {
+        mostrarNotificacion('No hay mensajes para exportar', 'error');
         return;
     }
-    const text = currentConversation.mensajes.map(msg => `Pregunta: ${msg.pregunta}\nRespuesta: ${msg.respuesta}\n`).join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
+    let textContent = `Chat ${currentConversation.nombre}\n\n`;
+    currentConversation.mensajes.forEach(msg => {
+        textContent += `Usuario: ${msg.pregunta}\nAsistente: ${msg.respuesta}\n\n`;
+    });
+    const blob = new Blob([textContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chat_${new Date().toLocaleString().replace(/[,:/]/g, '-')}.txt`;
+    a.download = `chat_${currentConversation.nombre.replace(/\s+/g, '_')}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    mostrarNotificacion('Chat exportado a TXT', 'success');
 };
 
 const exportarPdf = () => {
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    if (!currentConversation.mensajes.length) {
-        mostrarNotificacion('No hay mensajes para exportar', 'warning');
+    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+    if (!currentConversation.mensajes || currentConversation.mensajes.length === 0) {
+        mostrarNotificacion('No hay mensajes para exportar', 'error');
         return;
     }
     const doc = new jsPDF();
     doc.setFontSize(12);
     let y = 10;
+    doc.text(`Chat ${currentConversation.nombre}`, 10, y);
+    y += 10;
     currentConversation.mensajes.forEach(msg => {
-        doc.text(`Pregunta: ${msg.pregunta}`, 10, y);
-        y += 10;
-        let respuesta = msg.respuesta.replace(/[\r\n]+/g, ' ').substring(0, 200);
-        doc.text(`Respuesta: ${respuesta}`, 10, y);
-        y += 20;
-        if (y > 270) {
+        doc.text(`Usuario: ${msg.pregunta}`, 10, y);
+        y += 7;
+        const lines = doc.splitTextToSize(`Asistente: ${msg.respuesta}`, 180);
+        doc.text(lines, 10, y);
+        y += lines.length * 7 + 5;
+        if (y > 280) {
             doc.addPage();
             y = 10;
         }
     });
-    doc.save(`chat_${new Date().toLocaleString().replace(/[,:/]/g, '-')}.pdf`);
-    mostrarNotificacion('Chat exportado a PDF', 'success');
+    doc.save(`chat_${currentConversation.nombre.replace(/\s+/g, '_')}.pdf`);
 };
 
-const addCopyButtonListeners = () => {
-    getElements('.copy-btn').forEach(btn => {
-        btn.removeEventListener('click', handleCopy);
-        btn.addEventListener('click', handleCopy);
-    });
-};
-
-const handleCopy = (e) => {
-    const text = e.currentTarget.dataset.text;
-    navigator.clipboard.writeText(text).then(() => {
-        mostrarNotificacion('Mensaje copiado al portapapeles', 'success');
-    }).catch(error => {
-        mostrarNotificacion(`Error al copiar: ${error.message}`, 'error');
-    });
-};
-
-const sendMessage = async () => {
+const sendMessage = () => {
     const input = getElement('#input');
-    const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'intermedio';
-    const pregunta = input?.value.trim();
+    const container = getElement('#chatbox .message-container');
+    if (!input || !container) {
+        mostrarNotificacion('Error: Elementos de entrada o chat no encontrados', 'error');
+        return;
+    }
+    const pregunta = input.value.trim();
     if (!pregunta) {
-        mostrarNotificacion('Por favor, escribe un mensaje', 'warning');
+        mostrarNotificacion('Por favor, escribe una pregunta.', 'error');
         return;
     }
-    input.value = '';
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        mostrarNotificacion('Error: Área de chat no encontrada', 'error');
-        return;
-    }
-    container.classList.add('loading');
-    const userDiv = document.createElement('div');
-    userDiv.classList.add('user');
-    userDiv.textContent = pregunta;
-    container.appendChild(userDiv);
+    container.innerHTML += `<div class="user">${pregunta}</div>`;
     scrollToBottom();
-
-    try {
-        const response = await fetch('https://api.x.ai/v1/grok', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer YOUR_XAI_API_KEY' // Reemplaza con tu clave de API
-            },
-            body: JSON.stringify({
-                model: 'llama-3-70b-instruct',
-                messages: [{ role: 'user', content: pregunta }],
-                max_tokens: 200,
-                stream: true
-            })
-        });
-
-        container.classList.remove('loading');
-        if (!response.ok) throw new Error(`Error en la API de Grok: ${response.statusText}`);
-
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot', 'typing');
-        container.appendChild(botDiv);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let respuesta = '';
-
-        async function read() {
-            const { done, value } = await reader.read();
-            if (done) {
-                botDiv.classList.remove('typing');
-                botDiv.innerHTML = marked.parse(respuesta) + `<button class="copy-btn" data-text="${respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                if (window.Prism) Prism.highlightAllUnder(botDiv);
-                speakText(respuesta);
-                guardarMensaje(pregunta, respuesta);
-                scrollToBottom();
-                addCopyButtonListeners();
+    fetch('/respuesta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar })
+    }).then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                mostrarNotificacion(data.error, 'error');
                 return;
             }
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[DONE]') continue;
-                    try {
-                        const parsed = JSON.parse(data);
-                        if (parsed.choices[0].delta.content) {
-                            respuesta += parsed.choices[0].delta.content;
-                            botDiv.innerHTML = marked.parse(respuesta);
-                            scrollToBottom();
-                        }
-                    } catch (e) {
-                        console.error('Error parsing chunk:', e);
-                    }
-                }
-            }
-            read();
-        }
-        read();
-    } catch (error) {
-        container.classList.remove('loading');
-        mostrarNotificacion(`Error al enviar mensaje a Grok: ${error.message}`, 'error');
-        container.removeChild(userDiv);
-    }
-};
-
-const generarQuiz = async () => {
-    const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'intermedio';
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        mostrarNotificacion('Error: Área de chat no encontrada', 'error');
-        return;
-    }
-    container.classList.add('loading');
-    try {
-        const response = await fetch('https://api.x.ai/v1/grok', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer YOUR_XAI_API_KEY' // Reemplaza con tu clave de API
-            },
-            body: JSON.stringify({
-                model: 'llama-3-70b-instruct',
-                messages: [{ role: 'user', content: `Genera un quiz de nivel ${nivel} sobre temas generales con una pregunta y 4 opciones, indicando cuál es la correcta.` }],
-                max_tokens: 300
-            })
+            container.innerHTML += `<div class="bot">${marked.parse(data.respuesta)}<img src="${data.avatar_url}" alt="Avatar" class="selected-avatar"><button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
+            scrollToBottom();
+            if (window.Prism) Prism.highlightAllUnder(container);
+            speakText(data.respuesta);
+            guardarMensaje(pregunta, data.respuesta, data.avatar_url);
+            addCopyButtonListeners();
+        }).catch(error => {
+            mostrarNotificacion(`Error al enviar mensaje: ${error.message}`, 'error');
         });
-
-        container.classList.remove('loading');
-        if (!response.ok) throw new Error(`Error en la API de Grok: ${response.statusText}`);
-
-        const data = await response.json();
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        let quizHtml = `<strong>Quiz: ${data.choices[0].message.content}</strong><div class="quiz-options">`;
-        const opciones = data.choices[0].message.content.match(/([A-D]\.\s.*?(?=\s[A-D]\.|$))/g) || [];
-        const correcta = data.choices[0].message.content.match(/Correcta:\s*([A-D])/i)?.[1] || 'A';
-        opciones.forEach((opcion, index) => {
-            const letra = String.fromCharCode(65 + index);
-            quizHtml += `<button class="quiz-option" data-correct="${letra === correcta}" aria-label="Opción ${letra}">${opcion}</button>`;
-        });
-        quizHtml += '</div>';
-        botDiv.innerHTML = quizHtml + `<button class="copy-btn" data-text="${data.choices[0].message.content}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>`;
-        container.appendChild(botDiv);
-        scrollToBottom();
-        getElements('.quiz-option').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const isCorrect = btn.dataset.correct === 'true';
-                mostrarNotificacion(isCorrect ? '¡Correcto!' : 'Incorrecto, intenta de nuevo.', isCorrect ? 'success' : 'error');
-                if (!isCorrect) return;
-                getElements('.quiz-option').forEach(opt => opt.disabled = true);
-            });
-        });
-        speakText(data.choices[0].message.content);
-        guardarMensaje('Generar quiz', data.choices[0].message.content);
-        addCopyButtonListeners();
-    } catch (error) {
-        container.classList.remove('loading');
-        mostrarNotificacion(`Error al generar quiz con Grok: ${error.message}`, 'error');
-    }
-};
-
-const recomendarTema = async () => {
-    const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'intermedio';
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        mostrarNotificacion('Error: Área de chat no encontrada', 'error');
-        return;
-    }
-    container.classList.add('loading');
-    try {
-        const response = await fetch('https://api.x.ai/v1/grok', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer YOUR_XAI_API_KEY' // Reemplaza con tu clave de API
-            },
-            body: JSON.stringify({
-                model: 'llama-3-70b-instruct',
-                messages: [{ role: 'user', content: `Recomienda un tema de programación de nivel ${nivel} para estudiar.` }],
-                max_tokens: 200
-            })
-        });
-
-        container.classList.remove('loading');
-        if (!response.ok) throw new Error(`Error en la API de Grok: ${response.statusText}`);
-
-        const data = await response.json();
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        botDiv.innerHTML = marked.parse(data.choices[0].message.content) + `<button class="copy-btn" data-text="${data.choices[0].message.content}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        container.appendChild(botDiv);
-        scrollToBottom();
-        speakText(data.choices[0].message.content);
-        guardarMensaje('Recomendar tema', data.choices[0].message.content);
-        if (window.Prism) Prism.highlightAll();
-        addCopyButtonListeners();
-    } catch (error) {
-        container.classList.remove('loading');
-        mostrarNotificacion(`Error al recomendar tema con Grok: ${error.message}`, 'error');
-    }
-};
-
-const toggleModo = () => {
-    document.body.classList.toggle('modo-claro');
-    const modoBtn = getElement('#modo-btn');
-    if (modoBtn) {
-        modoBtn.innerHTML = `<i class="fas ${document.body.classList.contains('modo-claro') ? 'fa-moon' : 'fa-sun'}"></i>`;
-        modoBtn.setAttribute('data-tooltip', document.body.classList.contains('modo-claro') ? 'Modo oscuro' : 'Modo claro');
-    }
-    localStorage.setItem('modo', document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro');
-    mostrarNotificacion(`Modo ${document.body.classList.contains('modo-claro') ? 'claro' : 'oscuro'} activado`, 'success');
-};
-
-const setNivel = nivel => {
-    document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
-    getElements('.nivel-btn').forEach(btn => btn.classList.remove('active'));
-    getElement(`.nivel-btn[data-nivel="${nivel}"]`)?.classList.add('active');
-    localStorage.setItem('nivel', nivel);
-    mostrarNotificacion(`Nivel ${nivel} seleccionado`, 'success');
-};
-
-const toggleMenu = (selector, toggleBtn) => {
-    const section = getElement(selector);
-    const isActive = section.classList.contains('active');
-    section.classList.toggle('active');
-    toggleBtn.setAttribute('aria-expanded', !isActive);
-    toggleBtn.innerHTML = `<i class="fas ${!isActive ? 'fa-times' : 'fa-bars'}"></i>`;
+    input.value = '';
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('modo') === 'claro') {
-        document.body.classList.add('modo-claro');
-        const modoBtn = getElement('#modo-btn');
-        if (modoBtn) {
-            modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
-            modoBtn.setAttribute('data-tooltip', 'Modo oscuro');
+    const elements = {
+        input: getElement('#input'),
+        sendBtn: getElement('#send-btn'),
+        chatbox: getElement('#chatbox'),
+        voiceBtn: getElement('#voice-btn'),
+        quizBtn: getElement('#quiz-btn'),
+        recomendacionBtn: getElement('#recomendacion-btn'),
+        nivelBtns: getElements('.nivel-btn'),
+        modoBtn: getElement('#modo-btn'),
+        btnStartVoice: getElement('#btn-start-voice'),
+        btnStopVoice: getElement('#btn-stop-voice'),
+        btnPauseSpeech: getElement('#btn-pause-speech'),
+        btnResumeSpeech: getElement('#btn-resume-speech'),
+        menuToggle: getElement('.menu-toggle'),
+        menuToggleRight: getElement('.menu-toggle-right'),
+        toggleAprendizajeBtn: getElement('#toggleAprendizajeBtn'),
+        exportTxtBtn: getElement('#exportTxtBtn'),
+        exportPdfBtn: getElement('#exportPdfBtn')
+    };
+
+    Object.keys(elements).forEach(key => {
+        if (!elements[key] && (key !== 'nivelBtns' || elements[key].length === 0)) {
+            console.warn(`Elemento ${key} no encontrado en el DOM`);
         }
+    });
+
+    cargarAvatares();
+    actualizarListaChats();
+
+    if (elements.sendBtn) {
+        elements.sendBtn.addEventListener('click', sendMessage);
+        elements.input?.addEventListener('keypress', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
     }
 
-    const nivel = localStorage.getItem('nivel') || 'intermedio';
-    setNivel(nivel);
+    if (elements.quizBtn) {
+        elements.quizBtn.addEventListener('click', () => {
+            fetch('/quiz?usuario=anonimo')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        mostrarNotificacion(data.error, 'error');
+                        return;
+                    }
+                    const container = elements.chatbox.querySelector('.message-container');
+                    container.innerHTML += `<div class="bot">${marked.parse(data.pregunta)}</div>`;
+                    data.opciones.forEach(opcion => {
+                        container.innerHTML += `<div class="bot"><button class="quiz-option" data-opcion="${opcion}" data-correcta="${data.respuesta_correcta}" data-tema="${data.tema}">${opcion}</button></div>`;
+                    });
+                    scrollToBottom();
+                    getElements('.quiz-option').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const opcion = btn.dataset.opcion;
+                            const correcta = btn.dataset.correcta;
+                            const tema = btn.dataset.tema;
+                            getElements('.quiz-option').forEach(b => b.disabled = true);
+                            fetch('/responder_quiz', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ usuario: 'anonimo', respuesta: opcion, respuesta_correcta: correcta, tema })
+                            }).then(res => res.json())
+                                .then(data => {
+                                    container.innerHTML += `<div class="bot">${marked.parse(data.respuesta)}<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
+                                    scrollToBottom();
+                                    guardarMensaje(`Respuesta quiz ${tema}`, data.respuesta);
+                                    addCopyButtonListeners();
+                                    setTimeout(() => elements.quizBtn.click(), 2000);
+                                }).catch(error => {
+                                    mostrarNotificacion(`Error al responder quiz: ${error.message}`, 'error');
+                                });
+                        });
+                    });
+                }).catch(error => {
+                    mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
+                });
+        });
+    }
 
-    getElement('#modo-btn')?.addEventListener('click', toggleModo);
-    getElement('#mute-btn')?.addEventListener('click', toggleVoz);
-    getElement('#voice-btn')?.addEventListener('click', startVoiceRecognition);
-    getElement('#speech-btn')?.addEventListener('click', pauseSpeech);
-    getElement('#send-btn')?.addEventListener('click', sendMessage);
-    getElement('#new-chat-btn')?.addEventListener('click', nuevaConversacion);
-    getElement('#btn-clear')?.addEventListener('click', limpiarChat);
-    getElement('#exportTxtBtn')?.addEventListener('click', exportarTxt);
-    getElement('#exportPdfBtn')?.addEventListener('click', exportarPdf);
-    getElement('#quiz-btn')?.addEventListener('click', generarQuiz);
-    getElement('#recommend-btn')?.addEventListener('click', recomendarTema);
+    if (elements.recomendacionBtn) {
+        elements.recomendacionBtn.addEventListener('click', () => {
+            fetch('/recomendacion?usuario=anonimo')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        mostrarNotificacion(data.error, 'error');
+                        return;
+                    }
+                    const container = elements.chatbox.querySelector('.message-container');
+                    container.innerHTML += `<div class="bot">Te recomiendo estudiar: ${data.recomendacion}</div>`;
+                    scrollToBottom();
+                    guardarMensaje('Recomendación', `Te recomiendo estudiar: ${data.recomendacion}`);
+                }).catch(error => {
+                    mostrarNotificacion(`Error al obtener recomendación: ${error.message}`, 'error');
+                });
+        });
+    }
 
-    getElements('.nivel-btn').forEach(btn => {
-        btn.addEventListener('click', () => setNivel(btn.dataset.nivel));
-    });
-
-    getElements('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            getElements('.tab-btn').forEach(tab => {
-                tab.classList.remove('active');
-                tab.setAttribute('aria-selected', 'false');
+    if (elements.nivelBtns) {
+        elements.nivelBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const nivel = btn.dataset.nivel;
+                document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
+                elements.nivelBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                fetch('/actualizar_nivel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario: 'anonimo', nivel })
+                }).then(res => res.json())
+                    .then(data => {
+                        mostrarNotificacion(data.mensaje || `Nivel cambiado a ${nivel}`, 'success');
+                    }).catch(error => {
+                        mostrarNotificacion(`Error al actualizar nivel: ${error.message}`, 'error');
+                    });
             });
-            btn.classList.add('active');
-            btn.setAttribute('aria-selected', 'true');
-            getElements('.tab-content > div').forEach(content => content.classList.remove('active'));
-            getElement(`.${btn.dataset.tab}`)?.classList.add('active');
+        });
+    }
+
+    if (elements.modoBtn) {
+        elements.modoBtn.addEventListener('click', () => {
+            document.body.classList.toggle('modo-claro');
+            const modo = document.body.classList.contains('modo-claro') ? 'Claro' : 'Oscuro';
+            elements.modoBtn.innerHTML = `<i class="fas fa-${modo === 'Claro' ? 'moon' : 'sun'}"></i>`;
+            mostrarNotificacion(`Modo ${modo} activado`, 'success');
+        });
+    }
+
+    if (elements.voiceBtn) {
+        elements.voiceBtn.addEventListener('click', () => {
+            vozActiva = !vozActiva;
+            elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
+            mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
+            if (!vozActiva) stopSpeech();
+        });
+    }
+
+    if (elements.btnStartVoice && elements.btnStopVoice && elements.btnPauseSpeech && elements.btnResumeSpeech) {
+        elements.btnStartVoice.addEventListener('click', () => {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                mostrarNotificacion('Reconocimiento de voz no soportado. Usa un navegador compatible (e.g., Chrome).', 'error');
+                return;
+            }
+            recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
+            recognition.lang = 'es-ES';
+            recognition.interimResults = true;
+            recognition.continuous = true;
+            recognition.start();
+            isListening = true;
+            elements.btnStartVoice.disabled = true;
+            elements.btnStopVoice.disabled = false;
+            elements.btnPauseSpeech.disabled = true;
+            elements.btnResumeSpeech.disabled = true;
+            mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
+
+            recognition.onresult = event => {
+                const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
+                if (elements.input) elements.input.value = transcript;
+                if (event.results[event.results.length - 1].isFinal) {
+                    sendMessage();
+                    recognition.stop();
+                    isListening = false;
+                    elements.btnStartVoice.disabled = false;
+                    elements.btnStopVoice.disabled = true;
+                }
+            };
+
+            recognition.onerror = event => {
+                mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
+                recognition.stop();
+                isListening = false;
+                elements.btnStartVoice.disabled = false;
+                elements.btnStopVoice.disabled = true;
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    recognition.start();
+                } else {
+                    elements.btnStartVoice.disabled = false;
+                    elements.btnStopVoice.disabled = true;
+                }
+            };
+        });
+
+        elements.btnStopVoice.addEventListener('click', stopSpeech);
+        elements.btnPauseSpeech.addEventListener('click', pauseSpeech);
+        elements.btnResumeSpeech.addEventListener('click', resumeSpeech);
+    }
+
+    if (elements.menuToggle && elements.menuToggleRight) {
+        const toggleLeftMenu = (e) => {
+            e.preventDefault();
+            const leftSection = getElement('.left-section');
+            if (leftSection) {
+                leftSection.classList.toggle('active');
+                elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                const rightSection = getElement('.right-section');
+                if (rightSection && rightSection.classList.contains('active')) {
+                    rightSection.classList.remove('active');
+                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
+            }
+        };
+
+        const toggleRightMenu = (e) => {
+            e.preventDefault();
+            const rightSection = getElement('.right-section');
+            if (rightSection) {
+                rightSection.classList.toggle('active');
+                elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                const leftSection = getElement('.left-section');
+                if (leftSection && leftSection.classList.contains('active')) {
+                    leftSection.classList.remove('active');
+                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
+            }
+        };
+
+        elements.menuToggle.addEventListener('click', toggleLeftMenu);
+        elements.menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
+        elements.menuToggleRight.addEventListener('click', toggleRightMenu);
+        elements.menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
+
+        const closeMenusOnOutsideInteraction = (e) => {
+            const leftSection = getElement('.left-section');
+            const rightSection = getElement('.right-section');
+            const menuToggle = getElement('.menu-toggle');
+            const menuToggleRight = getElement('.menu-toggle-right');
+            if (window.innerWidth <= 768) {
+                if (leftSection && leftSection.classList.contains('active') &&
+                    !leftSection.contains(e.target) &&
+                    !menuToggle.contains(e.target)) {
+                    leftSection.classList.remove('active');
+                    leftSection.style.transform = 'translateX(-100%)';
+                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
+                if (rightSection && rightSection.classList.contains('active') &&
+                    !rightSection.contains(e.target) &&
+                    !menuToggleRight.contains(e.target)) {
+                    rightSection.classList.remove('active');
+                    rightSection.style.transform = 'translateX(100%)';
+                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                }
+            }
+        };
+
+        document.addEventListener('click', closeMenusOnOutsideInteraction);
+        document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
+    }
+
+    if (elements.toggleAprendizajeBtn) {
+        elements.toggleAprendizajeBtn.addEventListener('click', () => {
+            const aprendizajeCard = getElement('#aprendizajeCard');
+            if (aprendizajeCard) aprendizajeCard.classList.toggle('active');
+        });
+    }
+
+    if (getElement('#learnBtn')) {
+        getElement('#learnBtn').addEventListener('click', () => {
+            const pregunta = getElement('#nuevaPregunta')?.value.trim();
+            const respuesta = getElement('#nuevaRespuesta')?.value.trim();
+            if (!pregunta || !respuesta) {
+                mostrarNotificacion('Por favor, completa ambos campos.', 'error');
+                return;
+            }
+            fetch('/aprendizaje', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pregunta, respuesta, usuario: 'anonimo' })
+            }).then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        mostrarNotificacion(data.error, 'error');
+                    } else {
+                        mostrarNotificacion('Conocimiento aprendido con éxito', 'success');
+                        getElement('#nuevaPregunta').value = '';
+                        getElement('#nuevaRespuesta').value = '';
+                        getElement('#aprendizajeCard')?.classList.remove('active');
+                    }
+                })
+                .catch(error => {
+                    mostrarNotificacion(`Error al aprender: ${error.message}`, 'error');
+                });
+        });
+    }
+
+    if (elements.exportTxtBtn) {
+        elements.exportTxtBtn.addEventListener('click', exportarTxt);
+    }
+
+    if (elements.exportPdfBtn) {
+        elements.exportPdfBtn.addEventListener('click', exportarPdf);
+    }
+
+    if (getElement('#tema-filter')) {
+        getElement('#tema-filter').addEventListener('change', () => {
+            const tema = getElement('#tema-filter').value;
+            if (tema) {
+                getElement('#input').value = tema;
+                sendMessage();
+            }
+        });
+    }
+
+    document.querySelectorAll('.left-section button, .nivel-btn').forEach(btn => {
+        const tooltipText = btn.dataset.tooltip;
+        if (!tooltipText) return;
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'custom-tooltip';
+        tooltip.textContent = tooltipText;
+        tooltip.style.position = 'absolute';
+        tooltip.style.background = 'rgba(0, 0, 0, 0.95)';
+        tooltip.style.color = '#fff';
+        tooltip.style.padding = '8px 12px';
+        tooltip.style.borderRadius = '6px';
+        tooltip.style.fontSize = '12px';
+        tooltip.style.zIndex = '10000';
+        tooltip.style.opacity = '0';
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.transition = 'opacity 0.3s ease, visibility 0.3s ease';
+        tooltip.style.pointerEvents = 'none';
+        document.body.appendChild(tooltip);
+
+        btn.addEventListener('mouseenter', (e) => {
+            const rect = btn.getBoundingClientRect();
+            tooltip.style.top = `${rect.top + rect.height / 2}px`;
+            tooltip.style.left = `${rect.left + rect.width + 10}px`;
+            tooltip.style.transform = 'translateY(-50%)';
+            tooltip.style.opacity = '1';
+            tooltip.style.visibility = 'visible';
+        });
+
+        btn.addEventListener('mouseleave', () => {
+            tooltip.style.opacity = '0';
+            tooltip.style.visibility = 'hidden';
         });
     });
-
-    getElement('.menu-toggle')?.addEventListener('click', () => toggleMenu('.left-section', getElement('.menu-toggle')));
-    getElement('.menu-toggle-right')?.addEventListener('click', () => toggleMenu('.right-section', getElement('.menu-toggle-right')));
-
-    window.addEventListener('resize', () => {
-        if (window.innerWidth > 768) {
-            getElement('.left-section')?.classList.remove('active');
-            getElement('.right-section')?.classList.remove('active');
-            getElement('.menu-toggle')?.setAttribute('aria-expanded', 'false');
-            getElement('.menu-toggle-right')?.setAttribute('aria-expanded', 'false');
-        }
-    });
-
-    getElement('#input')?.addEventListener('keypress', e => {
-        if (e.key === 'Enter') sendMessage();
-    });
-
-    window.addEventListener('resize', scrollToBottom);
 });

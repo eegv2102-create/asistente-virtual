@@ -244,10 +244,10 @@ h3 {
     cursor: not-allowed;
 }
 
-.left-section button::after, .right-section button::after, .nivel-btn::after {
+.left-section button::after {
     content: attr(data-tooltip);
     position: absolute;
-    top: -40px;
+    top: -50px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
@@ -266,9 +266,24 @@ h3 {
     max-width: 140px;
 }
 
-.left-section button:hover::after, .right-section button:hover::after, .nivel-btn:hover::after {
+.left-section button:hover::after {
     opacity: 1;
     visibility: visible;
+}
+
+.nivel-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.nivel-label {
+    font-size: 11px;
+    color: var(--text);
+    text-transform: uppercase;
+    font-weight: 600;
+    text-align: center;
 }
 
 .nivel-btn.active {
@@ -860,6 +875,24 @@ body:not(.modo-claro) .bot {
     transform: scale(1.05);
 }
 
+#tema-filter {
+    padding: calc(var(--spacing) * 0.75);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    width: 100%;
+    margin-top: var(--spacing);
+}
+
+#lip-sync-canvas {
+    position: fixed;
+    bottom: calc(var(--spacing) + 60px);
+    left: var(--spacing);
+    z-index: 20;
+}
+
 @media (max-width: 768px) {
     .menu-toggle, .menu-toggle-right {
         display: flex;
@@ -928,7 +961,7 @@ body:not(.modo-claro) .bot {
     .right-section {
         transform: translateX(100%);
         right: 0;
-        width: 60px;
+        width: min(200px, 60vw);
     }
 
     .right-section.active {
@@ -995,13 +1028,25 @@ body:not(.modo-claro) .bot {
         max-width: 90%;
     }
 
-    .left-section button::after, .right-section button::after, .nivel-btn::after {
+    .left-section button::after {
         top: -60px;
         left: 50%;
         transform: translateX(-50%);
         max-width: 120px;
         font-size: 10px;
         padding: 4px 8px;
+    }
+
+    #lip-sync-canvas {
+        bottom: calc(var(--spacing) + 80px);
+    }
+
+    .nivel-wrapper {
+        gap: 2px;
+    }
+
+    .nivel-label {
+        font-size: 10px;
     }
 }
 
@@ -1067,5 +1112,17 @@ body:not(.modo-claro) .bot {
     .avatar-options img {
         width: 40px;
         height: 40px;
+    }
+
+    .nivel-wrapper {
+        gap: 2px;
+    }
+
+    .nivel-label {
+        font-size: 9px;
+    }
+
+    #lip-sync-canvas {
+        bottom: calc(var(--spacing) + 100px);
     }
 }
