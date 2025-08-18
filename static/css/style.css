@@ -163,7 +163,7 @@ h3 {
 
 .main-layout {
     display: grid;
-    grid-template-columns: minmax(200px, auto) 1fr minmax(200px, auto);
+    grid-template-columns: minmax(50px, auto) 1fr minmax(200px, auto);
     gap: 2px;
     flex: 1;
     height: 100%;
@@ -181,31 +181,41 @@ h3 {
     height: 100%;
 }
 
+/* Modificación de la barra lateral izquierda */
 .left-section {
     display: flex;
     flex-direction: column;
     gap: calc(var(--spacing) / 2);
+    align-items: center;
     position: sticky;
     top: 0;
     height: 100%;
     z-index: 30;
     transition: transform 0.3s ease;
-    overflow-y: visible;
-}
-
-.horizontal-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: calc(var(--spacing) / 2);
-}
-
-.historial-section {
-    flex: 1;
     overflow-y: auto;
+    padding-top: var(--spacing);
+    padding-bottom: var(--spacing);
 }
 
-.left-section button, .nivel-btn, .input-group button {
+/* Nuevo: Contenedor para botones de acción en el lado izquierdo */
+.action-buttons-horizontal {
+    display: flex;
+    flex-direction: column; /* Alineación vertical por defecto */
+    gap: calc(var(--spacing) / 2);
+    width: 100%;
+    align-items: center;
+    margin-bottom: var(--spacing);
+}
+
+@media (min-width: 768px) {
+    .action-buttons-horizontal {
+        flex-direction: row; /* Alineación horizontal en desktop */
+        justify-content: center;
+        flex-wrap: wrap; /* Permite que los botones se envuelvan si no hay espacio */
+    }
+}
+
+.left-section button, .nivel-btn {
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -225,7 +235,7 @@ h3 {
 }
 
 @media (max-width: 768px) {
-    .left-section button, .nivel-btn, .input-group button {
+    .left-section button, .nivel-btn {
         width: 36px;
         height: 36px;
         min-width: 36px;
@@ -233,20 +243,22 @@ h3 {
     }
 }
 
-.left-section button:hover, .nivel-btn:hover, .input-group button:hover {
+.left-section button:hover, .nivel-btn:hover {
     background: var(--button-hover);
     transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.left-section button:disabled, .nivel-btn:disabled, .input-group button:disabled {
+.left-section button:disabled, .nivel-btn:disabled {
     background: #666;
     cursor: not-allowed;
 }
 
-.custom-tooltip {
+/* Tooltips */
+.left-section button::after, .nivel-btn::after, .chat-buttons-left button::after, .chat-buttons-right button::after {
+    content: attr(data-tooltip);
     position: absolute;
-    bottom: 100%;
+    bottom: 120%; /* Posiciona el tooltip encima del botón */
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.9);
@@ -260,325 +272,378 @@ h3 {
     visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
     box-shadow: var(--shadow);
+    z-index: 10000;
     white-space: nowrap;
-    margin-bottom: 5px;
     pointer-events: none;
 }
 
-.left-section button:hover ~ .custom-tooltip, .nivel-btn:hover ~ .custom-tooltip, .input-group button:hover ~ .custom-tooltip {
+.left-section button:hover::after, .nivel-btn:hover::after, .chat-buttons-left button:hover::after, .chat-buttons-right button:hover::after {
     opacity: 1;
     visibility: visible;
 }
 
-.right-section .nivel-buttons {
+/* Nuevo: Contenedor para los botones de nivel */
+.nivel-selector {
     display: flex;
     justify-content: center;
-    gap: calc(var(--spacing) / 2);
+    gap: var(--spacing);
+    padding-bottom: var(--spacing);
+    border-bottom: 1px solid var(--border);
     margin-bottom: var(--spacing);
+    width: 100%;
 }
 
-.voice-buttons, .ia-voice-buttons {
-    display: flex;
-    gap: 2px;
+.nivel-selector .nivel-btn {
+    width: auto;
+    min-width: 80px;
+    height: 30px;
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: 600;
 }
 
-.input-group {
+/* Controles de chat en la parte inferior */
+.chat-controls {
     display: flex;
     align-items: center;
-    gap: calc(var(--spacing) / 2);
+    gap: var(--spacing);
     padding: var(--spacing);
-    background: var(--bg);
     border-top: 1px solid var(--border);
+    background: var(--bg);
 }
 
-#chatbox {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--spacing);
-}
-
-.message-container {
+.chat-buttons-left, .chat-buttons-right {
     display: flex;
-    flex-direction: column;
     gap: calc(var(--spacing) / 2);
+    align-items: center;
 }
 
-.user, .bot {
-    max-width: 70%;
-    padding: 10px 15px;
+.chat-input-wrapper {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing);
+}
+
+.chat-input-wrapper textarea {
+    flex-grow: 1;
+    min-height: 40px;
+    padding: calc(var(--spacing) * 1.5);
     border-radius: var(--radius);
-    position: relative;
-    word-wrap: break-word;
-}
-
-.user {
-    background: var(--user-bg);
-    color: var(--text);
-    align-self: flex-end;
-    margin-left: auto;
-}
-
-.bot {
-    background: var(--bot-bg);
-    color: var(--text);
-    align-self: flex-start;
-}
-
-.user::before, .bot::before {
-    font-family: 'Font Awesome 5 Free';
-    position: absolute;
-    top: 10px;
-}
-
-.user::before {
-    content: '\f007';
-    left: -20px;
-}
-
-.bot::before {
-    content: '\f544';
-    left: -20px;
-}
-
-.avatar-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: calc(var(--spacing) / 2);
-    justify-content: center;
-}
-
-.avatar-option {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: var(--transition);
-}
-
-.avatar-option:hover {
-    transform: scale(1.1);
-    border-color: var(--accent);
-}
-
-.avatar-option.selected {
-    border-color: var(--accent);
-}
-
-#lip-sync-canvas {
-    margin: var(--spacing) auto;
-    display: block;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.card {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--chat-bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: calc(var(--spacing) * 2);
+    background: var(--chat-bg);
+    color: var(--text);
+    resize: none;
+    font-family: inherit;
+    font-size: var(--font-base);
     box-shadow: var(--shadow);
-    z-index: 100;
-    max-width: 90%;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: border-color 0.3s ease;
+    overflow-y: auto;
 }
 
-.card.active {
-    opacity: 1;
-    visibility: visible;
+.chat-input-wrapper textarea:focus {
+    outline: none;
+    border-color: var(--accent);
 }
 
-.card p {
-    margin-bottom: var(--spacing);
-}
-
-.card button {
-    width: 100%;
-    padding: calc(var(--spacing) * 1);
+.chat-buttons-left button, .chat-buttons-right button {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    border-radius: var(--radius);
     background: var(--button-bg);
     color: var(--text);
     border: none;
-    border-radius: var(--radius);
     cursor: pointer;
+    box-shadow: var(--shadow);
     transition: var(--transition);
+    position: relative;
 }
 
-.card button:hover {
+.chat-buttons-left button:hover, .chat-buttons-right button:hover {
     background: var(--button-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+.chat-buttons-left button:disabled, .chat-buttons-right button:disabled {
+    background: #666;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Estilos para los grupos de botones de voz */
+.voice-controls-user, .voice-controls-ia {
+    display: flex;
+    gap: calc(var(--spacing) / 2);
+}
+
+/* El resto del código CSS se mantiene igual */
+.chatbox {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: var(--spacing);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+    scroll-behavior: smooth;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.message-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+}
+.message {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing);
+    max-width: 90%;
+    word-break: break-word;
+    white-space: pre-wrap;
+    padding: var(--spacing);
+    border-radius: var(--radius);
+    line-height: 1.6;
+    box-shadow: var(--shadow);
+}
+.user-message {
+    align-self: flex-end;
+    background: var(--user-bg);
+    color: #fff;
+    border-bottom-right-radius: 0;
+}
+.bot-message {
+    align-self: flex-start;
+    background: var(--bot-bg);
+    color: var(--text);
+    border-bottom-left-radius: 0;
+}
+.message img.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.message .avatar-container {
+    position: relative;
+}
+.message .avatar-container canvas {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: none;
+}
+.bot.speaking .avatar-container canvas {
+    display: block;
+}
+.historial {
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    width: 100%;
+}
 #chat-list {
     list-style: none;
+    padding: var(--spacing);
 }
-
 #chat-list li {
-    padding: calc(var(--spacing) * 1.5);
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-#chat-list li:hover {
     background: var(--chat-bg);
+    margin-bottom: var(--spacing);
+    padding: var(--spacing);
+    border-radius: var(--radius);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    border: 1px solid var(--border);
 }
-
-@media (max-width: 768px) {
-    .menu-toggle, .menu-toggle-right {
-        display: flex;
+#chat-list li:hover {
+    background: var(--border);
+}
+#chat-list li.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: bold;
+    border-color: var(--accent);
+}
+.chat-actions {
+    display: flex;
+    gap: calc(var(--spacing) / 2);
+}
+.chat-actions button {
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+    transition: color 0.3s ease, transform 0.2s ease;
+}
+#chat-list li.active .chat-actions button {
+    color: #fff;
+}
+.chat-actions button:hover {
+    transform: scale(1.1);
+}
+.asistente {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing);
+}
+.avatar-options {
+    display: flex;
+    gap: var(--spacing);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.avatar-option {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.3s ease, transform 0.2s ease;
+}
+.avatar-option:hover {
+    transform: scale(1.1);
+}
+.avatar-option.selected {
+    border-color: var(--accent);
+}
+.asistente p {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.8em;
+    color: var(--text);
+    opacity: 0.7;
+}
+.asistente #lip-sync-canvas {
+    display: none;
+}
+.asistente #analytics-container {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    background: var(--chat-bg);
+    border-radius: var(--radius);
+    padding: var(--spacing);
+    overflow-y: auto;
+    margin-top: var(--spacing);
+    border: 1px solid var(--border);
+}
+#notification-card {
+    position: fixed;
+    bottom: var(--spacing);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--chat-bg);
+    color: var(--text);
+    padding: var(--spacing);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing);
+}
+#notification-card.active {
+    opacity: 1;
+    visibility: visible;
+}
+#notification-card p {
+    margin: 0;
+    font-size: 0.9em;
+}
+#notification-card button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+#notification-card button:hover {
+    transform: scale(1.1);
+}
+#notification-card.error {
+    background: #ff4d4d;
+    color: white;
+}
+#notification-card.success {
+    background: #4CAF50;
+    color: white;
+}
+#notification-card.info {
+    background: #2196F3;
+    color: white;
+}
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
         opacity: 1;
-        visibility: visible;
-        position: fixed;
-        top: calc(var(--spacing) * 1);
-        background: var(--accent);
-        border: 2px solid rgba(255, 255, 255, 0.5);
-        border-radius: 8px;
-        padding: calc(var(--spacing) * 1);
-        font-size: 24px;
-        color: #ffffff;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-        transition: background 0.3s ease, transform 0.2s ease, opacity 0.2s ease;
-        z-index: 400;
-        width: 50px;
-        height: 50px;
-        align-items: center;
-        justify-content: center;
     }
-
-    .menu-toggle {
-        left: calc(var(--spacing) * 1);
+}
+@keyframes fadeOut {
+    from {
+        opacity: 1;
     }
-
-    .menu-toggle-right {
-        right: calc(var(--spacing) * 1);
+    to {
+        opacity: 0;
     }
-
-    .menu-toggle:active, .menu-toggle-right:active {
-        background: var(--button-hover);
-        transform: scale(0.95);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    .left-section, .right-section {
-        display: none;
-    }
-
-    .left-section.active, .right-section.active {
-        display: flex;
-        position: fixed;
-        top: 50px;
-        bottom: 0;
-        z-index: 50;
-        transition: transform 0.3s ease;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        max-height: calc(100vh - 50px);
-        will-change: transform;
-    }
-
-    .left-section {
-        transform: translateX(-100%);
-        width: min(200px, 80vw);
-        left: 0;
-    }
-
-    .left-section.active {
-        transform: translateX(0);
-        overflow-y: auto;
-    }
-
-    .right-section {
-        transform: translateX(100%);
-        right: 0;
-        width: min(300px, 80vw);
-    }
-
-    .right-section.active {
-        transform: translateX(0);
-        overflow-y: auto;
-        border-left: 1px solid var(--border);
-    }
-
+}
+@media (max-width: 768px) {
     .main-layout {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr auto;
     }
-
-    .input-group {
+    .left-section, .right-section {
         position: fixed;
+        top: 0;
         bottom: 0;
-        left: 0;
+        z-index: 50;
+        width: 80%;
+        max-width: 300px;
+        transform: translateX(-100%);
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    }
+    .right-section {
+        left: auto;
         right: 0;
-        padding: var(--spacing);
-        flex-wrap: wrap;
-        z-index: 30;
-        min-height: 60px;
-        border-top: 3px solid color-mix(in srgb, var(--border), var(--accent) 40%);
-        background: color-mix(in srgb, var(--bg), #000 10%);
-        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
-        align-items: center;
+        transform: translateX(100%);
     }
-
-    .input-group button {
-        width: 36px;
-        height: 36px;
-        margin: 0;
+    .left-section.active {
+        transform: translateX(0);
     }
-
-    .right-section .nivel-buttons {
-        flex-direction: row;
-        justify-content: space-between;
-        gap: calc(var(--spacing) / 2);
-        padding: calc(var(--spacing) / 2);
+    .right-section.active {
+        transform: translateX(0);
     }
-
-    .tab-content > div.active {
-        padding-bottom: 170px;
-        overflow-y: auto;
-    }
-
-    #chatbox {
-        margin-bottom: 12px;
-        padding-bottom: 170px;
-        scroll-padding-bottom: 170px;
-        height: calc(100% - 90px);
-    }
-
-    .user, .bot {
-        max-width: 90%;
-    }
-
-    .left-section button::after, .nivel-btn::after {
-        display: none;
-    }
-
-    .input-group .voice-label {
-        display: inline;
-        font-size: 12px;
-        margin-right: 4px;
-    }
-
-    #chat-list li {
-        font-size: 12px;
-        padding: calc(var(--spacing) * 1);
-        min-height: auto;
-    }
-
-    #input {
-        flex: 1;
-        padding: calc(var(--spacing) * 1);
-        min-height: 40px;
-        font-size: 14px;
-        z-index: 35;
+    .menu-toggle, .menu-toggle-right {
+        display: block;
     }
 }
-
+.menu-toggle, .menu-toggle-right {
+    display: none;
+    position: fixed;
+    top: var(--spacing);
+    z-index: 60;
+}
+.menu-toggle {
+    left: var(--spacing);
+}
+.menu-toggle-right {
+    right: var(--spacing);
+}
 @media (max-width: 480px) {
     .menu-toggle, .menu-toggle-right {
         width: 44px;
@@ -601,6 +666,7 @@ h3 {
         right: calc(var(--spacing) * 0.5);
     }
 
+    /* Feedback visual al presionar en pantallas pequeñas */
     .menu-toggle:active, .menu-toggle-right:active {
         background: var(--button-hover);
         transform: scale(0.95);
@@ -612,35 +678,30 @@ h3 {
     }
 
     h2 {
-        font-size: clamp(0.9rem, 2vw, 1rem);
-    }
-
-    h3 {
-        font-size: clamp(0.7rem, 1.8vw, 0.8rem);
-    }
-
-    .user, .bot {
-        font-size: 12px;
-        padding: 8px 12px;
-    }
-
-    .user::before, .bot::before {
-        font-size: 16px;
-        top: 8px;
-    }
-
-    .input-group button {
-        width: 40px;
-        height: 40px;
-        margin: 0;
-    }
-
-    .card {
-        max-width: 300px;
-    }
-
-    .avatar-option {
-        width: 40px;
-        height: 40px;
+        font-size: clamp(1rem, 2vw, 1.2rem);
     }
 }
+.custom-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    text-align: center;
+    z-index: 10000;
+    white-space: nowrap;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+.custom-tooltip.active {
+    opacity: 1;
+}
+/* No es necesario redefinir los tooltips aquí si usamos los atributos data-tooltip en HTML */
+.nivel-btn[data-nivel="basico"]::after { content: "Básico"; }
+.nivel-btn[data-nivel="intermedio"]::after { content: "Intermedio"; }
+.nivel-btn[data-nivel="avanzado"]::after { content: "Avanzado"; }
+#btn-start-voice i, #btn-stop-voice i, #btn-pause-speech i, #btn-resume-speech i, #send-btn i { font-size: 16px; }
