@@ -3,82 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💻 Tesis</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" as="style" onload="this.rel='stylesheet'">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.18/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <title>Chat Educativo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.12/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="script.js"></script>
 </head>
-<body class="nivel-intermedio">
-    <button class="menu-toggle" aria-label="Abrir menú izquierdo" aria-expanded="false"><i class="fas fa-bars"></i></button>
-    <button class="menu-toggle-right" aria-label="Abrir menú derecho" aria-expanded="false"><i class="fas fa-bars"></i></button>
+<body>
     <div class="container">
-        <h2>💻 Asistente de Programación Avanzada</h2>
-        <div class="main-layout">
-            <div class="left-section" role="region" aria-label="Controles de navegación">
-                <button id="modo-btn" aria-label="Modo claro y oscuro" data-tooltip="Modo claro/oscuro"><i class="fas fa-sun"></i></button>
-                <button id="voice-btn" aria-label="Activar o desactivar voz" data-tooltip="Activar/desactivar voz"><i class="fas fa-volume-up"></i></button>
-                <button id="exportTxtBtn" aria-label="Exportar chat a TXT" data-tooltip="Exportar TXT"><i class="fas fa-file-alt"></i></button>
-                <button id="exportPdfBtn" aria-label="Exportar chat a PDF" data-tooltip="Exportar PDF"><i class="fas fa-file-pdf"></i></button>
-                <button id="btn-clear" aria-label="Limpiar chat actual" data-tooltip="Limpiar chat"><i class="fas fa-trash"></i></button>
-                <button id="new-chat-btn" aria-label="Generar nuevo chat" data-tooltip="Nuevo chat"><i class="fas fa-plus"></i></button>
-                <button id="quiz-btn" aria-label="Generar un quiz" data-tooltip="Generar Quiz"><i class="fas fa-question-circle"></i></button>
-                <button id="recommend-btn" aria-label="Recomendar un tema" data-tooltip="Recomendar tema"><i class="fas fa-lightbulb"></i></button>
-                <div class="level-buttons">
-                    <button class="nivel-btn" data-nivel="basico" aria-label="Nivel Básico" data-tooltip="Básico"><i class="fas fa-seedling"></i></button>
-                    <button class="nivel-btn active" data-nivel="intermedio" aria-label="Nivel Intermedio" data-tooltip="Intermedio"><i class="fas fa-star"></i></button>
-                    <button class="nivel-btn" data-nivel="avanzado" aria-label="Nivel Avanzado" data-tooltip="Avanzado"><i class="fas fa-fire"></i></button>
+        <!-- Left Sidebar -->
+        <aside class="left-section">
+            <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="sidebar-content">
+                <div class="sidebar-buttons">
+                    <button id="modo-btn" data-tooltip="Cambiar a modo claro/oscuro">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <button id="voice-btn" data-tooltip="Activar/desactivar voz">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <button id="quiz-btn" data-tooltip="Iniciar quiz">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                    <button id="recommend-btn" data-tooltip="Recomendar tema">
+                        <i class="fas fa-lightbulb"></i>
+                    </button>
+                </div>
+                <div class="chat-history">
+                    <h3>Historial de Chats</h3>
+                    <ul id="chat-list" role="list"></ul>
                 </div>
             </div>
-            <div class="center-section" role="region" aria-label="Área de chat">
-                <div class="chat-content">
-                    <div id="chatbox" aria-live="polite">
-                        <div class="message-container"></div>
-                    </div>
-                    <div class="input-group">
-                        <input type="text" id="input" placeholder="Escribe o habla..." aria-label="Entrada de texto para preguntas" lang="es" maxlength="500">
-                        <button id="btn-start-voice" aria-label="Iniciar reconocimiento de voz" data-tooltip="Iniciar voz"><i class="fas fa-microphone"></i></button>
-                        <button id="btn-stop-voice" aria-label="Detener reconocimiento de voz" disabled data-tooltip="Detener voz"><i class="fas fa-stop"></i></button>
-                        <button id="btn-pause-speech" aria-label="Pausar voz del asistente" data-tooltip="Pausar voz"><i class="fas fa-pause"></i></button>
-                        <button id="btn-resume-speech" aria-label="Reanudar voz del asistente" data-tooltip="Reanudar voz"><i class="fas fa-play"></i></button>
-                        <button id="send-btn" aria-label="Enviar mensaje"><i class="fas fa-paper-plane"></i></button>
-                    </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-section">
+            <div id="chatbox">
+                <div class="message-container"></div>
+            </div>
+            <div class="input-group">
+                <div class="input-buttons left">
+                    <button id="new-chat-btn" data-tooltip="Nuevo chat">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button id="btn-clear" data-tooltip="Limpiar chat">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <input type="text" id="input" placeholder="Escribe tu mensaje..." aria-label="Escribir mensaje">
+                <div class="input-buttons right">
+                    <button id="btn-start-voice" data-tooltip="Iniciar reconocimiento de voz">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="btn-stop-voice" data-tooltip="Detener reconocimiento de voz" disabled>
+                        <i class="fas fa-microphone-slash"></i>
+                    </button>
+                    <button id="btn-pause-speech" data-tooltip="Pausar voz de IA" disabled>
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <button id="btn-resume-speech" data-tooltip="Reanudar voz de IA" disabled>
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button id="send-btn" data-tooltip="Enviar mensaje">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
                 </div>
             </div>
-            <div class="right-section" role="region" aria-label="Configuración e historial">
-                <div class="tab-buttons">
-                    <button class="tab-btn active" data-tab="asistente" aria-label="Pestaña de asistente">Asistente</button>
-                    <button class="tab-btn" data-tab="historial" aria-label="Pestaña de historial">Historial</button>
-                </div>
-                <div class="tab-content">
-                    <div class="asistente active">
-                        <h3>Selecciona tu Avatar</h3>
-                        <div class="avatar-options"></div>
-                        <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
-                    </div>
-                    <div class="historial">
-                        <h3>Historial de Chats</h3>
-                        <ul id="chat-list"></ul>
-                    </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="right-section">
+            <button class="menu-toggle-right" aria-label="Abrir menú de avatares" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="avatar-section">
+                <h3>Selección de Avatar</h3>
+                <p>Funcionalidad de avatares estará disponible pronto con D-ID.</p>
+                <div class="avatar-options"></div>
+            </div>
+        </aside>
+
+        <!-- Notification Card -->
+        <div id="notification-card"></div>
+
+        <!-- Quiz Modal -->
+        <div id="quiz-modal" style="display: none;">
+            <div class="modal-content">
+                <h3 id="quiz-question"></h3>
+                <div id="quiz-options"></div>
+                <div class="modal-buttons">
+                    <button id="quiz-submit">Enviar</button>
+                    <button onclick="document.getElementById('quiz-modal').style.display='none'">Cerrar</button>
                 </div>
             </div>
-        </div>
-        <div id="notification-card" class="card" role="alert"></div>
-        <div id="quiz-modal" class="card" role="dialog" aria-labelledby="quiz-title" style="display: none;">
-            <h3 id="quiz-title">Quiz</h3>
-            <p id="quiz-question"></p>
-            <div id="quiz-options"></div>
-            <button id="quiz-submit" aria-label="Enviar respuesta del quiz">Enviar</button>
         </div>
     </div>
-    <script src="/static/js/script.js"></script>
-    <noscript>
-        <div style="color: red; text-align: center; padding: 10px;">
-            Esta aplicación requiere JavaScript para funcionar. Por favor, habilítalo en tu navegador.
-        </div>
-    </noscript>
 </body>
 </html>

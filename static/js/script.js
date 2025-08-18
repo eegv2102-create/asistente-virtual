@@ -36,6 +36,7 @@ const scrollToBottom = () => {
         }
         if (window.innerWidth <= 768) {
             chatbox.scrollTop = chatbox.scrollHeight;
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
     });
 };
@@ -262,7 +263,6 @@ const actualizarListaChats = async () => {
         console.error('Elemento #chat-list no encontrado');
         return;
     }
-    // Intentar sincronizar con el backend
     try {
         const response = await fetch('/logs?usuario=anonimo', { cache: 'no-store' });
         if (response.ok) {
@@ -299,8 +299,14 @@ const actualizarListaChats = async () => {
         li.setAttribute('aria-label', `Seleccionar chat ${chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`}`);
         chatList.appendChild(li);
         li.addEventListener('click', e => e.target.tagName !== 'BUTTON' && cargarChat(index));
-        li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
-        li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
+        li.querySelector('.rename-btn').addEventListener('click', () => {
+            renombrarChat(index);
+            mostrarNotificacion('Chat renombrado', 'success');
+        });
+        li.querySelector('.delete-btn').addEventListener('click', () => {
+            eliminarChat(index);
+            mostrarNotificacion('Chat eliminado', 'success');
+        });
     });
     chatList.scrollTop = chatList.scrollHeight;
 };
@@ -498,8 +504,6 @@ const showQuizModal = (data) => {
 
 const sendMessage = () => {
     const input = getElement('#input');
-    const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico';
     const pregunta = input?.value.trim();
     if (!pregunta) return;
     input.value = '';
@@ -519,7 +523,7 @@ const sendMessage = () => {
     fetch('/respuesta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
+        body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar, max_length: 200 })
     }).then(res => {
         container.classList.remove('loading');
         if (!res.ok) throw new Error(`Error en /respuesta: ${res.statusText}`);
@@ -579,40 +583,6 @@ const sendMessage = () => {
     });
 };
 
-const cargarAnalytics = () => {
-    // Nota: Requiere un elemento #analytics-container en el HTML para funcionar
-    fetch('/analytics?usuario=anonimo', { cache: 'no-store' })
-        .then(res => {
-            if (!res.ok) throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
-            return res.json();
-        })
-        .then(data => {
-            const container = getElement('#analytics-container');
-            if (!container) {
-                console.error('Elemento #analytics-container no encontrado');
-                return;
-            }
-            if (!Array.isArray(data)) {
-                console.error('Error al cargar analytics: data no es un arreglo', data);
-                mostrarNotificacion('No se pudieron cargar las estadísticas. Intenta de nuevo.', 'error');
-                container.innerHTML = '<p>No hay estadísticas disponibles.</p>';
-                return;
-            }
-            container.innerHTML = data.map(item => `
-                <div class="progress-bar">
-                    <span>${item.tema}: ${Math.round(item.tasa_acierto * 100)}%</span>
-                    <div class="bar" style="width: ${item.tasa_acierto * 100}%"></div>
-                </div>
-            `).join('');
-        })
-        .catch(error => {
-            console.error('Error al cargar analytics:', error);
-            mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
-            const container = getElement('#analytics-container');
-            if (container) container.innerHTML = '<p>Error al cargar estadísticas.</p>';
-        });
-};
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         input: getElement('#input'),
@@ -631,19 +601,16 @@ document.addEventListener('DOMContentLoaded', () => {
         recommendBtn: getElement('#recommend-btn'),
         menuToggle: getElement('.menu-toggle'),
         menuToggleRight: getElement('.menu-toggle-right'),
-        quizBtn: getElement('#quiz-btn'),
-        nivelBtns: getElements('.nivel-btn'),
-        tabButtons: getElements('.tab-btn')
+        quizBtn: getElement('#quiz-btn')
     };
 
     Object.entries(elements).forEach(([key, value]) => {
-        if (!value && key !== 'tabButtons' && key !== 'nivelBtns') console.warn(`Elemento ${key} no encontrado en el DOM`);
+        if (!value) console.warn(`Elemento ${key} no encontrado en el DOM`);
     });
 
     cargarAvatares();
     actualizarListaChats();
     cargarConversacionActual();
-    // cargarAnalytics(); // Descomentar si se agrega #analytics-container al HTML
 
     if (elements.input && elements.chatbox) {
         elements.input.addEventListener('input', () => {
@@ -671,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const windowHeight = window.innerHeight;
             const keyboardHeight = windowHeight - viewportHeight;
             elements.chatbox.style.height = `${viewportHeight - 100}px`;
-            elements.chatbox.style.paddingBottom = `${Math.max(250, keyboardHeight + 50)}px`;
+            elements.chatbox.style.paddingBottom = `${Math.max(150, keyboardHeight + 50)}px`;
             scrollToBottom();
         });
     }
@@ -723,33 +690,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).catch(error => {
                     mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
                 });
-        });
-    }
-
-    if (elements.tabButtons) {
-        elements.tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                elements.tabButtons.forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-selected', 'false');
-                });
-                btn.classList.add('active');
-                btn.setAttribute('aria-selected', 'true');
-                getElements('.tab-content > div').forEach(div => div.classList.remove('active'));
-                getElement(`.${btn.dataset.tab}`).classList.add('active');
-            });
-        });
-    }
-
-    if (elements.nivelBtns) {
-        elements.nivelBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const nivel = btn.dataset.nivel;
-                document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
-                elements.nivelBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                mostrarNotificacion(`Nivel cambiado a ${nivel}`, 'success');
-            });
         });
     }
 
