@@ -313,7 +313,7 @@ body {
     border-color: var(--accent);
 }
 
-#new-chat-btn, #btn-clear, #send-btn, #voice-toggle-btn, #speech-toggle-btn {
+#new-chat-btn, #btn-clear, #send-btn, #voice-toggle-btn {
     background-color: var(--button-bg);
     color: var(--button-text);
     border: none;
@@ -324,7 +324,7 @@ body {
     transition: background-color 0.2s;
 }
 
-#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover, #speech-toggle-btn:hover {
+#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover {
     background-color: var(--button-hover);
 }
 
@@ -339,10 +339,6 @@ body {
 
 #voice-toggle-btn.voice-active i {
     content: "\f131"; /* fa-microphone-slash cuando activo */
-}
-
-#speech-toggle-btn.speech-paused i {
-    content: "\f144"; /* fa-play cuando pausado */
 }
 
 /* Right Section: Avatar Selection */
@@ -658,6 +654,7 @@ body {
         max-width: none;
     }
 }
+
 /* Añadir al final de style.css para mejorar tooltips en móviles */
 @media (max-width: 768px) {
     .custom-tooltip {
@@ -666,15 +663,4 @@ body {
         max-width: 200px; /* Evitar desborde */
         white-space: normal; /* Permitir texto multilínea */
     }
-}/* Animación para el cambio de ícono en #speech-toggle-btn */
-#speech-toggle-btn i {
-    transition: transform 0.3s ease, opacity 0.3s ease;
-}
-#speech-toggle-btn.speech-paused i {
-    transform: scale(1.1);
-    opacity: 0.8;
-}
-#speech-toggle-btn:not(.speech-paused) i {
-    transform: scale(1);
-    opacity: 1;
 }
