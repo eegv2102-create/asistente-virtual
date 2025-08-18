@@ -6,53 +6,30 @@ import logging
 import socket
 import webbrowser
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from fuzzywuzzy import process
-from functools import lru_cache
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from gtts import gTTS
-import io
 from dotenv import load_dotenv
 from groq import Groq
 import psycopg2
 from psycopg2 import Error as PsycopgError
 import httpx
 import bleach
+from gtts import gTTS
+import io
 
-# Cargar variables de entorno
-load_dotenv()
-
+# Configuración básica
 app = Flask(__name__)
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Configuración de logging optimizada para Render
-logging.basicConfig(
-    filename='app.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-# Funciones de respaldo para nlp.py
+# Cargar temas.json
 try:
-    from nlp import buscar_respuesta, classify_intent, normalize
-except ImportError as e:
-    logging.error(f"No se pudo importar nlp.py: {str(e)}")
-    def buscar_respuesta(pregunta, k=3):
-        logging.warning("Usando buscar_respuesta de respaldo")
-        return []
-    def classify_intent(pregunta):
-        logging.warning("Usando classify_intent de respaldo")
-        if any(word in pregunta.lower() for word in ["hola", "saludos"]):
-            return "saludo"
-        if "quiz" in pregunta.lower():
-            return "quiz"
-        return "definicion"
-    def normalize(pregunta):
-        logging.warning("Usando normalize de respaldo")
-        return pregunta.lower()
+    with open("temas.json", "r", encoding="utf-8") as f:
+        temas = json.load(f)
+    logging.info("Temas cargados: %s", list(temas.keys()))
+except Exception as e:
+    logging.error(f"Error cargando temas.json: {str(e)}")
+    temas = {}
 
-# Rate limiting ajustado para Render
-limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])
-
+# Inicializar base de datos
 def init_db():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -75,46 +52,7 @@ def init_db():
         return False
     return True
 
-# Cargar temas.json y prerequisitos.json
-try:
-    with open("temas.json", "r", encoding="utf-8") as f:
-        temas = json.load(f)
-    logging.info("Temas cargados: %s", list(temas.keys()))
-except (FileNotFoundError, json.JSONDecodeError) as e:
-    logging.error(f"Error cargando temas.json: {str(e)}")
-    temas = {
-        "poo": {"basico": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento."},
-        "patrones de diseño": {"basico": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software."},
-        "multihilos": {"basico": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento."},
-        "mvc": {"basico": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."}
-    }
-    logging.warning("Usando temas por defecto")
-
-try:
-    with open("prerequisitos.json", "r", encoding="utf-8") as f:
-        prerequisitos = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError) as e:
-    logging.error(f"Error cargando prerequisitos.json: {str(e)}")
-    prerequisitos = {
-        "herencia": ["poo", "clases y objetos"],
-        "polimorfismo": ["poo", "clases y objetos", "herencia"],
-        "singleton": ["poo", "clases y objetos"],
-        "factory": ["poo", "clases y objetos"],
-        "observer": ["poo", "clases y objetos"],
-        "clases abstractas": ["poo", "clases y objetos", "herencia"],
-        "interfaces": ["poo", "clases y objetos", "herencia", "polimorfismo"],
-        "uml": ["poo", "clases y objetos"],
-        "patrones de diseno": ["poo", "clases y objetos", "herencia", "polimorfismo"],
-        "mvc": ["poo", "clases y objetos", "uml", "interfaces"],
-        "archivos": ["poo", "clases y objetos"],
-        "bases de datos": ["base de datos", "comandos sql ddl"],
-        "pruebas": ["poo", "clases y objetos"],
-        "comandos sql ddl": ["base de datos"],
-        "comandos sql mdl": ["base de datos", "comandos sql ddl"]
-    }
-    logging.warning("Usando prerequisitos por defecto")
-
-@lru_cache(maxsize=128)
+# Cache para progreso
 def cargar_progreso(usuario):
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -143,37 +81,39 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
         logging.error(f"Error al guardar progreso: {str(e)}")
 
 def buscar_respuesta_app(pregunta, usuario):
-    logging.info(f"Buscando respuesta para pregunta: {pregunta} (usuario: {usuario})")
-    # Primero, busca en el conocimiento local
-    results = buscar_respuesta(pregunta)
-    if results:
-        logging.info(f"Respuesta encontrada localmente: {results[0][1]}")
-        return results[0][1]  # Devuelve la mejor coincidencia local
-
-    # Si no encuentra, usa Groq con Llama 3
+    logging.info(f"Procesando pregunta: {pregunta} (usuario: {usuario})")
     try:
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=httpx.Timeout(30.0))
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",  # O usa "llama3-70b-8192" para más precisión
+            model="llama3-70b-8192",
             messages=[
-                {"role": "system", "content": "Eres un asistente experto en programación avanzada. Usa este conocimiento base para responder: " + json.dumps(temas)},
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres un asistente experto en programación avanzada para estudiantes de Telemática. "
+                        "Responde en español con explicaciones claras, concisas y educativas, incluyendo ejemplos de código en Java o Python. "
+                        "Enfócate en temas como POO, UML, MVC, patrones de diseño, bases de datos relacionales, ORM, y pruebas unitarias. "
+                        "Si la pregunta es ambigua, pide aclaraciones. Si es un saludo, responde amigablemente y sugiere un tema. "
+                        f"Contexto: {json.dumps(temas)}"
+                    )
+                },
                 {"role": "user", "content": pregunta}
             ],
-            max_tokens=200
+            max_tokens=500,
+            temperature=0.5
         )
         respuesta = completion.choices[0].message.content.strip()
         logging.info(f"Respuesta de Groq: {respuesta}")
         return respuesta
     except Exception as e:
         logging.error(f"Error en Groq: {str(e)}")
-        return "Lo siento, no pude generar una respuesta con la API de Groq. Intenta de nuevo."
+        return "Lo siento, hubo un error al procesar tu pregunta. Intenta de nuevo."
 
-# Ruta para favicon
+# Rutas
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
-# Ruta principal
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -189,15 +129,11 @@ def respuesta():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta").strip()[:300])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        nivel = bleach.clean(data.get("nivel", "basico")[:50])
-        max_length = min(int(data.get("max_length", 200)), 500)
 
         if not pregunta:
             logging.error("Pregunta vacía recibida")
             return jsonify({"error": "La pregunta no puede estar vacía"}), 400
 
-        logging.info(f"Procesando pregunta: {pregunta} (usuario: {usuario}, nivel: {nivel})")
-        progreso = cargar_progreso(usuario)
         respuesta_text = buscar_respuesta_app(pregunta, usuario)
         avatar = None
         try:
@@ -209,7 +145,6 @@ def respuesta():
         except PsycopgError as e:
             logging.error(f"Error al consultar tabla avatars: {str(e)}")
 
-        # Guardar en logs
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
             c = conn.cursor()
@@ -255,19 +190,22 @@ def avatars():
 @app.route("/quiz", methods=["GET"])
 def quiz():
     usuario = request.args.get("usuario", "anonimo")
-    nivel = request.args.get("nivel", "basico")
     temas_disponibles = list(temas.keys())
     tema = random.choice(temas_disponibles)
-    pregunta = f"¿Qué es {tema} en el contexto de programación?"
+    nivel = random.choice(["basico", "intermedio", "avanzado"])
+    pregunta = f"¿Qué es {tema} ({nivel}) en el contexto de programación avanzada?"
     opciones = [temas[tema][nivel]]
     for _ in range(3):
         otro_tema = random.choice(temas_disponibles)
-        while otro_tema == tema:
+        otro_nivel = random.choice(["basico", "intermedio", "avanzado"])
+        while otro_tema == tema and otro_nivel == nivel:
             otro_tema = random.choice(temas_disponibles)
-        opciones.append(temas[otro_tema][nivel])
+            otro_nivel = random.choice(["basico", "intermedio", "avanzado"])
+        opciones.append(temas[otro_tema][otro_nivel])
     random.shuffle(opciones)
     response_data = {
         "tema": tema,
+        "nivel": nivel,
         "pregunta": pregunta,
         "opciones": opciones,
         "respuesta_correcta": temas[tema][nivel]
@@ -330,36 +268,6 @@ def recommend():
     recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
     logging.info(f"Recomendación para {usuario}: {recomendacion}")
     return jsonify({"recomendacion": recomendacion})
-
-@app.route("/analytics", methods=["GET"])
-def analytics():
-    usuario = request.args.get("usuario", "anonimo")
-    # Dummy data para evitar 404; expande con lógica real si necesitas
-    data = [
-        {"tema": "POO", "tasa_acierto": 0.8},
-        {"tema": "MVC", "tasa_acierto": 0.6}
-    ]
-    logging.info(f"Analytics devueltos para {usuario}: {data}")
-    return jsonify(data)
-
-@app.route("/aprender", methods=["POST"])
-def aprender():
-    try:
-        data = request.get_json()
-        pregunta = bleach.clean(data.get("pregunta", "")[:500])
-        respuesta = bleach.clean(data.get("respuesta", "")[:2000])
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        
-        if not pregunta or not respuesta:
-            logging.error("Pregunta o respuesta vacía en /aprender")
-            return jsonify({"error": "Pregunta y respuesta son requeridas"}), 400
-        
-        # Aquí podrías añadir lógica para guardar en temas.json o base de datos
-        logging.info(f"Conocimiento aprendido: {pregunta} -> {respuesta} (usuario: {usuario})")
-        return jsonify({"message": "Conocimiento aprendido con éxito"})
-    except Exception as e:
-        logging.error(f"Error en /aprender: {str(e)}")
-        return jsonify({"error": f"Error al aprender: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()
