@@ -16,7 +16,6 @@
     --button-text: #ffffff;
     --button-hover: #16a085;
 }
-
 body.modo-oscuro {
     --bg-primary: #1a1a1a;
     --bg-secondary: #2c2c2c;
@@ -42,21 +41,34 @@ body.modo-oscuro {
     box-sizing: border-box;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-
 body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     display: flex;
-    justify-content: center;
+    flex-direction: column; /* Cambiado para apilar título y contenedor verticalmente */
     align-items: center;
     min-height: 100vh;
     padding: 16px;
     transition: background-color 0.3s, color 0.3s;
 }
 
+/* Centrar el título arriba de todo */
+.app-title {
+    text-align: center;
+    font-size: 1.8rem;
+    margin: 20px 0;
+    color: var(--text-primary);
+    width: 100%;
+    max-width: 1280px; /* Igual al max-width del contenedor */
+    position: relative;
+    z-index: 1000;
+    display: block; /* Asegura que el título ocupe todo el ancho */
+}
+
 /* Main Layout */
 .container {
     display: flex;
+    justify-content: space-between;
     width: 100%;
     max-width: 1280px;
     height: 85vh;
@@ -76,7 +88,6 @@ body {
     border-right: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
 }
-
 .left-section h3 {
     font-size: 1.1rem;
     font-weight: 600;
@@ -84,19 +95,16 @@ body {
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
 }
-
 .sidebar-content {
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
-
 .sidebar-buttons {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
-
 #modo-btn, #voice-btn, #quiz-btn, #recommend-btn {
     background: none;
     border: 1px solid var(--border);
@@ -107,22 +115,18 @@ body {
     font-size: 1rem;
     transition: background-color 0.2s, color 0.2s;
 }
-
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover {
     background-color: var(--accent);
     color: var(--button-text);
 }
-
 .chat-history {
     flex: 1;
     overflow-y: auto; /* Scroll independiente para historial */
     max-height: calc(100% - 150px); /* Ajusta según el espacio de botones */
 }
-
 #chat-list {
     list-style: none;
 }
-
 #chat-list li {
     padding: 10px 12px;
     cursor: pointer;
@@ -134,18 +138,16 @@ body {
     justify-content: space-between;
     align-items: center;
 }
-
 #chat-list li:hover {
     background-color: var(--accent);
     color: var(--button-text);
 }
-
 #chat-list li.selected {
     background-color: var(--accent);
     color: var(--button-text);
 }
 
-/* Estilos para tooltips personalizados (ya en JS, pero agregamos estilos aquí) */
+/* Estilos para tooltips personalizados */
 .custom-tooltip {
     position: absolute;
     background-color: var(--bg-secondary);
@@ -156,15 +158,15 @@ body {
     z-index: 1000;
     pointer-events: none;
     transition: opacity 0.2s;
+    white-space: nowrap;
 }
 
-/* Resto del CSS sin cambios (main-section, input-group, right-section, notification-card, quiz-modal, etc.) */
+/* Main Section */
 .main-section {
     flex: 1;
     display: flex;
     flex-direction: column;
 }
-
 #chatbox {
     flex: 1;
     padding: 16px;
@@ -172,13 +174,11 @@ body {
     background-color: var(--bg-secondary);
     transition: background-color 0.3s;
 }
-
 .message-container {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-
 .user {
     align-self: flex-end;
     background-color: var(--message-user-bg);
@@ -189,7 +189,6 @@ body {
     word-wrap: break-word;
     font-size: 0.95rem;
 }
-
 .bot {
     align-self: flex-start;
     background-color: var(--message-bot-bg);
@@ -201,7 +200,6 @@ body {
     font-size: 0.95rem;
     position: relative;
 }
-
 .copy-btn {
     background: none;
     border: none;
@@ -211,11 +209,9 @@ body {
     font-size: 0.9rem;
     transition: color 0.2s;
 }
-
 .copy-btn:hover {
     color: var(--accent);
 }
-
 .input-group {
     display: flex;
     padding: 12px;
@@ -224,12 +220,10 @@ body {
     transition: background-color 0.3s, border-color 0.3s;
     align-items: center;
 }
-
 .input-buttons.left, .input-buttons.right {
     display: flex;
     gap: 8px;
 }
-
 #input {
     flex: 1;
     padding: 10px 16px;
@@ -241,12 +235,10 @@ body {
     color: var(--text-primary);
     transition: border-color 0.3s, background-color 0.3s, color 0.3s;
 }
-
 #input:focus {
     outline: none;
     border-color: var(--accent);
 }
-
 #new-chat-btn, #btn-clear, #send-btn, #btn-start-voice, #btn-stop-voice, #btn-pause-speech, #btn-resume-speech {
     background-color: var(--button-bg);
     color: var(--button-text);
@@ -257,20 +249,16 @@ body {
     font-size: 0.95rem;
     transition: background-color 0.2s;
 }
-
 #new-chat-btn:hover, #send-btn:hover, #btn-start-voice:hover, #btn-stop-voice:hover, #btn-pause-speech:hover, #btn-resume-speech:hover {
     background-color: var(--button-hover);
 }
-
 #btn-clear {
     background-color: #e74c3c;
     color: #ffffff;
 }
-
 #btn-clear:hover {
     background-color: #c0392b;
 }
-
 #btn-stop-voice:disabled, #btn-pause-speech:disabled, #btn-resume-speech:disabled {
     background-color: var(--border);
     color: var(--text-secondary);
@@ -287,7 +275,6 @@ body {
     border-left: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
 }
-
 .right-section h3 {
     font-size: 1.1rem;
     font-weight: 600;
@@ -295,19 +282,16 @@ body {
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
 }
-
 .right-section p {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: 16px;
 }
-
 .avatar-options {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-
 .avatar-options div {
     padding: 10px;
     border-radius: 8px;
@@ -315,12 +299,10 @@ body {
     border: 2px solid transparent;
     transition: border 0.2s, background-color 0.2s;
 }
-
 .avatar-options div:hover {
     background-color: var(--accent);
     color: var(--button-text);
 }
-
 .avatar-options div.selected {
     border: 2px solid var(--accent);
 }
@@ -338,20 +320,16 @@ body {
     display: none;
     transition: opacity 0.3s;
 }
-
 #notification-card.active {
     display: block;
     opacity: 1;
 }
-
 #notification-card.info {
     border-left: 4px solid var(--accent);
 }
-
 #notification-card.success {
     border-left: 4px solid #2ecc71;
 }
-
 #notification-card.error {
     border-left: 4px solid #e74c3c;
 }
@@ -369,7 +347,6 @@ body {
     align-items: center;
     z-index: 1000;
 }
-
 .modal-content {
     background-color: var(--bg-primary);
     padding: 20px;
@@ -379,20 +356,17 @@ body {
     box-shadow: 0 4px 16px var(--shadow);
     transition: background-color 0.3s;
 }
-
 #quiz-question {
     font-size: 1.2rem;
     font-weight: 600;
     margin-bottom: 16px;
 }
-
 #quiz-options {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin-bottom: 16px;
 }
-
 .quiz-option {
     background-color: var(--bg-primary);
     color: var(--text-primary);
@@ -402,23 +376,19 @@ body {
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
 }
-
 .quiz-option:hover {
     background-color: var(--accent);
     color: var(--button-text);
 }
-
 .quiz-option.selected {
     background-color: var(--accent);
     color: var(--button-text);
 }
-
 .modal-buttons {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
 }
-
 #quiz-submit, .modal-buttons button {
     padding: 8px 16px;
     border: none;
@@ -427,21 +397,17 @@ body {
     font-size: 0.95rem;
     transition: background-color 0.2s;
 }
-
 #quiz-submit {
     background-color: var(--button-bg);
     color: var(--button-text);
 }
-
 #quiz-submit:hover {
     background-color: var(--button-hover);
 }
-
 .modal-buttons button {
     background-color: #e74c3c;
     color: #ffffff;
 }
-
 .modal-buttons button:hover {
     background-color: #c0392b;
 }
@@ -463,13 +429,11 @@ body {
         width: 200px;
     }
 }
-
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
         height: auto;
     }
-
     .left-section, .right-section {
         width: 100%;
         height: auto;
@@ -478,42 +442,32 @@ body {
         transform: translateY(-100%);
         z-index: 1000;
     }
-
     .left-section.active {
         transform: translateY(0);
         border-bottom: 1px solid var(--border);
     }
-
     .right-section.active {
         transform: translateY(0);
         border-bottom: 1px solid var(--border);
     }
-
     .main-section {
         min-height: 80vh;
     }
-
     .menu-toggle, .menu-toggle-right {
         display: block;
         position: fixed;
         top: 12px;
         z-index: 1100;
     }
-
     .menu-toggle {
         left: 12px;
     }
-
     .menu-toggle-right {
         right: 12px;
     }
-}
-/* Título de la app */
-.app-title {
-    text-align: center;
-    font-size: 1.5rem;
-    margin: 10px 0;
-    color: var(--text-primary);
+    .app-title {
+        margin-top: 50px; /* Espacio para evitar solapamiento con los toggles */
+    }
 }
 
 /* Iconos en mensajes */
@@ -522,7 +476,6 @@ body {
     font-family: "Font Awesome 5 Free";
     margin-right: 8px;
 }
-
 .bot:before {
     content: "\f4e6"; /* fa-robot */
     font-family: "Font Awesome 5 Free";
@@ -534,7 +487,6 @@ body {
     display: flex;
     gap: 5px;
 }
-
 .rename-btn, .delete-btn {
     background: none;
     border: none;
@@ -543,21 +495,6 @@ body {
     font-size: 0.9rem;
     transition: color 0.2s;
 }
-
 .rename-btn:hover, .delete-btn:hover {
     color: var(--accent);
-}
-
-/* Tooltips mejorados */
-.custom-tooltip {
-    position: absolute;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    padding: 5px 10px;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px var(--shadow);
-    z-index: 1000;
-    pointer-events: none;
-    transition: opacity 0.2s;
-    white-space: nowrap;
 }
