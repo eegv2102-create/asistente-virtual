@@ -48,18 +48,19 @@ body {
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
-    padding: 16px;
+    padding: 10px;
     transition: background-color 0.3s, color 0.3s;
+    overflow-x: hidden; /* Evita barra horizontal */
 }
 
 /* Centrar el título arriba de todo */
 .app-title {
     text-align: center;
     font-size: 1.8rem;
-    margin: 20px 0;
+    margin: 15px 0;
     color: var(--text-primary);
     width: 100%;
-    max-width: 1280px;
+    max-width: 100%; /* Adaptable a cualquier pantalla */
     position: relative;
     z-index: 1000;
     display: block;
@@ -70,10 +71,10 @@ body {
     display: flex;
     justify-content: space-between;
     width: 100%;
-    max-width: 1280px;
-    height: calc(100vh - 80px); /* Ajustado para dejar espacio al título */
+    max-width: 100%; /* Adaptable a cualquier pantalla */
+    height: calc(100vh - 80px); /* Espacio para título */
     background-color: var(--bg-primary);
-    border-radius: 12px;
+    border-radius: 8px;
     box-shadow: 0 4px 16px var(--shadow);
     overflow: hidden;
 }
@@ -88,6 +89,7 @@ body {
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
     display: flex;
     flex-direction: column;
+    z-index: 1001; /* Por encima del contenido principal */
 }
 .left-section h3 {
     font-size: 1.1rem;
@@ -273,9 +275,9 @@ body {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     padding: 16px;
-    overflow-y: auto;
     border-left: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s, color 0.3s;
+    z-index: 1001;
 }
 .right-section h3 {
     font-size: 1.1rem;
@@ -321,6 +323,7 @@ body {
     box-shadow: 0 2px 8px var(--shadow);
     display: none;
     transition: opacity 0.3s;
+    z-index: 1002;
 }
 #notification-card.active {
     display: block;
@@ -347,14 +350,14 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 1002;
 }
 .modal-content {
     background-color: var(--bg-primary);
     padding: 20px;
     border-radius: 12px;
-    max-width: 500px;
-    width: 90%;
+    max-width: 90%;
+    width: 500px;
     box-shadow: 0 4px 16px var(--shadow);
     transition: background-color 0.3s;
 }
@@ -423,7 +426,7 @@ body {
     font-size: 1.2rem;
     padding: 8px;
     display: none;
-    z-index: 1100;
+    z-index: 1003;
 }
 
 /* Responsive Design */
@@ -449,46 +452,42 @@ body {
     }
     .left-section, .right-section {
         width: 100%;
-        height: auto;
+        height: calc(100vh - 60px); /* Espacio para título */
         position: fixed;
-        top: 60px; /* Espacio para el título */
-        transform: translateX(-100%); /* Oculta por defecto */
-        z-index: 1000;
-        max-height: calc(100vh - 60px); /* Evita que cubra todo */
+        top: 60px;
+        transform: translateX(-100%);
+        z-index: 1001;
         overflow-y: auto;
+        box-shadow: 0 4px 8px var(--shadow);
     }
     .right-section {
-        transform: translateX(100%); /* Oculta a la derecha */
+        transform: translateX(100%);
     }
-    .left-section.active {
+    .left-section.active, .right-section.active {
         transform: translateX(0);
         border-bottom: 1px solid var(--border);
-        box-shadow: 0 4px 8px var(--shadow);
-    }
-    .right-section.active {
-        transform: translateX(0);
-        border-bottom: 1px solid var(--border);
-        box-shadow: 0 4px 8px var(--shadow);
     }
     .main-section {
-        min-height: calc(100vh - 100px); /* Espacio para título y padding */
-        margin-top: 60px; /* Evita que el contenido principal esté detrás del título */
+        min-height: calc(100vh - 100px);
+        margin-top: 60px;
     }
     .menu-toggle, .menu-toggle-right {
         display: block;
         position: fixed;
-        top: 12px;
+        top: 10px;
+        background-color: var(--bg-secondary);
+        border-radius: 8px;
     }
     .menu-toggle {
-        left: 12px;
+        left: 10px;
     }
     .menu-toggle-right {
-        right: 12px;
+        right: 10px;
     }
     .app-title {
         margin-top: 50px;
         font-size: 1.5rem;
-        padding: 0 50px; /* Espacio para los toggles */
+        padding: 0 50px;
         box-sizing: border-box;
     }
 }

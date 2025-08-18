@@ -246,14 +246,30 @@ const guardarMensaje = (pregunta, respuesta, video_url = null) => {
     let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.id && currentConversation.id !== 0) {
         const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-        currentConversation = { id: historial.length, nombre: `Chat ${new Date().toLocaleString()}`, timestamp: Date.now(), mensajes: [] };
-        historial.push({ nombre: currentConversation.nombre, timestamp: currentConversation.timestamp, mensajes: [] });
+        const newId = historial.length;
+        currentConversation = {
+            id: newId,
+            nombre: `Chat ${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
+            timestamp: Date.now(),
+            mensajes: []
+        };
+        historial.push({
+            id: newId,
+            nombre: currentConversation.nombre,
+            timestamp: currentConversation.timestamp,
+            mensajes: []
+        });
         localStorage.setItem('chatHistory', JSON.stringify(historial));
     }
     currentConversation.mensajes.push({ pregunta, respuesta, video_url });
     localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    historial[currentConversation.id].mensajes = currentConversation.mensajes;
+    historial[currentConversation.id] = {
+        id: currentConversation.id,
+        nombre: currentConversation.nombre,
+        timestamp: currentConversation.timestamp,
+        mensajes: currentConversation.mensajes
+    };
     localStorage.setItem('chatHistory', JSON.stringify(historial));
     actualizarListaChats();
 };
@@ -265,19 +281,22 @@ const actualizarListaChats = () => {
         return;
     }
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    if (chatList.children.length === historial.length && !historial.some((chat, i) => chatList.children[i]?.dataset.index != i)) return;
     chatList.innerHTML = '';
     historial.forEach((chat, index) => {
         const li = document.createElement('li');
-        li.innerHTML = `<span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`}</span>
+        li.innerHTML = `<span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
                         <div class="chat-actions">
                             <button class="rename-btn" aria-label="Renombrar"><i class="fas fa-edit"></i></button>
                             <button class="delete-btn" aria-label="Eliminar"><i class="fas fa-trash"></i></button>
                         </div>`;
         li.dataset.index = index;
-        li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`);
+        li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
         chatList.appendChild(li);
-        li.addEventListener('click', e => e.target.tagName !== 'BUTTON' && cargarChat(index));
+        li.addEventListener('click', e => {
+            if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
+                cargarChat(index);
+            }
+        });
         li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
         li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
     });
@@ -327,6 +346,9 @@ const eliminarChat = index => {
     if (currentConversation.id === index) {
         localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
         nuevaConversacion();
+    } else if (currentConversation.id > index) {
+        currentConversation.id -= 1;
+        localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
     }
     actualizarListaChats();
 };
@@ -334,10 +356,21 @@ const eliminarChat = index => {
 const nuevaConversacion = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (container) container.innerHTML = '';
     const input = getElement('#input');
+    if (container) container.innerHTML = '';
     if (input) input.value = '';
-    localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
+    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    const newId = historial.length;
+    const newConversation = {
+        id: newId,
+        nombre: `Chat ${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
+        timestamp: Date.now(),
+        mensajes: []
+    };
+    historial.push(newConversation);
+    localStorage.setItem('chatHistory', JSON.stringify(historial));
+    localStorage.setItem('currentConversation', JSON.stringify(newConversation));
+    actualizarListaChats();
     mostrarNotificacion('Nuevo chat creado', 'success');
     scrollToBottom();
 };
@@ -358,7 +391,6 @@ const cargarConversacionActual = () => {
 };
 
 const exportarTxt = () => {
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.mensajes.length) {
         mostrarNotificacion('No hay mensajes para exportar', 'error');
@@ -369,14 +401,13 @@ const exportarTxt = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chat_${new Date().toLocaleString().replace(/[,:/]/g, '-')}.txt`;
+    a.download = `chat_${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' }).replace(/[,:/]/g, '-')}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     mostrarNotificacion('Chat exportado a TXT', 'success');
 };
 
 const exportarPdf = () => {
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.mensajes.length) {
         mostrarNotificacion('No hay mensajes para exportar', 'error');
@@ -396,7 +427,7 @@ const exportarPdf = () => {
             y = 10;
         }
     });
-    doc.save(`chat_${new Date().toLocaleString().replace(/[,:/]/g, '-')}.pdf`);
+    doc.save(`chat_${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' }).replace(/[,:/]/g, '-')}.pdf`);
     mostrarNotificacion('Chat exportado a PDF', 'success');
 };
 
@@ -433,14 +464,6 @@ const sendMessage = () => {
     container.appendChild(userDiv);
     scrollToBottom();
 
-    // Verificar si marked está definido
-    if (typeof marked === 'undefined') {
-        console.error('Librería marked no está definida');
-        mostrarNotificacion('Error: No se pudo cargar la librería marked. Intenta recargar la página.', 'error');
-        container.classList.remove('loading');
-        return;
-    }
-
     fetch('/respuesta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -461,7 +484,7 @@ const sendMessage = () => {
                 reader.read().then(({ done, value }) => {
                     if (done) {
                         botDiv.classList.remove('typing');
-                        botDiv.innerHTML = marked.parse(respuesta) + `<button class="copy-btn" data-text="${respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+                        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuesta) : respuesta) + `<button class="copy-btn" data-text="${respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                         if (window.Prism) Prism.highlightAllUnder(botDiv);
                         speakText(respuesta);
                         guardarMensaje(pregunta, respuesta);
@@ -471,7 +494,7 @@ const sendMessage = () => {
                     }
                     const chunk = decoder.decode(value);
                     respuesta += chunk;
-                    botDiv.innerHTML = marked.parse(respuesta);
+                    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuesta) : respuesta);
                     scrollToBottom();
                     read();
                 }).catch(error => {
@@ -489,7 +512,7 @@ const sendMessage = () => {
                 } else {
                     const botDiv = document.createElement('div');
                     botDiv.classList.add('bot');
-                    let respuestaHtml = marked.parse(data.respuesta);
+                    let respuestaHtml = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta);
                     if (data.sugerencias?.length) {
                         respuestaHtml += `<div class="suggestions"><strong>¿Qué más quieres saber?</strong> ${data.sugerencias.map(tema => `<a href="#" onclick="document.querySelector('#input').value='${tema}'; sendMessage(); return false;">${tema}</a>`).join('')}</div>`;
                     }
@@ -540,7 +563,7 @@ const buscarTema = () => {
             } else {
                 const botDiv = document.createElement('div');
                 botDiv.classList.add('bot');
-                let respuestaHtml = marked.parse(data.respuesta);
+                let respuestaHtml = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta);
                 if (data.sugerencias?.length) {
                     respuestaHtml += `<div class="suggestions"><strong>¿Qué más quieres saber?</strong> ${data.sugerencias.map(tema => `<a href="#" onclick="document.querySelector('#input').value='${tema}'; sendMessage(); return false;">${tema}</a>`).join('')}</div>`;
                 }
@@ -624,12 +647,10 @@ const cargarAnalytics = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificar si marked está cargado al inicio
+    // Verificar si marked está cargado
     if (typeof marked === 'undefined') {
-        console.error('Librería marked no está definida al cargar la página');
-        mostrarNotificacion('Error: No se pudo cargar la librería marked. Intenta recargar la página.', 'error');
-    } else {
-        console.log('Librería marked cargada correctamente');
+        console.warn('Librería marked no está definida, usando texto plano');
+        mostrarNotificacion('Advertencia: No se pudo cargar la librería marked. Las respuestas se mostrarán en texto plano.', 'info');
     }
 
     const elements = {
@@ -678,12 +699,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const container = elements.chatbox?.querySelector('.message-container');
-    if (container && elements.chatbox) {
-        const observer = new MutationObserver(() => {
-            scrollToBottom();
-        });
-        observer.observe(container, { childList: true, subtree: true });
+    if (elements.chatbox) {
+        const container = elements.chatbox.querySelector('.message-container');
+        if (container) {
+            const observer = new MutationObserver(() => {
+                scrollToBottom();
+            });
+            observer.observe(container, { childList: true, subtree: true });
+        }
     }
 
     if (window.visualViewport && elements.chatbox) {
@@ -807,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.nivelBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const nivel = btn.dataset.nivel;
-                document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-claro') ? 'modo-claro' : ''}`;
+                document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-oscuro') ? 'modo-oscuro' : ''}`;
                 elements.nivelBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 mostrarNotificacion(`Nivel cambiado a ${nivel}`, 'success');
@@ -817,9 +840,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (elements.modoBtn) {
         elements.modoBtn.addEventListener('click', () => {
-            document.body.classList.toggle('modo-claro');
-            const modo = document.body.classList.contains('modo-claro') ? 'Claro' : 'Oscuro';
+            document.body.classList.toggle('modo-oscuro');
+            const modo = document.body.classList.contains('modo-oscuro') ? 'Oscuro' : 'Claro';
             elements.modoBtn.innerHTML = `<i class="fas fa-${modo === 'Claro' ? 'moon' : 'sun'}"></i>`;
+            localStorage.setItem('theme', modo.toLowerCase());
             mostrarNotificacion(`Modo ${modo} activado`, 'success');
         });
     }
@@ -891,10 +915,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggleLeftMenu = (e) => {
             e.preventDefault();
             const leftSection = getElement('.left-section');
+            const rightSection = getElement('.right-section');
             if (leftSection) {
                 leftSection.classList.toggle('active');
                 elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                const rightSection = getElement('.right-section');
                 if (rightSection && rightSection.classList.contains('active')) {
                     rightSection.classList.remove('active');
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
@@ -905,10 +929,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggleRightMenu = (e) => {
             e.preventDefault();
             const rightSection = getElement('.right-section');
+            const leftSection = getElement('.left-section');
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                const leftSection = getElement('.left-section');
                 if (leftSection && leftSection.classList.contains('active')) {
                     leftSection.classList.remove('active');
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
@@ -931,14 +955,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     !leftSection.contains(e.target) &&
                     !menuToggle.contains(e.target)) {
                     leftSection.classList.remove('active');
-                    leftSection.style.transform = 'translateX(-100%)';
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
                 if (rightSection && rightSection.classList.contains('active') &&
                     !rightSection.contains(e.target) &&
                     !menuToggleRight.contains(e.target)) {
                     rightSection.classList.remove('active');
-                    rightSection.style.transform = 'translateX(100%)';
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
@@ -980,8 +1002,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     getElement('#nuevaRespuesta').value = '';
                     getElement('#aprendizajeCard')?.classList.remove('active');
                 }
-            })
-            .catch(error => {
+            }).catch(error => {
                 mostrarNotificacion(`Error al aprender: ${error.message}`, 'error');
                 console.error('Error en fetch /aprender:', error);
             });
@@ -1006,6 +1027,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Inicializar tema según preferencia guardada
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'oscuro') {
+        document.body.classList.add('modo-oscuro');
+        elements.modoBtn.innerHTML = `<i class="fas fa-sun"></i>`;
+    } else {
+        document.body.classList.remove('modo-oscuro');
+        elements.modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
+    }
+
+    // Tooltips para botones
     document.querySelectorAll('.left-section button, .nivel-btn').forEach(btn => {
         const tooltipText = btn.dataset.tooltip;
         if (!tooltipText) return;
