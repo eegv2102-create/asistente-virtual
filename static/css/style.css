@@ -71,7 +71,7 @@ body {
     width: 100%;
     max-width: 100%;
     position: relative;
-    z-index: 500;
+    z-index: 200;
 }
 
 /* Main Layout */
