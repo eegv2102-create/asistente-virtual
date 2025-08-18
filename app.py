@@ -1,3 +1,4 @@
+# app.py (Modificado para soportar nuevos endpoints, niveles, y respuestas con Groq diferenciadas por nivel)
 import time
 import json
 import os
@@ -27,7 +28,7 @@ app = Flask(__name__)
 # Configuración de logging optimizada para Render
 logging.basicConfig(
     filename='app.log',
-    level=logging.INFO,  # Reducido a INFO para menos ruido en logs
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -36,7 +37,7 @@ try:
     from nlp import buscar_respuesta, classify_intent, normalize
 except ImportError as e:
     logging.error(f"No se pudo importar nlp.py: {str(e)}")
-    def buscar_respuesta(pregunta, k=3):
+    def buscar_respuesta(pregunta, k=3, nivel="basico"):
         logging.warning("Usando buscar_respuesta de respaldo")
         return []
     def classify_intent(pregunta):
@@ -53,13 +54,12 @@ except ImportError as e:
         return pregunta.lower()
 
 # Rate limiting ajustado para Render
-limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])  # Aumentado para mayor flexibilidad
+limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"])
 
 def init_db():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        # Cambiar nivel predeterminado a 'basico'
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', nivel TEXT DEFAULT 'basico', avatar_id TEXT DEFAULT 'default')''')
         c.execute('''CREATE TABLE IF NOT EXISTS aprendizaje
@@ -69,9 +69,11 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", "/static/animations/default.json"))
+                  ("default", "Avatar Predeterminado", "", ""))  # Dejamos URL en blanco para D-ID
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("poo", "POO Avatar", "/static/img/poo.png", "/static/animations/poo.json"))
+                  ("poo", "POO Avatar", "", ""))
+        c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                  ("advanced", "Avanzado Avatar", "", ""))
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('''CREATE TABLE IF NOT EXISTS progreso_tema
@@ -105,12 +107,7 @@ try:
     logging.info("Temas cargados: %s", list(temas.keys()))
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logging.error(f"Error cargando temas.json: {str(e)}")
-    temas = {
-        "poo": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento.",
-        "patrones de diseño": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software.",
-        "multihilos": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento.",
-        "mvc": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."
-    }
+    temas = temas_dict  # Usar el dict de nlp.py
     logging.warning("Usando temas por defecto")
 
 try:
@@ -150,7 +147,7 @@ def cargar_progreso(usuario):
         conn.close()
         if row:
             return {"puntos": row[0], "temas_aprendidos": row[1], "nivel": row[2], "avatar_id": row[3]}
-        return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}  # Default a básico
+        return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}
     except PsycopgError as e:
         logging.error(f"Error al cargar progreso: {str(e)}")
         return {"puntos": 0, "temas_aprendidos": "", "nivel": "basico", "avatar_id": "default"}
@@ -176,215 +173,91 @@ def log_interaccion(usuario, pregunta, respuesta, video_url=None):
                   (usuario, pregunta, respuesta, video_url))
         conn.commit()
         conn.close()
-        logging.debug(f"Interacción registrada: usuario={usuario}, pregunta={pregunta}")
     except PsycopgError as e:
-        logging.error(f"Error logging interaccion: {str(e)}")
+        logging.error(f"Error al loggear interacción: {str(e)}")
 
-FUZZY_THRESHOLD = 75
-MAX_PREGUNTA_LEN = 200
-MAX_RESPUESTA_LEN = 500
-
-SINONIMOS = {
-    "poo": ["programacion orientada a objetos", "oop", "orientada objetos"],
-    "multihilos": ["multithreading", "hilos", "threads", "concurrencia"],
-    "patrones de diseño": ["design patterns", "patrones", "patrones diseño"],
-    "mvc": ["modelo vista controlador", "model view controller", "arquitectura mvc"]
-}
-
-def expandir_pregunta(pregunta):
-    palabras = pregunta.lower().split()
-    expandida = []
-    for palabra in palabras:
-        for clave, sinonimos in SINONIMOS.items():
-            if palabra in sinonimos:
-                expandida.append(clave)
-                break
-        else:
-            expandida.append(palabra)
-    return " ".join(expandida)
-
-def consultar_groq_api(pregunta, nivel, temas_aprendidos):
-    try:
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            logging.error("GROQ_API_KEY no configurado")
-            return "Error: Configura la clave de API de Groq."
-        cache_file = "cache.json"
-        try:
-            with open(cache_file, "r", encoding="utf-8") as f:
-                cache = json.load(f)
-            if f"{pregunta}_{nivel}" in cache:
-                return cache[f"{pregunta}_{nivel}"]
-        except FileNotFoundError:
-            cache = {}
-        client = Groq(api_key=api_key)
-        prompt = f"Eres un tutor de Programación Avanzada para Telemática (sílabo: POO, herencia, polimorfismo, UML, MVC, SQL). El usuario está en nivel {nivel} y ha aprendido {temas_aprendidos or 'ningún tema aún'}. Responde a: '{pregunta}' con una explicación breve, ejemplo en Java si aplica, y sugiere un quiz si es relevante."
-        completion = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=150,  # Reducido para optimizar en Render
-            temperature=0.7,
-            stream=False
-        )
-        respuesta = completion.choices[0].message.content.strip()[:MAX_RESPUESTA_LEN]
-        cache[f"{pregunta}_{nivel}"] = respuesta
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(cache, f)
-        return respuesta
-    except Exception as e:
-        logging.error(f"Error en Groq: {str(e)}")
-        return f"Error al consultar la API: {str(e)}. Intenta de nuevo."
-
-def buscar_respuesta_app(pregunta, usuario):
-    try:
-        logging.info(f"Procesando pregunta: {pregunta}, usuario: {usuario}")
-        progreso = cargar_progreso(usuario)
-        nivel = progreso["nivel"]
-        intent = classify_intent(pregunta)
-        aprendizaje = cargar_aprendizaje()
-
-        if intent == "saludo":
-            return "¡Hola! ¿Qué quieres aprender sobre Programación Avanzada?"
-        elif intent == "cambiar_nivel":
-            nuevo_nivel = "basico" if "basico" in pregunta else "intermedio" if "intermedio" in pregunta else "avanzado"
-            guardar_progreso(usuario, progreso["puntos"], progreso["temas_aprendidos"], nuevo_nivel, progreso["avatar_id"])
-            return f"Nivel cambiado a {nuevo_nivel}. ¿Qué tema quieres explorar?"
-        elif intent == "quiz":
-            quiz_data = quiz().get_json()
-            return quiz_data["pregunta"] + " Opciones: " + ", ".join(quiz_data["opciones"])
-
-        expandida = expandir_pregunta(normalize(pregunta))
-        hits = buscar_respuesta(expandida, k=3)
-        if hits and hits[0][2] > 0.5:
-            tema, fragmento, _ = hits[0]
-            if prerequisitos.get(tema):
-                prereqs_pendientes = [p for p in prerequisitos[tema] if cargar_dominio(usuario, p) < 0.6]
-                if prereqs_pendientes:
-                    return f"Primero domina: {', '.join(prereqs_pendientes)}. ¿Quieres empezar con {prereqs_pendientes[0]}?"
-            # Respuesta por nivel desde temas.json
-            respuesta = temas.get(tema, {}).get(nivel, fragmento)
-            if nivel == "basico":
-                respuesta = f"[Básico] {respuesta.split('.')[0]}. Ejemplo: class Ejemplo {{}} ¿Quieres un quiz?"
-            elif nivel == "intermedio":
-                respuesta = f"[Intermedio] {respuesta}. Ejemplo: class Ejemplo {{ void metodo() {{}} }} ¿Más detalles?"
-            else:
-                respuesta = f"[Avanzado] {respuesta}. Pitfalls: optimización. Ref: oracle.com/java. ¿Un caso práctico?"
-            log_interaccion(usuario, pregunta, respuesta)
-            actualizar_dominio(usuario, tema, 0.1)
-            return respuesta
-
-        match = process.extractOne(expandida, aprendizaje.keys())
-        if match and match[1] >= FUZZY_THRESHOLD:
-            return aprendizaje[match[0]]
-        
-        respuesta = consultar_groq_api(pregunta, nivel, progreso["temas_aprendidos"])
-        log_interaccion(usuario, pregunta, respuesta)
-        return respuesta + " ¿Quieres un quiz o más información?"
-    except Exception as e:
-        logging.error(f"Error en buscar_respuesta_app: {str(e)}")
-        return f"Error al procesar la pregunta: {str(e)}"
+def recomendar_tema(usuario):
+    progreso = cargar_progreso(usuario)
+    temas_aprendidos = progreso["temas_aprendidos"].split(",")
+    temas_no_aprendidos = [t for t in temas if t not in temas_aprendidos and all(pr in temas_aprendidos for pr in prerequisitos.get(t, []))]
+    return random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(list(temas.keys()))
 
 def actualizar_dominio(usuario, tema, delta):
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
-        c.execute("INSERT INTO progreso_tema (usuario, tema, dominio, aciertos, fallos) VALUES (%s, %s, %s, %s, %s) "
-                  "ON CONFLICT (usuario, tema) DO UPDATE SET dominio = GREATEST(progreso_tema.dominio + %s, 0), "
-                  "aciertos = progreso_tema.aciertos + %s, fallos = progreso_tema.fallos + %s, "
-                  "ultima_interaccion = CURRENT_TIMESTAMP",
-                  (usuario, tema, delta, 1 if delta > 0 else 0, 1 if delta < 0 else 0, delta, 1 if delta > 0 else 0, 1 if delta < 0 else 0))
+        if delta > 0:
+            c.execute("INSERT INTO progreso_tema (usuario, tema, dominio, aciertos) VALUES (%s, %s, %s, 1) "
+                      "ON CONFLICT (usuario, tema) DO UPDATE SET dominio = progreso_tema.dominio + %s, aciertos = progreso_tema.aciertos + 1, ultima_interaccion = CURRENT_TIMESTAMP",
+                      (usuario, tema, delta, delta))
+        else:
+            c.execute("INSERT INTO progreso_tema (usuario, tema, dominio, fallos) VALUES (%s, %s, %s, 1) "
+                      "ON CONFLICT (usuario, tema) DO UPDATE SET dominio = progreso_tema.dominio + %s, fallos = progreso_tema.fallos + 1, ultima_interaccion = CURRENT_TIMESTAMP",
+                      (usuario, tema, delta, delta))
         conn.commit()
         conn.close()
-        logging.debug(f"Dominio actualizado: usuario={usuario}, tema={tema}, delta={delta}")
     except PsycopgError as e:
-        logging.error(f"Error al actualizar dominio: {str(e)}")
+        logging.error(f"Error actualizando dominio: {str(e)}")
 
-def cargar_dominio(usuario, tema):
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("SELECT dominio FROM progreso_tema WHERE usuario = %s AND tema = %s", (usuario, tema))
-        row = c.fetchone()
-        conn.close()
-        return row[0] if row else 0.0
-    except PsycopgError as e:
-        logging.error(f"Error al cargar dominio: {str(e)}")
-        return 0.0
-
-def recomendar_tema(usuario):
-    try:
-        dominios = {tema: cargar_dominio(usuario, tema) for tema in temas.keys()}
-        if not dominios:
-            return random.choice(list(temas.keys()))
-        tema_bajo = min(dominios, key=dominios.get)
-        if prerequisitos.get(tema_bajo):
-            prereqs_pendientes = [p for p in prerequisitos[tema_bajo] if cargar_dominio(usuario, p) < 0.6]
-            if prereqs_pendientes:
-                return prereqs_pendientes[0]
-        return tema_bajo
-    except Exception as e:
-        logging.error(f"Error en recomendar_tema: {str(e)}")
-        return random.choice(list(temas.keys()))
-
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route("/respuesta", methods=["POST"])
+@app.route("/preguntar", methods=["POST"])
 @limiter.limit("10 per minute")
-def respuesta():
+def preguntar():
     try:
         data = request.get_json()
-        if not data or "pregunta" not in data:
-            return jsonify({"error": "No se proporcionó una pregunta"}), 400
-        pregunta = bleach.clean(data.get("pregunta", "").strip().lower()[:MAX_PREGUNTA_LEN])
+        pregunta = bleach.clean(data.get("pregunta", "").strip()[:500])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        
         if not pregunta:
-            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
-
+            return jsonify({"respuesta": "Por favor, ingresa una pregunta válida."})
         progreso = cargar_progreso(usuario)
-        respuesta_text = buscar_respuesta_app(pregunta, usuario)
-        # Manejo de avatar con respaldo
-        avatar = None
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-            c = conn.cursor()
-            c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
-            avatar = c.fetchone()
-            conn.close()
-        except PsycopgError as e:
-            logging.error(f"Error al consultar tabla avatars: {str(e)}")
-            if "relation \"avatars\" does not exist" in str(e).lower():
-                if init_db():
-                    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-                    c = conn.cursor()
-                    c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
-                    avatar = c.fetchone()
-                    conn.close()
-        
-        response_data = {
-            "respuesta": respuesta_text,
-            "avatar_url": avatar[0] if avatar else "/static/img/default-avatar.png",
-            "animation_url": avatar[1] if avatar else "/static/animations/default.json"
-        }
-        return jsonify(response_data)
+        nivel = progreso["nivel"]
+        aprendizaje = cargar_aprendizaje()
+        normalized_pregunta = normalize(pregunta)
+        results = buscar_respuesta(normalized_pregunta, nivel=nivel)
+        intent = classify_intent(normalized_pregunta)
+        video_url = None
+        if intent == "saludo":
+            respuesta = "¡Hola! ¿En qué puedo ayudarte con programación avanzada?"
+        elif intent == "cambiar_nivel":
+            respuesta = "Puedes cambiar el nivel en la interfaz."
+        elif results:
+            tema, contenido, score = results[0]
+            prompt = f"Explica {tema} en nivel {nivel} con ejemplos de código: {pregunta}"
+            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+            completion = client.chat.completions.create(
+                model="llama3-70b-8192",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=512
+            )
+            respuesta = completion.choices[0].message.content
+        else:
+            prompt = f"Responde sobre programación avanzada en nivel {nivel} con ejemplos: {pregunta}"
+            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+            completion = client.chat.completions.create(
+                model="llama3-70b-8192",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=512
+            )
+            respuesta = completion.choices[0].message.content
+        log_interaccion(usuario, pregunta, respuesta, video_url)
+        return jsonify({"respuesta": respuesta, "video_url": video_url})
     except Exception as e:
-        logging.error(f"Error en /respuesta: {str(e)}")
+        logging.error(f"Error en /preguntar: {str(e)}")
         return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
 
-@app.route("/aprendizaje", methods=["POST"])
-@limiter.limit("10 per minute")
-def aprendizaje():
+@app.route("/aprender", methods=["POST"])
+def aprender():
     try:
         data = request.get_json()
-        pregunta = bleach.clean(data.get("pregunta", "").strip().lower()[:MAX_PREGUNTA_LEN])
-        respuesta = bleach.clean(data.get("respuesta", "").strip()[:MAX_RESPUESTA_LEN])
-        
+        pregunta = bleach.clean(data.get("pregunta", "").strip()[:500]).lower()
+        respuesta = bleach.clean(data.get("respuesta", "").strip()[:2000])
         if not pregunta or not respuesta:
-            return jsonify({"error": "Pregunta y respuesta no pueden estar vacías"}), 400
-            
+            return jsonify({"error": "Pregunta y respuesta son requeridas"}), 400
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         c = conn.cursor()
         c.execute("INSERT INTO aprendizaje (pregunta, respuesta) VALUES (%s, %s) ON CONFLICT (pregunta) DO UPDATE SET respuesta = %s",
@@ -394,7 +267,7 @@ def aprendizaje():
         cargar_aprendizaje.cache_clear()
         return jsonify({"mensaje": "¡Aprendido con éxito!"})
     except PsycopgError as e:
-        logging.error(f"Error en /aprendizaje: {str(e)}")
+        logging.error(f"Error en /aprender: {str(e)}")
         return jsonify({"error": f"Error al aprender: {str(e)}"}), 500
 
 @app.route("/progreso", methods=["GET"])
@@ -433,14 +306,16 @@ def avatars():
         avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
         conn.close()
         return jsonify(avatars if avatars else [
-            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "/static/img/default-avatar.png", "animation_url": "/static/animations/default.json"},
-            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "/static/img/poo.png", "animation_url": "/static/animations/poo.json"}
+            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "", "animation_url": ""},
+            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "", "animation_url": ""},
+            {"avatar_id": "advanced", "nombre": "Avanzado Avatar", "url": "", "animation_url": ""}
         ])
     except PsycopgError as e:
         logging.error(f"Error al obtener avatares: {str(e)}")
         return jsonify([
-            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "/static/img/default-avatar.png", "animation_url": "/static/animations/default.json"},
-            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "/static/img/poo.png", "animation_url": "/static/animations/poo.json"}
+            {"avatar_id": "default", "nombre": "Avatar Predeterminado", "url": "", "animation_url": ""},
+            {"avatar_id": "poo", "nombre": "POO Avatar", "url": "", "animation_url": ""},
+            {"avatar_id": "advanced", "nombre": "Avanzado Avatar", "url": "", "animation_url": ""}
         ])
 
 @app.route("/quiz", methods=["GET"])
@@ -450,12 +325,11 @@ def quiz():
         tema = recomendar_tema(usuario)
         progreso = cargar_progreso(usuario)
         nivel = progreso["nivel"]
-        dificultad = "facil" if nivel == "basico" else "medio" if nivel == "intermedio" else "dificil"
         # Usar temas.json por nivel
-        base_pregunta = temas.get(tema, {}).get(nivel, temas[tema].split('.')[0])
-        pregunta = f"¿Qué describe mejor {tema} en nivel {dificultad}?"
+        base_pregunta = temas.get(tema, {}).get(nivel, temas[tema]["basico"])
+        pregunta = f"¿Qué describe mejor {tema} en nivel {nivel}?"
         opciones = [base_pregunta.split('.')[0]]
-        opciones.extend(random.sample([temas[t].get(nivel, temas[t].split('.')[0]).split('.')[0] for t in temas if t != tema], 2))
+        opciones.extend(random.sample([temas[t].get(nivel, temas[t]["basico"]).split('.')[0] for t in temas if t != tema], 2))
         random.shuffle(opciones)
         return jsonify({"pregunta": pregunta, "opciones": opciones, "respuesta_correcta": base_pregunta.split('.')[0], "tema": tema})
     except Exception as e:
@@ -483,7 +357,7 @@ def responder_quiz():
             if tema not in temas_aprendidos.split(","):
                 temas_aprendidos += ("," if temas_aprendidos else "") + tema
             guardar_progreso(usuario, nuevos_puntos, temas_aprendidos, progreso["nivel"], progreso["avatar_id"])
-            mensaje = f"¡Correcto! Ganaste {puntos} puntos. {temas.get(tema, {}).get(progreso['nivel'], temas[tema])} ¿Otro quiz?"
+            mensaje = f"¡Correcto! Ganaste {puntos} puntos. {temas.get(tema, {}).get(progreso['nivel'], temas[tema]['basico'])} ¿Otro quiz?"
         else:
             mensaje = f"Incorrecto. Respuesta correcta: {respuesta_correcta}. ¿Intentar de nuevo?"
         log_interaccion(usuario, f"Quiz sobre {tema}", mensaje)
@@ -541,7 +415,6 @@ def tts():
 
 if __name__ == "__main__":
     init_db()
-    # Deshabilitar webbrowser.open en Render (solo para desarrollo local)
     if os.getenv("RENDER", "false").lower() != "true":
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -550,4 +423,4 @@ if __name__ == "__main__":
             webbrowser.open("http://localhost:5000")
         except OSError:
             logging.warning("Puerto 5000 en uso.")
-    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))  # Ajuste para Render
+    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

@@ -7,23 +7,18 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" as="style" onload="this.rel='stylesheet'">
-    <!-- Librerías -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.18/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="nivel-intermedio">
-    <!-- Botones menú con aria-expanded -->
     <button class="menu-toggle" aria-label="Abrir menú izquierdo" aria-expanded="false"><i class="fas fa-bars"></i></button>
     <button class="menu-toggle-right" aria-label="Abrir menú derecho" aria-expanded="false"><i class="fas fa-bars"></i></button>
-
     <div class="container">
         <h2>💻 Asistente de Programación Avanzada</h2>
         <div class="main-layout">
-            <!-- Barra lateral izquierda -->
             <div class="left-section" role="region" aria-label="Controles de navegación">
-                <button id="toggle-aprendizaje" aria-label="Modo aprendizaje" data-tooltip="Modo aprendizaje"><i class="fas fa-book"></i></button>
                 <button id="modo-btn" aria-label="Modo claro y oscuro" data-tooltip="Modo claro/oscuro"><i class="fas fa-sun"></i></button>
                 <button id="voice-btn" aria-label="Activar o desactivar voz" data-tooltip="Activar/desactivar voz"><i class="fas fa-volume-up"></i></button>
                 <button id="exportTxtBtn" aria-label="Exportar chat a TXT" data-tooltip="Exportar TXT"><i class="fas fa-file-alt"></i></button>
@@ -38,23 +33,8 @@
                     <button class="nivel-btn" data-nivel="avanzado" aria-label="Nivel Avanzado" data-tooltip="Avanzado"><i class="fas fa-fire"></i></button>
                 </div>
             </div>
-            <!-- Centro: chat -->
             <div class="center-section" role="region" aria-label="Área de chat">
                 <div class="chat-content">
-                    <div class="search-container">
-                        <div class="search-group">
-                            <select id="tema-filter" aria-label="Filtrar por tema">
-                                <option value="">Filtrar por tema</option>
-                                <option value="poo">POO</option>
-                                <option value="herencia">Herencia</option>
-                                <option value="polimorfismo">Polimorfismo</option>
-                                <option value="singleton">Singleton</option>
-                                <option value="factory">Factory</option>
-                            </select>
-                            <input type="text" id="search-input" placeholder="Buscar tema..." aria-label="Buscar tema" lang="es" maxlength="100">
-                            <button id="search-btn" aria-label="Buscar tema" data-tooltip="Buscar"><i class="fas fa-search"></i></button>
-                        </div>
-                    </div>
                     <div id="chatbox" aria-live="polite">
                         <div class="message-container"></div>
                     </div>
@@ -68,7 +48,6 @@
                     </div>
                 </div>
             </div>
-            <!-- Barra lateral derecha -->
             <div class="right-section" role="region" aria-label="Configuración e historial">
                 <div class="tab-buttons">
                     <button class="tab-btn active" data-tab="asistente" aria-label="Pestaña de asistente">Asistente</button>
@@ -79,8 +58,6 @@
                         <h3>Selecciona tu Avatar</h3>
                         <div class="avatar-options"></div>
                         <p>Nota: Avatar predeterminado (D-ID no disponible).</p>
-                        <canvas id="lip-sync-canvas" width="50" height="50"></canvas>
-                        <div id="analytics-container"></div>
                     </div>
                     <div class="historial">
                         <h3>Historial de Chats</h3>
@@ -90,12 +67,11 @@
             </div>
         </div>
         <div id="notification-card" class="card" role="alert"></div>
-        <!-- Card para modo aprendizaje -->
-        <div id="aprendizajeCard" class="card">
-            <h3>Modo Aprendizaje</h3>
-            <input type="text" id="nuevaPregunta" placeholder="Nueva pregunta" aria-label="Nueva pregunta" lang="es" maxlength="500">
-            <textarea id="nuevaRespuesta" placeholder="Nueva respuesta" aria-label="Nueva respuesta" lang="es" maxlength="2000"></textarea>
-            <button id="learnBtn" aria-label="Guardar nuevo aprendizaje">Aprender</button>
+        <div id="quiz-modal" class="card" role="dialog" aria-labelledby="quiz-title" style="display: none;">
+            <h3 id="quiz-title">Quiz</h3>
+            <p id="quiz-question"></p>
+            <div id="quiz-options"></div>
+            <button id="quiz-submit" aria-label="Enviar respuesta del quiz">Enviar</button>
         </div>
     </div>
     <script src="/static/js/script.js"></script>

@@ -1,3 +1,4 @@
+# nlp.py (Modificado ligeramente para soportar niveles y mejorar búsqueda semántica)
 import re
 import json
 import logging
@@ -15,10 +16,26 @@ try:
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logging.error(f"Error cargando temas.json: {e}")
     temas_dict = {
-        "poo": {"basico": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento."},
-        "patrones de diseño": {"basico": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software."},
-        "multihilos": {"basico": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento."},
-        "mvc": {"basico": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados."}
+        "poo": {
+            "basico": "La programación orientada a objetos organiza el código en objetos que combinan datos y comportamiento.",
+            "intermedio": "En POO intermedia, se exploran conceptos como herencia y polimorfismo con ejemplos en Java.",
+            "avanzado": "POO avanzada incluye patrones como Singleton y Factory con implementaciones complejas."
+        },
+        "patrones de diseño": {
+            "basico": "Los patrones de diseño son soluciones reutilizables para problemas comunes en el diseño de software.",
+            "intermedio": "Patrones intermedios como Observer y Strategy con código de ejemplo.",
+            "avanzado": "Patrones avanzados como Dependency Injection y su uso en frameworks."
+        },
+        "multihilos": {
+            "basico": "El multihilo permite ejecutar tareas simultáneamente para mejorar el rendimiento.",
+            "intermedio": "Multihilo en Java con Threads y Runnable, manejo de sincronización.",
+            "avanzado": "Multihilo avanzado con Executors, ForkJoinPool y problemas de concurrencia."
+        },
+        "mvc": {
+            "basico": "El patrón MVC separa la lógica de negocio, la interfaz de usuario y el control en tres componentes interconectados.",
+            "intermedio": "Implementación MVC en aplicaciones web con ejemplos en Spring.",
+            "avanzado": "MVC avanzado con variaciones como MVP o MVVM en entornos reactivos."
+        }
     }
     logging.warning("Usando temas por defecto en nlp.py")
 

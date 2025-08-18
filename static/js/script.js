@@ -29,7 +29,7 @@ const scrollToBottom = () => {
     const container = chatbox?.querySelector('.message-container');
     if (!chatbox || !container) return;
     requestAnimationFrame(() => {
-        chatbox.scrollTop = chatbox.scrollHeight;
+        chatbox.scrollTo({ top: chatbox.scrollHeight, behavior: 'smooth' });
         const lastMessage = container.lastElementChild;
         if (lastMessage) {
             lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -198,17 +198,16 @@ const cargarAvatares = async () => {
         }
         avatarContainer.innerHTML = '';
         avatares.forEach(avatar => {
-            const img = document.createElement('img');
-            img.src = avatar.url;
-            img.classList.add('avatar-option');
-            img.dataset.avatar = avatar.avatar_id;
-            img.alt = `Avatar ${avatar.nombre}`;
-            img.title = avatar.nombre;
-            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
-            avatarContainer.appendChild(img);
-            img.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.classList.add('avatar-option');
+            div.dataset.avatar = avatar.avatar_id;
+            div.setAttribute('aria-label', `Seleccionar avatar ${avatar.nombre}`);
+            div.title = avatar.nombre;
+            if (avatar.avatar_id === selectedAvatar) div.classList.add('selected');
+            avatarContainer.appendChild(div);
+            div.addEventListener('click', () => {
                 getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-                img.classList.add('selected');
+                div.classList.add('selected');
                 selectedAvatar = avatar.avatar_id;
                 localStorage.setItem('selectedAvatar', selectedAvatar);
                 mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
@@ -223,17 +222,16 @@ const cargarAvatares = async () => {
         ];
         avatarContainer.innerHTML = '';
         fallbackAvatares.forEach(avatar => {
-            const img = document.createElement('img');
-            img.src = avatar.url;
-            img.classList.add('avatar-option');
-            img.dataset.avatar = avatar.avatar_id;
-            img.alt = `Avatar ${avatar.nombre}`;
-            img.title = avatar.nombre;
-            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
-            avatarContainer.appendChild(img);
-            img.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.classList.add('avatar-option');
+            div.dataset.avatar = avatar.avatar_id;
+            div.setAttribute('aria-label', `Seleccionar avatar ${avatar.nombre}`);
+            div.title = avatar.nombre;
+            if (avatar.avatar_id === selectedAvatar) div.classList.add('selected');
+            avatarContainer.appendChild(div);
+            div.addEventListener('click', () => {
                 getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-                img.classList.add('selected');
+                div.classList.add('selected');
                 selectedAvatar = avatar.avatar_id;
                 localStorage.setItem('selectedAvatar', selectedAvatar);
                 mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
@@ -242,7 +240,7 @@ const cargarAvatares = async () => {
     }
 };
 
-const guardarMensaje = (pregunta, respuesta, video_url = null) => {
+const guardarMensaje = (pregunta, respuesta) => {
     let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.id && currentConversation.id !== 0) {
         const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
@@ -250,7 +248,7 @@ const guardarMensaje = (pregunta, respuesta, video_url = null) => {
         historial.push({ nombre: currentConversation.nombre, timestamp: currentConversation.timestamp, mensajes: [] });
         localStorage.setItem('chatHistory', JSON.stringify(historial));
     }
-    currentConversation.mensajes.push({ pregunta, respuesta, video_url });
+    currentConversation.mensajes.push({ pregunta, respuesta });
     localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     historial[currentConversation.id].mensajes = currentConversation.mensajes;
@@ -258,24 +256,47 @@ const guardarMensaje = (pregunta, respuesta, video_url = null) => {
     actualizarListaChats();
 };
 
-const actualizarListaChats = () => {
+const actualizarListaChats = async () => {
     const chatList = getElement('#chat-list');
     if (!chatList) {
         console.error('Elemento #chat-list no encontrado');
         return;
+    }
+    // Intentar sincronizar con el backend
+    try {
+        const response = await fetch('/logs?usuario=anonimo', { cache: 'no-store' });
+        if (response.ok) {
+            const logs = await response.json();
+            const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+            logs.forEach(log => {
+                const existingChat = historial.find(chat => chat.timestamp === new Date(log.timestamp).getTime());
+                if (!existingChat) {
+                    historial.push({
+                        nombre: `Chat ${new Date(log.timestamp).toLocaleString()}`,
+                        timestamp: new Date(log.timestamp).getTime(),
+                        mensajes: [{ pregunta: log.pregunta, respuesta: log.respuesta }]
+                    });
+                }
+            });
+            localStorage.setItem('chatHistory', JSON.stringify(historial));
+        }
+    } catch (error) {
+        console.warn('No se pudo sincronizar con /logs, usando localStorage', error);
     }
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     if (chatList.children.length === historial.length && !historial.some((chat, i) => chatList.children[i]?.dataset.index != i)) return;
     chatList.innerHTML = '';
     historial.forEach((chat, index) => {
         const li = document.createElement('li');
-        li.innerHTML = `<span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`}</span>
-                        <div class="chat-actions">
-                            <button class="rename-btn" aria-label="Renombrar"><i class="fas fa-edit"></i></button>
-                            <button class="delete-btn" aria-label="Eliminar"><i class="fas fa-trash"></i></button>
-                        </div>`;
+        li.innerHTML = `
+            <span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`}</span>
+            <div class="chat-actions">
+                <button class="rename-btn" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
+                <button class="delete-btn" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
+            </div>`;
         li.dataset.index = index;
-        li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`);
+        li.setAttribute('role', 'button');
+        li.setAttribute('aria-label', `Seleccionar chat ${chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString()}`}`);
         chatList.appendChild(li);
         li.addEventListener('click', e => e.target.tagName !== 'BUTTON' && cargarChat(index));
         li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
@@ -294,7 +315,10 @@ const cargarChat = index => {
         console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
-    container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
+    container.innerHTML = chat.mensajes.map(msg => `
+        <div class="user">${msg.pregunta}</div>
+        <div class="bot">${marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>
+    `).join('');
     scrollToBottom();
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
@@ -351,7 +375,10 @@ const cargarConversacionActual = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (!container || !chatbox || !currentConversation.mensajes?.length) return;
-    container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
+    container.innerHTML = currentConversation.mensajes.map(msg => `
+        <div class="user">${msg.pregunta}</div>
+        <div class="bot">${marked.parse(msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>
+    `).join('');
     scrollToBottom();
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
@@ -411,6 +438,62 @@ const addCopyButtonListeners = () => {
             });
         });
     });
+};
+
+const showQuizModal = (data) => {
+    const modal = getElement('#quiz-modal');
+    const question = getElement('#quiz-question');
+    const options = getElement('#quiz-options');
+    if (!modal || !question || !options) {
+        console.error('Elementos del modal de quiz no encontrados');
+        return;
+    }
+    question.textContent = data.pregunta;
+    options.innerHTML = '';
+    data.opciones.forEach((opt, index) => {
+        const btn = document.createElement('button');
+        btn.textContent = `${index + 1}. ${opt}`;
+        btn.dataset.opcion = opt;
+        btn.addEventListener('click', () => {
+            getElements('#quiz-options button').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        });
+        options.appendChild(btn);
+    });
+    modal.style.display = 'flex';
+    getElement('#quiz-submit').onclick = async () => {
+        const selected = options.querySelector('.selected');
+        if (!selected) {
+            mostrarNotificacion('Selecciona una opción', 'error');
+            return;
+        }
+        try {
+            const res = await fetch('/responder_quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    respuesta: selected.dataset.opcion,
+                    respuesta_correcta: data.respuesta_correcta,
+                    tema: data.tema,
+                    usuario: 'anonimo'
+                })
+            });
+            const result = await res.json();
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('bot');
+            botDiv.innerHTML = marked.parse(result.respuesta) + `<button class="copy-btn" data-text="${result.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            getElement('.message-container').appendChild(botDiv);
+            scrollToBottom();
+            if (window.Prism) Prism.highlightAll();
+            speakText(result.respuesta);
+            guardarMensaje(`Quiz: ${data.pregunta}`, result.respuesta);
+            addCopyButtonListeners();
+            modal.style.display = 'none';
+            mostrarNotificacion(result.respuesta, result.es_correcta ? 'success' : 'error');
+        } catch (error) {
+            mostrarNotificacion(`Error al enviar respuesta: ${error.message}`, 'error');
+        }
+    };
 };
 
 const sendMessage = () => {
@@ -477,11 +560,7 @@ const sendMessage = () => {
                 } else {
                     const botDiv = document.createElement('div');
                     botDiv.classList.add('bot');
-                    let respuestaHtml = marked.parse(data.respuesta);
-                    if (data.sugerencias?.length) {
-                        respuestaHtml += `<div class="suggestions"><strong>¿Qué más quieres saber?</strong> ${data.sugerencias.map(tema => `<a href="#" onclick="document.querySelector('#search-input').value='${tema}'; buscarTema(); return false;">${tema}</a>`).join('')}</div>`;
-                    }
-                    botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+                    botDiv.innerHTML = marked.parse(data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                     container.appendChild(botDiv);
                     scrollToBottom();
                     if (window.Prism) Prism.highlightAllUnder(botDiv);
@@ -500,77 +579,8 @@ const sendMessage = () => {
     });
 };
 
-const buscarTema = () => {
-    const query = getElement('#search-input')?.value.trim().toLowerCase();
-    const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico';
-    if (!query) {
-        mostrarNotificacion('Ingresa una palabra clave para buscar.', 'error');
-        return;
-    }
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) return;
-    container.classList.add('loading');
-    fetch('/respuesta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pregunta: `Explica ${query}`, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
-    }).then(res => {
-        container.classList.remove('loading');
-        if (!res.ok) throw new Error(`Error en /respuesta: ${res.statusText}`);
-        res.json().then(data => {
-            if (data.error) {
-                mostrarNotificacion(data.error, 'error');
-            } else {
-                const botDiv = document.createElement('div');
-                botDiv.classList.add('bot');
-                let respuestaHtml = marked.parse(data.respuesta);
-                if (data.sugerencias?.length) {
-                    respuestaHtml += `<div class="suggestions"><strong>¿Qué más quieres saber?</strong> ${data.sugerencias.map(tema => `<a href="#" onclick="document.querySelector('#search-input').value='${tema}'; buscarTema(); return false;">${tema}</a>`).join('')}</div>`;
-                }
-                botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                container.appendChild(botDiv);
-                scrollToBottom();
-                if (window.Prism) Prism.highlightAllUnder(botDiv);
-                speakText(data.respuesta);
-                guardarMensaje(`Explica ${query}`, data.respuesta);
-                addCopyButtonListeners();
-            }
-        }).catch(error => {
-            mostrarNotificacion(`Error en búsqueda: ${error.message}`, 'error');
-        });
-    }).catch(error => {
-        container.classList.remove('loading');
-        mostrarNotificacion(`Error en búsqueda: ${error.message}`, 'error');
-    });
-};
-
-const responderQuiz = (opcion, respuesta_correcta, tema) => {
-    fetch('/responder_quiz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ respuesta: opcion, respuesta_correcta, tema, usuario: 'anonimo' })
-    }).then(res => res.json())
-        .then(data => {
-            const chatbox = getElement('#chatbox');
-            const container = chatbox?.querySelector('.message-container');
-            if (!container || !chatbox) return;
-            const botDiv = document.createElement('div');
-            botDiv.classList.add('bot');
-            botDiv.innerHTML = marked.parse(data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-            container.appendChild(botDiv);
-            scrollToBottom();
-            if (window.Prism) Prism.highlightAllUnder(botDiv);
-            speakText(data.respuesta);
-            guardarMensaje(`Respuesta Quiz ${tema}`, data.respuesta);
-            addCopyButtonListeners();
-        }).catch(error => {
-            mostrarNotificacion(`Error en quiz: ${error.message}`, 'error');
-        });
-};
-
 const cargarAnalytics = () => {
+    // Nota: Requiere un elemento #analytics-container en el HTML para funcionar
     fetch('/analytics?usuario=anonimo', { cache: 'no-store' })
         .then(res => {
             if (!res.ok) throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
@@ -613,7 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnPauseSpeech: getElement('#btn-pause-speech'),
         btnResumeSpeech: getElement('#btn-resume-speech'),
         chatbox: getElement('#chatbox'),
-        toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
         modoBtn: getElement('#modo-btn'),
         exportTxtBtn: getElement('#exportTxtBtn'),
         exportPdfBtn: getElement('#exportPdfBtn'),
@@ -622,11 +631,9 @@ document.addEventListener('DOMContentLoaded', () => {
         recommendBtn: getElement('#recommend-btn'),
         menuToggle: getElement('.menu-toggle'),
         menuToggleRight: getElement('.menu-toggle-right'),
-        searchBtn: getElement('#search-btn'),
-        searchInput: getElement('#search-input'),
-        tabButtons: getElements('.tab-btn'),
         quizBtn: getElement('#quiz-btn'),
-        nivelBtns: getElements('.nivel-btn')
+        nivelBtns: getElements('.nivel-btn'),
+        tabButtons: getElements('.tab-btn')
     };
 
     Object.entries(elements).forEach(([key, value]) => {
@@ -636,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarAvatares();
     actualizarListaChats();
     cargarConversacionActual();
-    cargarAnalytics();
+    // cargarAnalytics(); // Descomentar si se agrega #analytics-container al HTML
 
     if (elements.input && elements.chatbox) {
         elements.input.addEventListener('input', () => {
@@ -707,41 +714,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (elements.searchBtn && elements.searchInput) {
-        elements.searchBtn.addEventListener('click', buscarTema);
-        elements.searchInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') buscarTema();
-        });
-    }
-
     if (elements.quizBtn && elements.chatbox) {
         elements.quizBtn.addEventListener('click', () => {
             fetch('/quiz?usuario=anonimo', { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
-                    const chatbox = elements.chatbox;
-                    const container = chatbox?.querySelector('.message-container');
-                    if (!container || !chatbox) return;
-                    let opcionesHtml = '<div class="quiz-options">';
-                    data.opciones.forEach((opcion, i) => {
-                        opcionesHtml += `<button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${data.respuesta_correcta}" data-tema="${data.tema}">${i + 1}. ${opcion}</button>`;
-                    });
-                    opcionesHtml += '</div>';
-                    const pregunta = `${data.pregunta}<br>Opciones:<br>${opcionesHtml}`;
-                    container.innerHTML += `<div class="bot">${marked.parse(pregunta)}<button class="copy-btn" data-text="${data.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`;
-                    scrollToBottom();
-                    guardarMensaje('Quiz', `${data.pregunta}\nOpciones: ${data.opciones.join(', ')}`);
-                    getElements('.quiz-option').forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const opcion = btn.dataset.opcion;
-                            const respuestaCorrecta = btn.dataset.respuestaCorrecta;
-                            const tema = btn.dataset.tema;
-                            responderQuiz(opcion, respuestaCorrecta, tema);
-                            getElements('.quiz-option').forEach(opt => opt.disabled = true);
-                        });
-                    });
-                    if (window.Prism) Prism.highlightAllUnder(container);
-                    addCopyButtonListeners();
+                    showQuizModal(data);
                 }).catch(error => {
                     mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
                 });
@@ -853,10 +831,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (leftSection) {
                 leftSection.classList.toggle('active');
                 elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                elements.menuToggle.setAttribute('aria-expanded', leftSection.classList.contains('active'));
                 const rightSection = getElement('.right-section');
                 if (rightSection && rightSection.classList.contains('active')) {
                     rightSection.classList.remove('active');
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggleRight.setAttribute('aria-expanded', 'false');
                 }
             }
         };
@@ -867,10 +847,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                elements.menuToggleRight.setAttribute('aria-expanded', rightSection.classList.contains('active'));
                 const leftSection = getElement('.left-section');
                 if (leftSection && leftSection.classList.contains('active')) {
                     leftSection.classList.remove('active');
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggle.setAttribute('aria-expanded', 'false');
                 }
             }
         };
@@ -892,6 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     leftSection.classList.remove('active');
                     leftSection.style.transform = 'translateX(-100%)';
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggle.setAttribute('aria-expanded', 'false');
                 }
                 if (rightSection && rightSection.classList.contains('active') &&
                     !rightSection.contains(e.target) &&
@@ -899,6 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     rightSection.classList.remove('active');
                     rightSection.style.transform = 'translateX(100%)';
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggleRight.setAttribute('aria-expanded', 'false');
                 }
             }
         };
@@ -906,93 +890,4 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('click', closeMenusOnOutsideInteraction);
         document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
     }
-
-    if (elements.toggleAprendizajeBtn) {
-        elements.toggleAprendizajeBtn.addEventListener('click', () => {
-            const aprendizajeCard = getElement('#aprendizajeCard');
-            if (aprendizajeCard) aprendizajeCard.classList.toggle('active');
-        });
-    }
-
-    if (getElement('#learnBtn')) {
-        getElement('#learnBtn').addEventListener('click', () => {
-            const pregunta = getElement('#nuevaPregunta')?.value.trim();
-            const respuesta = getElement('#nuevaRespuesta')?.value.trim();
-            if (!pregunta || !respuesta) {
-                mostrarNotificacion('Por favor, completa ambos campos.', 'error');
-                return;
-            }
-            fetch('/aprender', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pregunta, respuesta, usuario: 'anonimo' })
-            }).then(res => res.json())
-                .then(data => {
-                    if (data.error) {
-                        mostrarNotificacion(data.error, 'error');
-                    } else {
-                        mostrarNotificacion('Conocimiento aprendido con éxito', 'success');
-                        getElement('#nuevaPregunta').value = '';
-                        getElement('#nuevaRespuesta').value = '';
-                        getElement('#aprendizajeCard')?.classList.remove('active');
-                    }
-                })
-                .catch(error => {
-                    mostrarNotificacion(`Error al aprender: ${error.message}`, 'error');
-                });
-        });
-    }
-
-    if (elements.exportTxtBtn) {
-        elements.exportTxtBtn.addEventListener('click', exportarTxt);
-    }
-
-    if (elements.exportPdfBtn) {
-        elements.exportPdfBtn.addEventListener('click', exportarPdf);
-    }
-
-    if (getElement('#tema-filter')) {
-        getElement('#tema-filter').addEventListener('change', () => {
-            const tema = getElement('#tema-filter').value;
-            if (tema) {
-                getElement('#search-input').value = tema;
-                buscarTema();
-            }
-        });
-    }
-
-    document.querySelectorAll('.left-section button, .nivel-btn').forEach(btn => {
-        const tooltipText = btn.dataset.tooltip;
-        if (!tooltipText) return;
-
-        const tooltip = document.createElement('div');
-        tooltip.className = 'custom-tooltip';
-        tooltip.textContent = tooltipText;
-        tooltip.style.position = 'absolute';
-        tooltip.style.background = 'rgba(0, 0, 0, 0.95)';
-        tooltip.style.color = '#fff';
-        tooltip.style.padding = '8px 12px';
-        tooltip.style.borderRadius = '6px';
-        tooltip.style.fontSize = '12px';
-        tooltip.style.zIndex = '10000';
-        tooltip.style.opacity = '0';
-        tooltip.style.visibility = 'hidden';
-        tooltip.style.transition = 'opacity 0.3s ease, visibility 0.3s ease';
-        tooltip.style.pointerEvents = 'none';
-        document.body.appendChild(tooltip);
-
-        btn.addEventListener('mouseenter', (e) => {
-            const rect = btn.getBoundingClientRect();
-            tooltip.style.top = `${rect.top + rect.height / 2}px`;
-            tooltip.style.left = `${rect.left + rect.width + 10}px`;
-            tooltip.style.transform = 'translateY(-50%)';
-            tooltip.style.opacity = '1';
-            tooltip.style.visibility = 'visible';
-        });
-
-        btn.addEventListener('mouseleave', () => {
-            tooltip.style.opacity = '0';
-            tooltip.style.visibility = 'hidden';
-        });
-    });
 });
