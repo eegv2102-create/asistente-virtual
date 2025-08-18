@@ -75,7 +75,7 @@ const speakText = text => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.beginPath();
                 ctx.arc(25, 25, amplitude / 10, 0, 2 * Math.PI);
-                ctx.fillStyle = 'var(--accent)';
+                ctx.fillStyle = 'red';
                 ctx.fill();
                 requestAnimationFrame(draw);
             } else if (botMessage) {
@@ -90,7 +90,6 @@ const speakText = text => {
         currentAudio.onended = () => {
             if (botMessage) botMessage.classList.remove('speaking');
             if (canvas) canvas.style.opacity = '0';
-            updateSpeechButton();
         };
     }).catch(error => {
         console.error('TTS /tts falló, usando speechSynthesis fallback', error);
@@ -102,7 +101,6 @@ const speakText = text => {
         utterance.lang = 'es-ES';
         utterance.onend = () => {
             if (botMessage) botMessage.classList.remove('speaking');
-            updateSpeechButton();
         };
         speechSynthesis.speak(utterance);
         currentAudio = utterance;
@@ -110,122 +108,74 @@ const speakText = text => {
 };
 
 const pauseSpeech = () => {
-    const speechBtn = getElement('#speech-btn');
+    const btnPauseSpeech = getElement('#btn-pause-speech');
+    const btnResumeSpeech = getElement('#btn-resume-speech');
     if (currentAudio instanceof Audio) {
         currentAudio.pause();
-        mostrarNotificacion('Voz pausada', 'success');
-        speechBtn.innerHTML = `<i class="fas fa-play"></i>`;
-        speechBtn.setAttribute('data-tooltip', 'Reanudar voz');
-        speechBtn.onclick = resumeSpeech;
+        mostrarNotificacion('Voz pausada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = true;
+            btnResumeSpeech.disabled = false;
+        }
     } else if ('speechSynthesis' in window && currentAudio) {
         speechSynthesis.pause();
-        mostrarNotificacion('Voz pausada', 'success');
-        speechBtn.innerHTML = `<i class="fas fa-play"></i>`;
-        speechBtn.setAttribute('data-tooltip', 'Reanudar voz');
-        speechBtn.onclick = resumeSpeech;
+        mostrarNotificacion('Voz pausada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = true;
+            btnResumeSpeech.disabled = false;
+        }
     }
 };
 
 const resumeSpeech = () => {
-    const speechBtn = getElement('#speech-btn');
+    const btnPauseSpeech = getElement('#btn-pause-speech');
+    const btnResumeSpeech = getElement('#btn-resume-speech');
     if (currentAudio instanceof Audio) {
         currentAudio.play();
-        mostrarNotificacion('Voz reanudada', 'success');
-        speechBtn.innerHTML = `<i class="fas fa-pause"></i>`;
-        speechBtn.setAttribute('data-tooltip', 'Pausar voz');
-        speechBtn.onclick = pauseSpeech;
+        mostrarNotificacion('Voz reanudada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = false;
+            btnResumeSpeech.disabled = true;
+        }
     } else if ('speechSynthesis' in window && currentAudio && speechSynthesis.paused) {
         speechSynthesis.resume();
-        mostrarNotificacion('Voz reanudada', 'success');
-        speechBtn.innerHTML = `<i class="fas fa-pause"></i>`;
-        speechBtn.setAttribute('data-tooltip', 'Pausar voz');
-        speechBtn.onclick = pauseSpeech;
-    }
-};
-
-const updateSpeechButton = () => {
-    const speechBtn = getElement('#speech-btn');
-    if (speechBtn) {
-        speechBtn.innerHTML = `<i class="fas fa-pause"></i>`;
-        speechBtn.setAttribute('data-tooltip', 'Pausar voz');
-        speechBtn.onclick = pauseSpeech;
-    }
-};
-
-const toggleVoz = () => {
-    vozActiva = !vozActiva;
-    const muteBtn = getElement('#mute-btn');
-    if (muteBtn) {
-        muteBtn.innerHTML = `<i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>`;
-        muteBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar voz' : 'Activar voz');
-    }
-    if (!vozActiva) {
-        if (currentAudio instanceof Audio) {
-            currentAudio.pause();
-            currentAudio.currentTime = 0;
-        } else if ('speechSynthesis' in window) {
-            speechSynthesis.cancel();
+        mostrarNotificacion('Voz reanudada', 'info');
+        if (btnPauseSpeech && btnResumeSpeech) {
+            btnPauseSpeech.disabled = false;
+            btnResumeSpeech.disabled = true;
         }
     }
-    mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
 };
 
-const startVoiceRecognition = () => {
-    const voiceBtn = getElement('#voice-btn');
-    const input = getElement('#input');
-    if (!input || !voiceBtn) {
-        mostrarNotificacion('Error: Elementos de voz no encontrados', 'error');
-        return;
+const stopSpeech = () => {
+    const btnStartVoice = getElement('#btn-start-voice');
+    const btnStopVoice = getElement('#btn-stop-voice');
+    const btnPauseSpeech = getElement('#btn-pause-speech');
+    const btnResumeSpeech = getElement('#btn-resume-speech');
+    if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
     }
-    if (!('webkitSpeechRecognition' in window)) {
-        mostrarNotificacion('Reconocimiento de voz no soportado en este navegador.', 'error');
-        return;
+    if (currentAudio instanceof Audio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
     }
-    recognition = new webkitSpeechRecognition();
-    recognition.lang = 'es-ES';
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.onresult = event => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-        }
-        input.value = transcript;
-        if (event.results[event.results.length - 1]?.isFinal) {
-            sendMessage();
-            stopVoiceRecognition();
-        }
-    };
-    recognition.onerror = event => {
-        mostrarNotificacion(`Error en reconocimiento de voz: ${event.error}`, 'error');
-        stopVoiceRecognition();
-    };
-    recognition.onend = () => {
-        isListening = false;
-        voiceBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-        voiceBtn.setAttribute('data-tooltip', 'Iniciar voz');
-        voiceBtn.onclick = startVoiceRecognition;
-    };
-    recognition.start();
-    isListening = true;
-    voiceBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
-    voiceBtn.setAttribute('data-tooltip', 'Detener voz');
-    voiceBtn.onclick = stopVoiceRecognition;
-    mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
-};
-
-const stopVoiceRecognition = () => {
     if (isListening && recognition) {
-        recognition.stop();
-        isListening = false;
-        const voiceBtn = getElement('#voice-btn');
-        if (voiceBtn) {
-            voiceBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-            voiceBtn.setAttribute('data-tooltip', 'Iniciar voz');
-            voiceBtn.onclick = startVoiceRecognition;
+        try {
+            recognition.stop();
+            isListening = false;
+            if (btnStartVoice && btnStopVoice && btnPauseSpeech && btnResumeSpeech) {
+                btnStartVoice.disabled = false;
+                btnStopVoice.disabled = true;
+                btnPauseSpeech.disabled = true;
+                btnResumeSpeech.disabled = true;
+            }
+            mostrarNotificacion('Voz y reconocimiento detenidos', 'info');
+        } catch (error) {
+            mostrarNotificacion(`Error al detener voz: ${error.message}`, 'error');
         }
-        mostrarNotificacion('Reconocimiento de voz detenido', 'success');
     }
+    const botMessage = getElement('.bot:last-child');
+    if (botMessage) botMessage.classList.remove('speaking');
 };
 
 const cargarAvatares = async () => {
@@ -462,7 +412,7 @@ const addCopyButtonListeners = () => {
     });
 };
 
-const handleCopy = e => {
+const handleCopy = (e) => {
     const text = e.currentTarget.dataset.text;
     navigator.clipboard.writeText(text).then(() => {
         mostrarNotificacion('Mensaje copiado al portapapeles', 'success');
@@ -688,15 +638,7 @@ const toggleMenu = (selector, toggleBtn) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    cargarAvatares();
-    actualizarListaChats();
-    cargarConversacionActual();
-
-    const nivel = localStorage.getItem('nivel') || 'intermedio';
-    setNivel(nivel);
-
-    const modo = localStorage.getItem('modo') || 'oscuro';
-    if (modo === 'claro') {
+    if (localStorage.getItem('modo') === 'claro') {
         document.body.classList.add('modo-claro');
         const modoBtn = getElement('#modo-btn');
         if (modoBtn) {
@@ -704,6 +646,9 @@ document.addEventListener('DOMContentLoaded', () => {
             modoBtn.setAttribute('data-tooltip', 'Modo oscuro');
         }
     }
+
+    const nivel = localStorage.getItem('nivel') || 'intermedio';
+    setNivel(nivel);
 
     getElement('#modo-btn')?.addEventListener('click', toggleModo);
     getElement('#mute-btn')?.addEventListener('click', toggleVoz);
@@ -736,6 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     getElement('.menu-toggle')?.addEventListener('click', () => toggleMenu('.left-section', getElement('.menu-toggle')));
     getElement('.menu-toggle-right')?.addEventListener('click', () => toggleMenu('.right-section', getElement('.menu-toggle-right')));
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            getElement('.left-section')?.classList.remove('active');
+            getElement('.right-section')?.classList.remove('active');
+            getElement('.menu-toggle')?.setAttribute('aria-expanded', 'false');
+            getElement('.menu-toggle-right')?.setAttribute('aria-expanded', 'false');
+        }
+    });
 
     getElement('#input')?.addEventListener('keypress', e => {
         if (e.key === 'Enter') sendMessage();
