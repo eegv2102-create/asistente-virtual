@@ -249,19 +249,22 @@ def tts():
         if not text:
             logging.error("Texto vacío en /tts")
             return jsonify({"error": "El texto no puede estar vacío"}), 400
-        # Validar que el texto solo contenga caracteres válidos
         if not all(c.isprintable() or c.isspace() for c in text):
             logging.error("Texto contiene caracteres no válidos")
             return jsonify({"error": "El texto contiene caracteres no válidos"}), 400
-        tts = gTTS(text=text, lang='es', tld='com.mx')  # Especificar TLD para consistencia
-        audio_io = io.BytesIO()
-        tts.write_to_fp(audio_io)
-        audio_io.seek(0)
-        logging.info("Audio generado exitosamente")
-        return send_file(audio_io, mimetype='audio/mp3')
+        try:
+            tts = gTTS(text=text, lang='es', tld='com.mx')
+            audio_io = io.BytesIO()
+            tts.write_to_fp(audio_io)
+            audio_io.seek(0)
+            logging.info("Audio generado exitosamente")
+            return send_file(audio_io, mimetype='audio/mp3')
+        except Exception as gtts_error:
+            logging.error(f"Error en gTTS: {str(gtts_error)}")
+            return jsonify({"error": f"Error en la generación de audio: {str(gtts_error)}"}), 500
     except Exception as e:
         logging.error(f"Error en /tts: {str(e)}")
-        return jsonify({"error": f"Error al generar audio: {str(e)}"}), 500
+        return jsonify({"error": f"Error al procesar la solicitud: {str(e)}"}), 500
 
 @app.route("/recommend", methods=["GET"])
 def recommend():

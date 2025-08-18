@@ -58,7 +58,11 @@ const speakText = text => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
     }).then(res => {
-        if (!res.ok) throw new Error(`Error en TTS: ${res.status} ${res.statusText}`);
+        if (!res.ok) {
+            return res.json().then(err => {
+                throw new Error(err.error || `Error en TTS: ${res.status} ${res.statusText}`);
+            });
+        }
         return res.blob();
     }).then(blob => {
         if (currentAudio) {
@@ -104,8 +108,8 @@ const speakText = text => {
             if (canvas) canvas.style.opacity = '0';
         };
     }).catch(error => {
-        console.error('TTS /tts falló, intentando speechSynthesis', error);
-        mostrarNotificacion('Error en TTS, intentando fallback', 'error');
+        console.error('TTS /tts falló, intentando speechSynthesis', error.message);
+        mostrarNotificacion(`Error en TTS: ${error.message}`, 'error');
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'es-ES';
