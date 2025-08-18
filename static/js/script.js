@@ -404,26 +404,105 @@ const eliminarChat = index => {
         const chatbox = getElement('#chatbox');
         const container = chatbox?.querySelector('.message-container');
         if (container) container.innerHTML = '';
-        mostrarNotificacion('Chat eliminado, conversación limpiada', 'success');
-    } else if (currentConversation.id > index) {
-        currentConversation.id -= 1;
-        localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
+        mostrarNotificacion('Chat eliminado, conversación limpiada', 'info');
     }
-    historial = historial.map((chat, i) => ({ ...chat, id: i }));
     localStorage.setItem('chatHistory', JSON.stringify(historial));
-    if (currentConversation.id !== null) {
-        localStorage.setItem('currentConversation', JSON.stringify(historial[currentConversation.id] || { id: null, mensajes: [] }));
-    }
     actualizarListaChats();
-    mostrarNotificacion('Chat eliminado con éxito', 'success');
+};
+
+const cargarConversacionActual = () => {
+    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+    if (currentConversation.id != null && currentConversation.mensajes) {
+        cargarChat(currentConversation.id);
+    }
+};
+
+const cargarAnalytics = () => {
+    fetch('/analytics?usuario=anonimo', { cache: 'no-store' })
+        .then(res => {
+            if (!res.ok) throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
+            return res.json();
+        })
+        .then(data => {
+            const analyticsContainer = getElement('#analytics');
+            if (!analyticsContainer) {
+                console.error('Elemento #analytics no encontrado');
+                return;
+            }
+            analyticsContainer.innerHTML = data.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
+        }).catch(error => {
+            console.error('Error en fetch /analytics:', error);
+            mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
+        });
+};
+
+const sendMessage = () => {
+    const input = getElement('#input');
+    if (!input) {
+        console.error('Elemento #input no encontrado');
+        return;
+    }
+    const pregunta = input.value.trim();
+    if (!pregunta) {
+        mostrarNotificacion('Por favor, escribe una pregunta.', 'error');
+        return;
+    }
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox) {
+        console.error('Elemento #chatbox o .message-container no encontrado');
+        return;
+    }
+    const userDiv = document.createElement('div');
+    userDiv.classList.add('user');
+    userDiv.textContent = pregunta;
+    container.appendChild(userDiv);
+    scrollToBottom();
+    input.value = '';
+    fetch('/respuesta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar })
+    }).then(res => {
+        if (!res.ok) throw new Error(`Error en /respuesta: ${res.status} ${res.statusText}`);
+        return res.json();
+    }).then(data => {
+        if (data.error) {
+            mostrarNotificacion(data.error, 'error');
+            console.error('Error en /respuesta:', data.error);
+            return;
+        }
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        if (data.animation_url) {
+            botDiv.innerHTML = `<img src="${data.animation_url}" alt="Avatar" class="selected-avatar">${botDiv.innerHTML}`;
+        }
+        container.appendChild(botDiv);
+        scrollToBottom();
+        if (window.Prism) Prism.highlightAllUnder(botDiv);
+        speakText(data.respuesta);
+        guardarMensaje(pregunta, data.respuesta, data.animation_url);
+        addCopyButtonListeners();
+    }).catch(error => {
+        mostrarNotificacion(`Error al obtener respuesta: ${error.message}`, 'error');
+        console.error('Error en fetch /respuesta:', error);
+    });
+};
+
+const limpiarChat = () => {
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox) {
+        console.error('Elemento #chatbox o .message-container no encontrado');
+        return;
+    }
+    container.innerHTML = '';
+    localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
+    mostrarNotificacion('Chat limpiado', 'success');
 };
 
 const nuevaConversacion = () => {
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    const input = getElement('#input');
-    if (container) container.innerHTML = '';
-    if (input) input.value = '';
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const newId = historial.length;
     const newConversation = {
@@ -435,241 +514,36 @@ const nuevaConversacion = () => {
     historial.push(newConversation);
     localStorage.setItem('chatHistory', JSON.stringify(historial));
     localStorage.setItem('currentConversation', JSON.stringify(newConversation));
-    actualizarListaChats();
-    mostrarNotificacion('Nuevo chat creado', 'success');
-    scrollToBottom();
-};
-
-const limpiarChat = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    const input = getElement('#input');
     if (container) container.innerHTML = '';
-    if (input) input.value = '';
-    mostrarNotificacion('Chat limpiado', 'success');
-    scrollToBottom();
-};
-
-const cargarConversacionActual = () => {
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox || !currentConversation.mensajes?.length) return;
-    container.innerHTML = currentConversation.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : (typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta)}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
-    scrollToBottom();
-    if (window.Prism) Prism.highlightAll();
-    addCopyButtonListeners();
-};
-
-const exportarTxt = () => {
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    if (!currentConversation.mensajes.length) {
-        mostrarNotificacion('No hay mensajes para exportar', 'error');
-        return;
-    }
-    const text = currentConversation.mensajes.map(msg => `Pregunta: ${msg.pregunta}\nRespuesta: ${msg.respuesta}\n`).join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `chat_${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' }).replace(/[,:/]/g, '-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    mostrarNotificacion('Chat exportado a TXT', 'success');
-};
-
-const exportarPdf = () => {
-    if (!jsPDF) {
-        mostrarNotificacion('Error: jsPDF no está disponible. Verifica la carga de la biblioteca.', 'error');
-        return;
-    }
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
-    if (!currentConversation.mensajes.length) {
-        mostrarNotificacion('No hay mensajes para exportar', 'error');
-        return;
-    }
-    const doc = new jsPDF();
-    doc.setFontSize(12);
-    let y = 10;
-    currentConversation.mensajes.forEach(msg => {
-        doc.text(`Pregunta: ${msg.pregunta}`, 10, y);
-        y += 10;
-        let respuesta = msg.respuesta.replace(/[\r\n]+/g, ' ').substring(0, 200);
-        doc.text(`Respuesta: ${respuesta}`, 10, y);
-        y += 20;
-        if (y > 270) {
-            doc.addPage();
-            y = 10;
-        }
-    });
-    doc.save(`chat_${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' }).replace(/[,:/]/g, '-')}.pdf`);
-    mostrarNotificacion('Chat exportado a PDF', 'success');
-};
-
-const addCopyButtonListeners = () => {
-    getElements('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const text = btn.dataset.text;
-            navigator.clipboard.writeText(text).then(() => {
-                mostrarNotificacion('Mensaje copiado al portapapeles', 'success');
-            }).catch(error => {
-                mostrarNotificacion(`Error al copiar: ${error.message}`, 'error');
-            });
-        });
-    });
-};
-
-const sendMessage = () => {
-    const input = getElement('#input');
-    const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico';
-    const pregunta = input?.value.trim();
-    if (!pregunta) {
-        console.warn('No se ingresó ninguna pregunta');
-        return;
-    }
-    input.value = '';
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        console.error('Elemento #chatbox o .message-container no encontrado');
-        return;
-    }
-    container.classList.add('loading');
-    const userDiv = document.createElement('div');
-    userDiv.classList.add('user');
-    userDiv.textContent = pregunta;
-    container.appendChild(userDiv);
-    scrollToBottom();
-    fetch('/respuesta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
-    }).then(res => {
-        container.classList.remove('loading');
-        if (!res.ok) {
-            throw new Error(`Error en /respuesta: ${res.status} ${res.statusText}`);
-        }
-        if (res.headers.get('content-type') === 'text/event-stream') {
-            const botDiv = document.createElement('div');
-            botDiv.classList.add('bot', 'typing');
-            container.appendChild(botDiv);
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder();
-            let respuesta = '';
-            function read() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        botDiv.classList.remove('typing');
-                        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuesta) : respuesta) + `<button class="copy-btn" data-text="${respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                        if (window.Prism) Prism.highlightAllUnder(botDiv);
-                        speakText(respuesta);
-                        guardarMensaje(pregunta, respuesta);
-                        scrollToBottom();
-                        addCopyButtonListeners();
-                        return;
-                    }
-                    const chunk = decoder.decode(value);
-                    respuesta += chunk;
-                    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuesta) : respuesta);
-                    scrollToBottom();
-                    read();
-                }).catch(error => {
-                    botDiv.classList.remove('typing');
-                    mostrarNotificacion(`Error en streaming: ${error.message}`, 'error');
-                    console.error('Error en streaming:', error);
-                });
-            }
-            read();
-        } else {
-            res.json().then(data => {
-                if (data.error) {
-                    mostrarNotificacion(data.error, 'error');
-                    console.error('Error en respuesta:', data.error);
-                } else {
-                    console.log('Respuesta recibida:', data.respuesta);
-                    const botDiv = document.createElement('div');
-                    botDiv.classList.add('bot');
-                    let respuestaHtml = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta);
-                    if (data.sugerencias?.length) {
-                        respuestaHtml += `<div class="suggestions"><strong>¿Qué más quieres saber?</strong> ${data.sugerencias.map(tema => `<a href="#" onclick="document.querySelector('#input').value='${tema}'; sendMessage(); return false;">${tema}</a>`).join('')}</div>`;
-                    }
-                    botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                    container.appendChild(botDiv);
-                    scrollToBottom();
-                    if (window.Prism) Prism.highlightAllUnder(botDiv);
-                    speakText(data.respuesta);
-                    guardarMensaje(pregunta, data.respuesta);
-                    addCopyButtonListeners();
-                }
-            }).catch(error => {
-                mostrarNotificacion(`Error al procesar respuesta: ${error.message}`, 'error');
-                console.error('Error al procesar JSON:', error);
-            });
-        }
-    }).catch(error => {
-        container.classList.remove('loading');
-        mostrarNotificacion(`Error al enviar mensaje: ${error.message}`, 'error');
-        console.error('Error en fetch /respuesta:', error);
-        container.removeChild(userDiv);
-    });
+    actualizarListaChats();
+    mostrarNotificacion('Nueva conversación iniciada', 'success');
 };
 
 const buscarTema = () => {
-    const query = getElement('#input')?.value.trim().toLowerCase();
-    const nivelBtnActive = getElement('.nivel-btn.active');
-    const nivel = nivelBtnActive ? nivelBtnActive.dataset.nivel : 'basico';
-    if (!query) {
-        mostrarNotificacion('Ingresa una palabra clave para buscar.', 'error');
+    const searchInput = getElement('#search-input');
+    if (!searchInput) {
+        console.error('Elemento #search-input no encontrado');
         return;
     }
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) return;
-    container.classList.add('loading');
-    fetch('/respuesta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pregunta: `Explica ${query}`, usuario: 'anonimo', avatar_id: selectedAvatar, nivel, max_length: 200 })
-    }).then(res => {
-        container.classList.remove('loading');
-        if (!res.ok) throw new Error(`Error en /respuesta: ${res.status} ${res.statusText}`);
-        res.json().then(data => {
-            if (data.error) {
-                mostrarNotificacion(data.error, 'error');
-                console.error('Error en respuesta:', data.error);
-            } else {
-                console.log('Respuesta recibida en buscarTema:', data.respuesta);
-                const botDiv = document.createElement('div');
-                botDiv.classList.add('bot');
-                let respuestaHtml = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta);
-                if (data.sugerencias?.length) {
-                    respuestaHtml += `<div class="suggestions"><strong>¿Qué más quieres saber?</strong> ${data.sugerencias.map(tema => `<a href="#" onclick="document.querySelector('#input').value='${tema}'; sendMessage(); return false;">${tema}</a>`).join('')}</div>`;
-                }
-                botDiv.innerHTML = respuestaHtml + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                container.appendChild(botDiv);
-                scrollToBottom();
-                if (window.Prism) Prism.highlightAllUnder(botDiv);
-                speakText(data.respuesta);
-                guardarMensaje(`Explica ${query}`, data.respuesta);
-                addCopyButtonListeners();
-            }
-        }).catch(error => {
-            mostrarNotificacion(`Error en búsqueda: ${error.message}`, 'error');
-            console.error('Error al procesar JSON:', error);
-        });
-    }).catch(error => {
-        container.classList.remove('loading');
-        mostrarNotificacion(`Error en búsqueda: ${error.message}`, 'error');
-        console.error('Error en fetch /respuesta:', error);
-    });
+    const tema = searchInput.value.trim();
+    if (!tema) {
+        mostrarNotificacion('Por favor, escribe un tema para buscar.', 'error');
+        return;
+    }
+    const input = getElement('#input');
+    if (input) {
+        input.value = `Explica ${tema} en el contexto de programación avanzada`;
+        sendMessage();
+    }
 };
 
-const responderQuiz = (opcion, respuesta_correcta, tema) => {
+const responderQuiz = (opcion, respuestaCorrecta, tema) => {
     fetch('/responder_quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ respuesta: opcion, respuesta_correcta, tema, usuario: 'anonimo' })
+        body: JSON.stringify({ usuario: 'anonimo', respuesta: opcion, respuesta_correcta: respuestaCorrecta, tema })
     }).then(res => {
         if (!res.ok) throw new Error(`Error en /responder_quiz: ${res.status} ${res.statusText}`);
         return res.json();
@@ -684,73 +558,82 @@ const responderQuiz = (opcion, respuesta_correcta, tema) => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAllUnder(botDiv);
         speakText(data.respuesta);
-        guardarMensaje(`Respuesta Quiz ${tema}`, data.respuesta);
+        guardarMensaje(`Respuesta al quiz sobre ${tema}`, data.respuesta);
         addCopyButtonListeners();
     }).catch(error => {
-        mostrarNotificacion(`Error en quiz: ${error.message}`, 'error');
+        mostrarNotificacion(`Error al responder quiz: ${error.message}`, 'error');
         console.error('Error en fetch /responder_quiz:', error);
     });
 };
 
-const cargarAnalytics = () => {
-    fetch('/analytics?usuario=anonimo', { cache: 'no-store' })
-        .then(res => {
-            if (!res.ok) throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
-            return res.json();
-        })
-        .then(data => {
-            const container = getElement('#analytics-container');
-            if (!container) {
-                console.error('Elemento #analytics-container no encontrado');
-                return;
-            }
-            if (!Array.isArray(data)) {
-                console.error('Error al cargar analytics: data no es un arreglo', data);
-                mostrarNotificacion('No se pudieron cargar las estadísticas. Intenta de nuevo.', 'error');
-                container.innerHTML = '<p>No hay estadísticas disponibles.</p>';
-                return;
-            }
-            container.innerHTML = data.map(item => `
-                <div class="progress-bar">
-                    <span>${item.tema}: ${Math.round(item.tasa_acierto * 100)}%</span>
-                    <div class="bar" style="width: ${item.tasa_acierto * 100}%"></div>
-                </div>
-            `).join('');
-        })
-        .catch(error => {
-            console.error('Error al cargar analytics:', error);
-            mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
-            const container = getElement('#analytics-container');
-            if (container) container.innerHTML = '<p>Error al cargar estadísticas.</p>';
+const exportarTxt = () => {
+    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+    if (!currentConversation.mensajes || !currentConversation.mensajes.length) {
+        mostrarNotificacion('No hay mensajes para exportar', 'error');
+        return;
+    }
+    const text = currentConversation.mensajes.map(msg => `Usuario: ${msg.pregunta}\nIA: ${msg.respuesta}\n`).join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentConversation.nombre || 'chat'}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    mostrarNotificacion('Conversación exportada como TXT', 'success');
+};
+
+const exportarPdf = () => {
+    if (!jsPDF) {
+        mostrarNotificacion('jsPDF no está disponible', 'error');
+        console.error('jsPDF no está disponible');
+        return;
+    }
+    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+    if (!currentConversation.mensajes || !currentConversation.mensajes.length) {
+        mostrarNotificacion('No hay mensajes para exportar', 'error');
+        return;
+    }
+    const doc = new jsPDF();
+    let y = 10;
+    doc.setFontSize(12);
+    currentConversation.mensajes.forEach(msg => {
+        doc.text(`Usuario: ${msg.pregunta}`, 10, y);
+        y += 10;
+        doc.text(`IA: ${msg.respuesta}`, 10, y);
+        y += 15;
+        if (y > 270) {
+            doc.addPage();
+            y = 10;
+        }
+    });
+    doc.save(`${currentConversation.nombre || 'chat'}.pdf`);
+    mostrarNotificacion('Conversación exportada como PDF', 'success');
+};
+
+const addCopyButtonListeners = () => {
+    getElements('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const text = btn.dataset.text;
+            navigator.clipboard.writeText(text).then(() => {
+                mostrarNotificacion('Texto copiado al portapapeles', 'success');
+            }).catch(error => {
+                mostrarNotificacion(`Error al copiar: ${error.message}`, 'error');
+                console.error('Error al copiar texto:', error);
+            });
         });
+    });
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM cargado, configurando listeners...');
-
-    // Desbloquear AudioContext en el primer clic
-    document.addEventListener('click', () => {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume().then(() => {
-                console.log('AudioContext desbloqueado');
-            });
-        }
-    }, { once: true });
-
-    if (typeof marked === 'undefined') {
-        console.warn('Librería marked no está definida, usando texto plano');
-        mostrarNotificacion('Advertencia: No se pudo cargar la librería marked. Las respuestas se mostrarán en texto plano.', 'info');
-    }
-
     const elements = {
+        chatbox: getElement('#chatbox'),
         input: getElement('#input'),
         sendBtn: getElement('#send-btn'),
+        modoBtn: getElement('#modo-btn'),
         voiceBtn: getElement('#voice-btn'),
         voiceToggleBtn: getElement('#voice-toggle-btn'),
-        chatbox: getElement('#chatbox'),
         toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
-        modoBtn: getElement('#modo-btn'),
         exportTxtBtn: getElement('#exportTxtBtn'),
         exportPdfBtn: getElement('#exportPdfBtn'),
         clearBtn: getElement('#btn-clear'),
@@ -761,8 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchBtn: getElement('#search-btn'),
         searchInput: getElement('#search-input'),
         tabButtons: getElements('.tab-btn'),
-        quizBtn: getElement('#quiz-btn'),
-        nivelBtns: getElements('.nivel-btn')
+        quizBtn: getElement('#quiz-btn')
     };
 
     console.log('Elementos encontrados:', elements);
@@ -914,20 +796,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.setAttribute('aria-selected', 'true');
                 getElements('.tab-content > div').forEach(div => div.classList.remove('active'));
                 getElement(`.${btn.dataset.tab}`)?.classList.add('active');
-            });
-        });
-    }
-
-    if (elements.nivelBtns) {
-        console.log('Configurando listeners para .nivel-btn');
-        elements.nivelBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                console.log(`Botón .nivel-btn con data-nivel=${btn.dataset.nivel} clicado`);
-                const nivel = btn.dataset.nivel;
-                document.body.className = `nivel-${nivel} ${document.body.classList.contains('modo-oscuro') ? 'modo-oscuro' : ''}`;
-                elements.nivelBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                mostrarNotificacion(`Nivel cambiado a ${nivel}`, 'success');
             });
         });
     }
@@ -1125,7 +993,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
     }
 
-    document.querySelectorAll('.left-section button, .nivel-btn, .chat-actions button, .input-buttons button').forEach(btn => {
+    document.querySelectorAll('.left-section button, .chat-actions button, .input-buttons button').forEach(btn => {
         const tooltipText = btn.dataset.tooltip;
         if (!tooltipText) return;
         const tooltip = document.createElement('div');
