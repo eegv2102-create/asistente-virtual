@@ -464,29 +464,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (quizBtn) quizBtn.addEventListener('click', generarQuiz);
     if (recommendBtn) recommendBtn.addEventListener('click', buscarTema);
     
-    // Funcionalidad de tooltips
-    document.querySelectorAll('.left-section button, .nivel-btn, .chat-buttons-left button, .chat-buttons-right button').forEach(btn => {
-        const tooltipText = btn.dataset.tooltip;
-        if (!tooltipText) return;
+    // Funcionalidad de tooltips.
+    // Usamos el evento 'mouseover' en el padre para manejar los tooltips de forma eficiente.
+    const tooltip = document.createElement('div');
+    tooltip.className = 'custom-tooltip';
+    document.body.appendChild(tooltip);
 
-        const tooltip = document.createElement('div');
-        tooltip.className = 'custom-tooltip';
-        tooltip.textContent = tooltipText;
-        document.body.appendChild(tooltip);
-
-        btn.addEventListener('mouseenter', (e) => {
-            const rect = btn.getBoundingClientRect();
-            tooltip.style.top = `${rect.top - 10}px`;
+    document.body.addEventListener('mouseover', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (target) {
+            const tooltipText = target.dataset.tooltip;
+            tooltip.textContent = tooltipText;
+            const rect = target.getBoundingClientRect();
             tooltip.style.left = `${rect.left + rect.width / 2}px`;
-            tooltip.style.style.transform = 'translate(-50%, -100%)';
-            tooltip.style.opacity = '1';
-            tooltip.style.visibility = 'visible';
-        });
+            tooltip.style.top = `${rect.top}px`;
+            tooltip.style.transform = 'translate(-50%, -120%)';
+            tooltip.classList.add('active');
+        }
+    });
 
-        btn.addEventListener('mouseleave', () => {
-            tooltip.style.opacity = '0';
-            tooltip.style.visibility = 'hidden';
-        });
+    document.body.addEventListener('mouseout', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (target) {
+            tooltip.classList.remove('active');
+        }
     });
 });
 
