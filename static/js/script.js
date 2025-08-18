@@ -1,7 +1,6 @@
 let vozActiva = true, isListening = false, recognition = null, voicesLoaded = false;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
-const jsPDF = window.jspdf?.jsPDF || null;
 
 const getElement = selector => {
     const element = document.querySelector(selector);
@@ -74,38 +73,8 @@ const speakText = text => {
             console.error('Error al reproducir audio:', error);
             mostrarNotificacion('Error al reproducir voz de IA: ' + error.message, 'error');
         });
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioCtx.createMediaElementSource(currentAudio);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
-        analyser.connect(audioCtx.destination);
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        const canvas = getElement('#lip-sync-canvas');
-        const ctx = canvas?.getContext('2d');
-        function draw() {
-            if (currentAudio && !currentAudio.paused && !currentAudio.ended && ctx) {
-                analyser.getByteFrequencyData(dataArray);
-                let amplitude = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.beginPath();
-                ctx.arc(25, 25, amplitude / 10, 0, 2 * Math.PI);
-                ctx.fillStyle = 'red';
-                ctx.fill();
-                requestAnimationFrame(draw);
-            } else if (botMessage) {
-                botMessage.classList.remove('speaking');
-                if (canvas) canvas.style.opacity = '0';
-            }
-        }
-        if (canvas) {
-            canvas.style.opacity = '1';
-            draw();
-        }
         currentAudio.onended = () => {
             if (botMessage) botMessage.classList.remove('speaking');
-            if (canvas) canvas.style.opacity = '0';
         };
     }).catch(error => {
         console.error('TTS /tts falló, intentando speechSynthesis', error.message);
@@ -568,51 +537,6 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
     });
 };
 
-const exportarTxt = () => {
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-    if (!currentConversation.mensajes || !currentConversation.mensajes.length) {
-        mostrarNotificacion('No hay mensajes para exportar', 'error');
-        return;
-    }
-    const text = currentConversation.mensajes.map(msg => `Usuario: ${msg.pregunta}\nIA: ${msg.respuesta}\n`).join('\n');
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentConversation.nombre || 'chat'}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    mostrarNotificacion('Conversación exportada como TXT', 'success');
-};
-
-const exportarPdf = () => {
-    if (!jsPDF) {
-        mostrarNotificacion('jsPDF no está disponible', 'error');
-        console.error('jsPDF no está disponible');
-        return;
-    }
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-    if (!currentConversation.mensajes || !currentConversation.mensajes.length) {
-        mostrarNotificacion('No hay mensajes para exportar', 'error');
-        return;
-    }
-    const doc = new jsPDF();
-    let y = 10;
-    doc.setFontSize(12);
-    currentConversation.mensajes.forEach(msg => {
-        doc.text(`Usuario: ${msg.pregunta}`, 10, y);
-        y += 10;
-        doc.text(`IA: ${msg.respuesta}`, 10, y);
-        y += 15;
-        if (y > 270) {
-            doc.addPage();
-            y = 10;
-        }
-    });
-    doc.save(`${currentConversation.nombre || 'chat'}.pdf`);
-    mostrarNotificacion('Conversación exportada como PDF', 'success');
-};
-
 const addCopyButtonListeners = () => {
     getElements('.copy-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -635,9 +559,6 @@ document.addEventListener('DOMContentLoaded', () => {
         modoBtn: getElement('#modo-btn'),
         voiceBtn: getElement('#voice-btn'),
         voiceToggleBtn: getElement('#voice-toggle-btn'),
-        toggleAprendizajeBtn: getElement('#toggle-aprendizaje'),
-        exportTxtBtn: getElement('#exportTxtBtn'),
-        exportPdfBtn: getElement('#exportPdfBtn'),
         clearBtn: getElement('#btn-clear'),
         newChatBtn: getElement('#new-chat-btn'),
         recommendBtn: getElement('#recommend-btn'),
@@ -650,19 +571,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     console.log('Elementos encontrados:', elements);
-
-    // Ajuste para viewport dinámico en móviles (maneja teclado)
-    function setViewportHeight() {
-        const viewport = window.visualViewport || window;
-        const vh = viewport.height * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}vh`);
-    }
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', setViewportHeight);
-    } else {
-        window.addEventListener('resize', setViewportHeight);
-    }
-    setViewportHeight();
 
     cargarAvatares();
     actualizarListaChats();
@@ -916,87 +824,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
     } else {
         console.error('No se encontraron .menu-toggle o .menu-toggle-right');
-    }
-
-    if (elements.toggleAprendizajeBtn) {
-        console.log('Configurando listener para #toggle-aprendizaje');
-        elements.toggleAprendizajeBtn.addEventListener('click', () => {
-            console.log('Botón #toggle-aprendizaje clicado');
-            const aprendizajeCard = getElement('#aprendizajeCard');
-            if (aprendizajeCard) aprendizajeCard.classList.toggle('active');
-        });
-    } else {
-        console.error('No se encontró #toggle-aprendizaje');
-    }
-
-    if (getElement('#learnBtn')) {
-        console.log('Configurando listener para #learnBtn');
-        getElement('#learnBtn').addEventListener('click', () => {
-            console.log('Botón #learnBtn clicado');
-            const pregunta = getElement('#nuevaPregunta')?.value.trim();
-            const respuesta = getElement('#nuevaRespuesta')?.value.trim();
-            if (!pregunta || !respuesta) {
-                mostrarNotificacion('Por favor, completa ambos campos.', 'error');
-                return;
-            }
-            fetch('/aprender', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pregunta, respuesta, usuario: 'anonimo' })
-            }).then(res => {
-                if (!res.ok) throw new Error(`Error en /aprender: ${res.status} ${res.statusText}`);
-                return res.json();
-            }).then(data => {
-                if (data.error) {
-                    mostrarNotificacion(data.error, 'error');
-                    console.error('Error en /aprender:', data.error);
-                } else {
-                    mostrarNotificacion('Conocimiento aprendido con éxito', 'success');
-                    getElement('#nuevaPregunta').value = '';
-                    getElement('#nuevaRespuesta').value = '';
-                    getElement('#aprendizajeCard')?.classList.remove('active');
-                }
-            }).catch(error => {
-                mostrarNotificacion(`Error al aprender: ${error.message}`, 'error');
-                console.error('Error en fetch /aprender:', error);
-            });
-        });
-    } else {
-        console.error('No se encontró #learnBtn');
-    }
-
-    if (elements.exportTxtBtn) {
-        console.log('Configurando listener para #exportTxtBtn');
-        elements.exportTxtBtn.addEventListener('click', () => {
-            console.log('Botón #exportTxtBtn clicado');
-            exportarTxt();
-        });
-    } else {
-        console.error('No se encontró #exportTxtBtn');
-    }
-
-    if (elements.exportPdfBtn) {
-        console.log('Configurando listener para #exportPdfBtn');
-        elements.exportPdfBtn.addEventListener('click', () => {
-            console.log('Botón #exportPdfBtn clicado');
-            exportarPdf();
-        });
-    } else {
-        console.error('No se encontró #exportPdfBtn');
-    }
-
-    if (getElement('#tema-filter')) {
-        console.log('Configurando listener para #tema-filter');
-        getElement('#tema-filter').addEventListener('change', () => {
-            console.log('Cambio en #tema-filter');
-            const tema = getElement('#tema-filter').value;
-            if (tema) {
-                getElement('#input').value = tema;
-                buscarTema();
-            }
-        });
-    } else {
-        console.error('No se encontró #tema-filter');
     }
 
     const savedTheme = localStorage.getItem('theme');
