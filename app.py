@@ -5,7 +5,7 @@ import random
 import logging
 import socket
 import webbrowser
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 from dotenv import load_dotenv
 from groq import Groq
 import psycopg2
@@ -95,13 +95,13 @@ def buscar_respuesta_app(pregunta, usuario):
                         "Enfócate en temas como POO, UML, MVC, patrones de diseño, bases de datos relacionales, ORM, y pruebas unitarias. "
                         "Si la pregunta es ambigua, pide aclaraciones. Si es un saludo, responde amigablemente y sugiere un tema. "
                         f"Contexto: {json.dumps(temas)}"
-                    )
-                },
+                        )
+                    },
                 {"role": "user", "content": pregunta}
-            ],
-            max_tokens=500,
-            temperature=0.5
-        )
+    ],
+    max_tokens=1000,  # Aumentar de 500 a 1000
+    temperature=0.5
+)
         respuesta = completion.choices[0].message.content.strip()
         logging.info(f"Respuesta de Groq: {respuesta}")
         return respuesta

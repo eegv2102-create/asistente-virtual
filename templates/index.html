@@ -16,6 +16,11 @@
         }
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaQOfCdyW//5h6dVnaA/A01D3hYGqM68+04qSY8o1rN2M3G7D2l2WMcjXyqAGr59eDR2c8L5BsjA==" crossorigin="anonymous"></script>
+    <script>
+        if (typeof Prism === 'undefined') {
+            document.write('<script src="{{ url_for('static', filename='js/prism.min.js') }}"><\/script>');
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js" integrity="sha512-1x3pZ1p/vqN2gDKlHHt1XujK2A9FW8eWvryoE4N3+FeR+8m/iF4Q2oPriv2yV8G8A7m7r+0eKFrLFsTKc/Muf3Q==" crossorigin="anonymous"></script>
 </head>
 <body>
