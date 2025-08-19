@@ -448,7 +448,7 @@ const obtenerRecomendacion = async () => {
         return await response.json();
     } catch (error) {
         console.warn('Error en fetch /recommend, generando recomendación simulada:', error);
-        return { recommendation: 'Patrones de diseño' }; // Simulación de respuesta de IA
+        return { recommendation: 'Patrones de diseño' };
     }
 };
 
@@ -473,7 +473,7 @@ const obtenerQuiz = async () => {
                 respuesta_correcta: 'Ocultar datos',
                 tema: 'POO'
             }]
-        }; // Simulación de respuesta de IA
+        };
     }
 };
 
@@ -642,7 +642,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cargarAvatares();
     actualizarListaChats();
-    cargarConversacionActual();
     cargarAnalytics();
 
     if (elements.sendBtn) {
@@ -798,7 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (leftSection) {
                 leftSection.classList.toggle('active');
                 elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                if (rightSection && rightSection.classList.contains('active')) {
+                if (rightSection && rightSection.classList.contains('active') && window.innerWidth <= 768) {
                     rightSection.classList.remove('active');
                     elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
@@ -814,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                if (leftSection && leftSection.classList.contains('active')) {
+                if (leftSection && leftSection.classList.contains('active') && window.innerWidth <= 768) {
                     leftSection.classList.remove('active');
                     elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
@@ -884,8 +883,8 @@ document.addEventListener('DOMContentLoaded', () => {
         tooltip.className = 'custom-tooltip';
         tooltip.textContent = tooltipText;
         tooltip.style.position = 'absolute';
-        tooltip.style.background = 'var(--bg-secondary)';
-        tooltip.style.color = 'var(--text-primary)';
+        tooltip.style.background = 'var(--bg-secondary, #fff)';
+        tooltip.style.color = 'var(--text-primary, #333)';
         tooltip.style.padding = '5px 10px';
         tooltip.style.borderRadius = '4px';
         tooltip.style.fontSize = '12px';
