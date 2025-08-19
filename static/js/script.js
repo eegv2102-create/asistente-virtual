@@ -554,7 +554,7 @@ const addCopyButtonListeners = () => {
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         chatbox: getElement('#chatbox'),
-        input: getElement('#input');
+        input: getElement('#input'),
         sendBtn: getElement('#send-btn'),
         modoBtn: getElement('#modo-btn'),
         voiceBtn: getElement('#voice-btn'),
