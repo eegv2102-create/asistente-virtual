@@ -576,70 +576,28 @@ const addCopyButtonListeners = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const elements = {
-        chatbox: getElement('#chatbox'),
-        input: getElement('#input'),
-        sendBtn: getElement('#send-btn'),
-        modoBtn: getElement('#modo-btn'),
-        voiceBtn: getElement('#voice-btn'),
-        voiceToggleBtn: getElement('#voice-toggle-btn'),
-        clearBtn: getElement('#btn-clear'),
-        newChatBtn: getElement('#new-chat-btn'),
-        recommendBtn: getElement('#recommend-btn'),
-        menuToggle: getElement('.menu-toggle'),
-        menuToggleRight: getElement('.menu-toggle-right'),
-        searchBtn: getElement('#search-btn'),
-        searchInput: getElement('#search-input'),
-        tabButtons: getElements('.tab-btn'),
-        quizBtn: getElement('#quiz-btn')
-    };
-
-    console.log('Elementos encontrados:', elements);
-
+    // Cargar inicial
     cargarAvatares();
     actualizarListaChats();
     cargarConversacionActual();
     cargarAnalytics();
 
-    if (elements.sendBtn && elements.input) {
-        console.log('Configurando listener para #send-btn y #input');
-        elements.sendBtn.addEventListener('click', () => {
+    // Botón #send-btn
+    const sendBtn = document.getElementById('send-btn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', () => {
             console.log('Botón #send-btn clicado');
             sendMessage();
         });
-        elements.input.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                console.log('Enter presionado en #input');
-                sendMessage();
-            }
-        });
     } else {
-        console.error('No se encontraron #send-btn o #input');
+        console.error('Botón #send-btn no encontrado');
+        mostrarNotificacion('Error: Botón de enviar mensaje no encontrado', 'error');
     }
 
-    if (elements.clearBtn) {
-        console.log('Configurando listener para #btn-clear');
-        elements.clearBtn.addEventListener('click', () => {
-            console.log('Botón #btn-clear clicado');
-            limpiarChat();
-        });
-    } else {
-        console.error('No se encontró #btn-clear');
-    }
-
-    if (elements.newChatBtn) {
-        console.log('Configurando listener para #new-chat-btn');
-        elements.newChatBtn.addEventListener('click', () => {
-            console.log('Botón #new-chat-btn clicado');
-            nuevaConversacion();
-        });
-    } else {
-        console.error('No se encontró #new-chat-btn');
-    }
-
-    if (elements.recommendBtn) {
-        console.log('Configurando listener para #recommend-btn');
-        elements.recommendBtn.addEventListener('click', () => {
+    // Botón #recommend-btn
+    const recommendBtn = document.getElementById('recommend-btn');
+    if (recommendBtn) {
+        recommendBtn.addEventListener('click', () => {
             console.log('Botón #recommend-btn clicado');
             fetch('/recommend', {
                 method: 'POST',
@@ -654,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return res.json();
             }).then(data => {
-                const chatbox = elements.chatbox;
+                const chatbox = getElement('#chatbox');
                 const container = chatbox?.querySelector('.message-container');
                 if (!container || !chatbox) return;
                 const botDiv = document.createElement('div');
@@ -673,28 +631,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     } else {
-        console.error('No se encontró #recommend-btn');
+        console.error('Botón #recommend-btn no encontrado');
+        mostrarNotificacion('Error: Botón de recomendación no encontrado', 'error');
     }
 
-    if (elements.searchBtn && elements.searchInput) {
-        console.log('Configurando listener para #search-btn y #search-input');
-        elements.searchBtn.addEventListener('click', () => {
-            console.log('Botón #search-btn clicado');
-            buscarTema();
-        });
-        elements.searchInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                console.log('Enter presionado en #search-input');
-                buscarTema();
-            }
-        });
-    } else {
-        console.error('No se encontraron #search-btn o #search-input');
-    }
-
-    if (elements.quizBtn && elements.chatbox) {
-        console.log('Configurando listener para #quiz-btn');
-        elements.quizBtn.addEventListener('click', () => {
+    // Botón #quiz-btn
+    const quizBtn = document.getElementById('quiz-btn');
+    if (quizBtn) {
+        quizBtn.addEventListener('click', () => {
             console.log('Botón #quiz-btn clicado');
             fetch('/quiz', {
                 method: 'POST',
@@ -709,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return res.json();
             }).then(data => {
-                const chatbox = elements.chatbox;
+                const chatbox = getElement('#chatbox');
                 const container = chatbox?.querySelector('.message-container');
                 if (!container || !chatbox) return;
                 const quiz = data.quiz[0]; // Mostrar solo la primera pregunta
@@ -742,65 +686,114 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     } else {
-        console.error('No se encontraron #quiz-btn o #chatbox');
+        console.error('Botón #quiz-btn no encontrado');
+        mostrarNotificacion('Error: Botón de quiz no encontrado', 'error');
     }
 
-    if (elements.tabButtons) {
-        console.log('Configurando listeners para .tab-btn');
-        elements.tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                console.log(`Botón .tab-btn con data-tab=${btn.dataset.tab} clicado`);
-                elements.tabButtons.forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-selected', 'false');
-                });
-                btn.classList.add('active');
-                btn.setAttribute('aria-selected', 'true');
-                getElements('.tab-content > div').forEach(div => div.classList.remove('active'));
-                getElement(`.${btn.dataset.tab}`)?.classList.add('active');
-            });
-        });
-    }
-
-    if (elements.modoBtn) {
-        console.log('Configurando listener para #modo-btn');
-        elements.modoBtn.addEventListener('click', () => {
-            console.log('Botón #modo-btn clicado');
-            document.body.classList.toggle('modo-oscuro');
-            const modo = document.body.classList.contains('modo-oscuro') ? 'Oscuro' : 'Claro';
-            elements.modoBtn.innerHTML = `<i class="fas fa-${modo === 'Claro' ? 'moon' : 'sun'}"></i>`;
-            localStorage.setItem('theme', modo.toLowerCase());
-            mostrarNotificacion(`Modo ${modo} activado`, 'success');
+    // Botón #new-chat-btn
+    const newChatBtn = document.getElementById('new-chat-btn');
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => {
+            console.log('Botón #new-chat-btn clicado');
+            nuevaConversacion();
         });
     } else {
-        console.error('No se encontró #modo-btn');
+        console.error('Botón #new-chat-btn no encontrado');
+        mostrarNotificacion('Error: Botón de nueva conversación no encontrado', 'error');
     }
 
-    if (elements.voiceBtn) {
-        console.log('Configurando listener para #voice-btn');
-        elements.voiceBtn.addEventListener('click', () => {
+    // Botón #btn-clear
+    const clearBtn = document.getElementById('btn-clear');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            console.log('Botón #btn-clear clicado');
+            limpiarChat();
+        });
+    } else {
+        console.error('Botón #btn-clear no encontrado');
+        mostrarNotificacion('Error: Botón de limpiar chat no encontrado', 'error');
+    }
+
+    // Botón #voice-btn
+    const voiceBtn = document.getElementById('voice-btn');
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', () => {
             console.log('Botón #voice-btn clicado');
             vozActiva = !vozActiva;
-            elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
+            voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
             mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
             if (!vozActiva) stopSpeech();
         });
     } else {
-        console.error('No se encontró #voice-btn');
+        console.error('Botón #voice-btn no encontrado');
+        mostrarNotificacion('Error: Botón de voz no encontrado', 'error');
     }
 
-    if (elements.voiceToggleBtn) {
-        console.log('Configurando listener para #voice-toggle-btn');
-        elements.voiceToggleBtn.addEventListener('click', () => {
+    // Botón #voice-toggle-btn
+    const voiceToggleBtn = document.getElementById('voice-toggle-btn');
+    if (voiceToggleBtn) {
+        voiceToggleBtn.addEventListener('click', () => {
             console.log('Botón #voice-toggle-btn clicado');
             toggleVoiceRecognition();
         });
     } else {
-        console.error('No se encontró #voice-toggle-btn');
+        console.error('Botón #voice-toggle-btn no encontrado');
+        mostrarNotificacion('Error: Botón de reconocimiento de voz no encontrado', 'error');
     }
 
-    if (elements.menuToggle && elements.menuToggleRight) {
-        console.log('Configurando listeners para .menu-toggle y .menu-toggle-right');
+    // Botón #modo-btn
+    const modoBtn = document.getElementById('modo-btn');
+    if (modoBtn) {
+        modoBtn.addEventListener('click', () => {
+            console.log('Botón #modo-btn clicado');
+            document.body.classList.toggle('modo-oscuro');
+            const modo = document.body.classList.contains('modo-oscuro') ? 'Oscuro' : 'Claro';
+            modoBtn.innerHTML = `<i class="fas fa-${modo === 'Claro' ? 'moon' : 'sun'}"></i>`;
+            localStorage.setItem('theme', modo.toLowerCase());
+            mostrarNotificacion(`Modo ${modo} activado`, 'success');
+        });
+    } else {
+        console.error('Botón #modo-btn no encontrado');
+        mostrarNotificacion('Error: Botón de modo no encontrado', 'error');
+    }
+
+    // Listener para #input (Enter)
+    const input = document.getElementById('input');
+    if (input) {
+        input.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                console.log('Enter presionado en #input');
+                sendMessage();
+            }
+        });
+    } else {
+        console.error('Elemento #input no encontrado');
+        mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
+    }
+
+    // Listener para #search-btn y #search-input
+    const searchBtn = document.getElementById('search-btn');
+    const searchInput = document.getElementById('search-input');
+    if (searchBtn && searchInput) {
+        searchBtn.addEventListener('click', () => {
+            console.log('Botón #search-btn clicado');
+            buscarTema();
+        });
+        searchInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                console.log('Enter presionado en #search-input');
+                buscarTema();
+            }
+        });
+    } else {
+        console.error('No se encontraron #search-btn o #search-input');
+        mostrarNotificacion('Error: Botón o campo de búsqueda no encontrado', 'error');
+    }
+
+    // Listeners para .menu-toggle y .menu-toggle-right
+    const menuToggle = document.querySelector('.menu-toggle');
+    const menuToggleRight = document.querySelector('.menu-toggle-right');
+    if (menuToggle && menuToggleRight) {
         const toggleLeftMenu = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -809,10 +802,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const rightSection = getElement('.right-section');
             if (leftSection) {
                 leftSection.classList.toggle('active');
-                elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
                 if (rightSection && rightSection.classList.contains('active')) {
                     rightSection.classList.remove('active');
-                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                    menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
         };
@@ -825,36 +818,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const leftSection = getElement('.left-section');
             if (rightSection) {
                 rightSection.classList.toggle('active');
-                elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
                 if (leftSection && leftSection.classList.contains('active')) {
                     leftSection.classList.remove('active');
-                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                    menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
         };
 
-        elements.menuToggle.addEventListener('click', toggleLeftMenu);
-        elements.menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
-        elements.menuToggleRight.addEventListener('click', toggleRightMenu);
-        elements.menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
+        menuToggle.addEventListener('click', toggleLeftMenu);
+        menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
+        menuToggleRight.addEventListener('click', toggleRightMenu);
+        menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
 
         const closeMenusOnOutsideInteraction = (e) => {
             const leftSection = getElement('.left-section');
             const rightSection = getElement('.right-section');
-            const menuToggle = getElement('.menu-toggle');
-            const menuToggleRight = getElement('.menu-toggle-right');
             if (window.innerWidth <= 768) {
                 if (leftSection && leftSection.classList.contains('active') &&
                     !leftSection.contains(e.target) &&
                     !menuToggle.contains(e.target)) {
                     leftSection.classList.remove('active');
-                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                    menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
                 if (rightSection && rightSection.classList.contains('active') &&
                     !rightSection.contains(e.target) &&
                     !menuToggleRight.contains(e.target)) {
                     rightSection.classList.remove('active');
-                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                    menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
         };
@@ -863,17 +854,28 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
     } else {
         console.error('No se encontraron .menu-toggle o .menu-toggle-right');
+        mostrarNotificacion('Error: Botones de menú no encontrados', 'error');
     }
 
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'oscuro') {
-        document.body.classList.add('modo-oscuro');
-        elements.modoBtn.innerHTML = `<i class="fas fa-sun"></i>`;
-    } else {
-        document.body.classList.remove('modo-oscuro');
-        elements.modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
+    // Listeners para .tab-btn
+    const tabButtons = getElements('.tab-btn');
+    if (tabButtons.length) {
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                console.log(`Botón .tab-btn con data-tab=${btn.dataset.tab} clicado`);
+                tabButtons.forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
+                btn.classList.add('active');
+                btn.setAttribute('aria-selected', 'true');
+                getElements('.tab-content > div').forEach(div => div.classList.remove('active'));
+                getElement(`.${btn.dataset.tab}`)?.classList.add('active');
+            });
+        });
     }
 
+    // Tooltips
     document.querySelectorAll('.left-section button, .chat-actions button, .input-buttons button').forEach(btn => {
         const tooltipText = btn.dataset.tooltip;
         if (!tooltipText) return;
@@ -905,6 +907,17 @@ document.addEventListener('DOMContentLoaded', () => {
             tooltip.style.visibility = 'hidden';
         });
     });
+
+    // Tema guardado
+    const savedTheme = localStorage.getItem('theme');
+    const modoBtn = document.getElementById('modo-btn');
+    if (savedTheme === 'oscuro') {
+        document.body.classList.add('modo-oscuro');
+        if (modoBtn) modoBtn.innerHTML = `<i class="fas fa-sun"></i>`;
+    } else {
+        document.body.classList.remove('modo-oscuro');
+        if (modoBtn) modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
+    }
 
     console.log('Configuración de listeners completada');
 });
