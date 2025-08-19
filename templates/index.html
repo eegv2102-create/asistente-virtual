@@ -22,7 +22,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js" integrity="sha512-1x3pZ1p/vqN2gDKlHHt1XujK2A9FW8eWvryoE4N3+FeR+8m/iF4Q2oPriv2yV8G8A7m7r+0eKFrLFsTKc/Muf3Q==" crossorigin="anonymous"></script>
 </head>
 <body>
-    <h2 class="app-title">💻 Asistente con Avatar Inteligente de Programación Avanzada</h2>
+    <h2 class="app-title">🧠 Y.E.L.I.A. 🤖</h2>
     <div class="container">
         <aside class="left-section" id="left-section">
             <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false" aria-controls="left-section">
@@ -30,17 +30,17 @@
             </button>
             <div class="sidebar-content">
                 <div class="sidebar-buttons">
-                    <button id="modo-btn" data-tooltip="Cambiar a modo claro/oscuro">
-                        <i class="fas fa-sun"></i>
+                    <button id="modo-btn" data-tooltip="Modo Oscuro">
+                        <i class="fas fa-moon"></i> <span id="modo-text">Modo Oscuro</span>
                     </button>
-                    <button id="voice-btn" data-tooltip="Activar/desactivar voz">
-                        <i class="fas fa-volume-up"></i>
+                    <button id="voice-btn" data-tooltip="Activar Voz">
+                        <i class="fas fa-volume-up"></i> <span id="voice-text">Activar Voz</span>
                     </button>
-                    <button id="quiz-btn" data-tooltip="Iniciar quiz">
-                        <i class="fas fa-question-circle"></i>
+                    <button id="quiz-btn" data-tooltip="Iniciar Quiz">
+                        <i class="fas fa-question-circle"></i> Iniciar Quiz
                     </button>
-                    <button id="recommend-btn" data-tooltip="Recomendar tema">
-                        <i class="fas fa-lightbulb"></i>
+                    <button id="recommend-btn" data-tooltip="Recomendar Tema">
+                        <i class="fas fa-lightbulb"></i> Recomendar Tema
                     </button>
                 </div>
                 <h3>Historial de Chats</h3>
@@ -58,10 +58,10 @@
             </div>
             <div class="input-group">
                 <div class="input-buttons left">
-                    <button id="new-chat-btn" data-tooltip="Nuevo chat">
+                    <button id="new-chat-btn" data-tooltip="Nuevo Chat">
                         <i class="fas fa-plus"></i>
                     </button>
-                    <button id="btn-clear" data-tooltip="Limpiar chat">
+                    <button id="btn-clear" data-tooltip="Limpiar Chat">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -72,10 +72,10 @@
                 </select>
                 <input type="text" id="input" placeholder="Escribe tu mensaje..." aria-label="Escribir mensaje">
                 <div class="input-buttons right">
-                    <button id="voice-toggle-btn" data-tooltip="Iniciar/Detener reconocimiento de voz">
+                    <button id="voice-toggle-btn" data-tooltip="Voz">
                         <i class="fas fa-microphone"></i>
                     </button>
-                    <button id="send-btn" data-tooltip="Enviar mensaje">
+                    <button id="send-btn" data-tooltip="Enviar">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
