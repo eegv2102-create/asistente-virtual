@@ -7,9 +7,7 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- CDN principal para marked -->
     <script src="https://cdn.jsdelivr.net/npm/marked@14.1.2/lib/marked.umd.min.js" integrity="sha256-0jPHqYk/qUkL9r2gW3N4yWSN+3K7h8VKB1W6j0N4z1I=" crossorigin="anonymous"></script>
-    <!-- Fallback local si el CDN falla -->
     <script>
         if (typeof marked === 'undefined') {
             document.write('<script src="{{ url_for('static', filename='js/marked.min.js') }}"><\/script>');
@@ -26,7 +24,6 @@
 <body>
     <h2 class="app-title">💻 Asistente con Avatar Inteligente de Programación Avanzada</h2>
     <div class="container">
-        <!-- Left Sidebar -->
         <aside class="left-section" id="left-section">
             <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false" aria-controls="left-section">
                 <i class="fas fa-bars"></i>
@@ -52,16 +49,12 @@
                 </div>
             </div>
         </aside>
-
-        <!-- Main Content -->
         <main class="main-section">
             <div id="voice-hint" class="voice-hint" style="display: none;" aria-live="polite">
                 Haz clic en cualquier lugar para habilitar la voz
             </div>
             <div id="chatbox">
-                <div class="message-container">
-                    <!-- Los mensajes se añadirán dinámicamente aquí con clases .user o .bot -->
-                </div>
+                <div class="message-container"></div>
             </div>
             <div class="input-group">
                 <div class="input-buttons left">
@@ -72,6 +65,11 @@
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
+                <select id="nivel-explicacion" aria-label="Nivel de explicación">
+                    <option value="basica">Explicación Básica</option>
+                    <option value="ejemplos">Con Ejemplos de Código</option>
+                    <option value="avanzada">Avanzada/Teórica</option>
+                </select>
                 <input type="text" id="input" placeholder="Escribe tu mensaje..." aria-label="Escribir mensaje">
                 <div class="input-buttons right">
                     <button id="voice-toggle-btn" data-tooltip="Iniciar/Detener reconocimiento de voz">
@@ -83,8 +81,6 @@
                 </div>
             </div>
         </main>
-
-        <!-- Right Sidebar -->
         <aside class="right-section" id="right-section">
             <button class="menu-toggle-right" aria-label="Abrir menú de avatares" aria-expanded="false" aria-controls="right-section">
                 <i class="fas fa-bars"></i>
@@ -95,11 +91,7 @@
                 <div class="avatar-options"></div>
             </div>
         </aside>
-
-        <!-- Notification Card -->
         <div id="notification-card"></div>
-
-        <!-- Quiz Modal -->
         <div id="quiz-modal" style="display: none;">
             <div class="modal-content">
                 <h3 id="quiz-question"></h3>
