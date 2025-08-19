@@ -17,7 +17,7 @@
     --button-hover: #16a085;
     --scrollbar-thumb: #1abc9c;
     --scrollbar-track: #f5f6f5;
-    --vh: 1vh;
+    --vh: 1vh; /* Variable para altura dinámica */
 }
 
 body.modo-oscuro {
@@ -58,8 +58,8 @@ body {
     overflow-x: hidden;
     transition: background-color 0.3s, color 0.3s;
     touch-action: manipulation;
-    height: 100vh;
-    overflow: hidden;
+    height: 100vh; /* Para manejar keyboard en iOS */
+    overflow: hidden; /* Evitar scroll de body en móviles */
 }
 
 /* Centrar el título arriba */
@@ -70,12 +70,8 @@ body {
     color: var(--text-primary);
     width: 100%;
     max-width: 100%;
-    position: fixed;
-    top: 0;
+    position: relative;
     z-index: 1000;
-    background-color: var(--bg-primary);
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
 }
 
 /* Main Layout */
@@ -110,8 +106,8 @@ body {
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
-    background-color: var(--bg-secondary);
-    z-index: 10;
+    background-color: var(--bg-secondary); /* Fondo consistente */
+    z-index: 10; /* Asegura que esté sobre la lista */
 }
 
 .sidebar-content {
@@ -119,61 +115,57 @@ body {
     flex-direction: column;
     gap: 16px;
     flex: 1;
-    height: calc(100% - 48px);
+    height: calc(100% - 48px); /* Resta altura aproximada del título (h3) */
 }
 
 .sidebar-buttons {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding-bottom: 8px;
+    padding-bottom: 8px; /* Espacio para separación */
 }
 
 #modo-btn, #voice-btn, #quiz-btn, #recommend-btn {
-    background: var(--button-bg);
-    border: none;
-    color: var(--button-text);
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
     cursor: pointer;
-    padding: 10px;
-    border-radius: 12px;
+    padding: 8px;
+    border-radius: 8px;
     font-size: 1rem;
-    transition: transform 0.2s ease, background-color 0.2s, box-shadow 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover {
-    background-color: var(--button-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px var(--shadow);
+    background-color: var(--accent);
+    color: var(--button-text);
 }
 
 .chat-history {
     flex: 1;
-    height: calc(100% - 80px);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background-color: var(--bg-primary);
-    overflow-y: hidden;
-    margin-top: 8px;
+    height: calc(100% - 80px); /* Resta altura de botones (aprox. 80px) */
+    border: 1px solid var(--border); /* Borde para delimitar visualmente */
+    border-radius: 8px; /* Bordes redondeados */
+    background-color: var(--bg-primary); /* Fondo para contraste */
+    overflow-y: hidden; /* No scrollbar en el contenedor padre */
+    margin-top: 8px; /* Espacio debajo del título */
 }
 
 #chat-list {
     list-style: none;
-    overflow-y: scroll;
-    height: 100%;
-    padding: 12px;
+    overflow-y: scroll; /* Barra de desplazamiento solo en la lista */
+    height: 100%; /* Ocupa todo el espacio disponible */
+    padding: 12px; /* Más padding para visibilidad */
 }
 
 #chat-list::-webkit-scrollbar {
-    width: 12px;
+    width: 12px; /* Barra más ancha para mayor visibilidad */
 }
 
 #chat-list::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: 6px;
-    border: 3px solid var(--scrollbar-track);
+    border: 3px solid var(--scrollbar-track); /* Mayor contraste */
 }
 
 #chat-list::-webkit-scrollbar-track {
@@ -182,23 +174,22 @@ body {
 }
 
 #chat-list li {
-    padding: 12px 14px;
+    padding: 12px 14px; /* Más padding para claridad */
     cursor: pointer;
     border-radius: 8px;
-    margin-bottom: 10px;
-    background-color: var(--bg-secondary);
-    transition: background-color 0.2s, transform 0.2s;
+    margin-bottom: 10px; /* Más espacio entre chats */
+    background-color: var(--bg-secondary); /* Fondo para cada chat */
+    transition: background-color 0.2s;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid var(--border);
-    box-shadow: 0 1px 3px var(--shadow);
+    border: 1px solid var(--border); /* Borde para cada chat */
+    box-shadow: 0 1px 3px var(--shadow); /* Sombra ligera para profundidad */
 }
 
 #chat-list li:hover {
     background-color: var(--accent);
     color: var(--button-text);
-    transform: translateY(-2px);
 }
 
 #chat-list li.selected {
@@ -206,30 +197,44 @@ body {
     color: var(--button-text);
 }
 
+/* Estilos para tooltips personalizados */
+.custom-tooltip {
+    position: absolute;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 5px 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px var(--shadow);
+    z-index: 1000;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
 /* Main Section */
 .main-section {
     flex: 1;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: 100%; /* Asegura altura completa */
 }
 
 #chatbox {
     flex: 1;
-    padding: 20px;
-    overflow-y: auto;
+    padding: 16px;
+    overflow-y: scroll; /* Forzar scrollbar visible */
     background-color: var(--bg-secondary);
     transition: background-color 0.3s;
 }
 
 #chatbox::-webkit-scrollbar {
-    width: 12px;
+    width: 12px; /* Barra más ancha */
 }
 
 #chatbox::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: 6px;
-    border: 3px solid var(--scrollbar-track);
+    border: 3px solid var(--scrollbar-track); /* Mayor contraste */
 }
 
 #chatbox::-webkit-scrollbar-track {
@@ -240,57 +245,49 @@ body {
 .message-container {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding-bottom: 20px;
+    gap: 12px;
 }
 
 .user, .bot {
     display: flex;
-    align-items: flex-start;
-    padding: 12px 16px;
-    border-radius: 20px;
-    max-width: 75%;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 16px;
+    max-width: 70%;
     word-wrap: break-word;
     font-size: 0.95rem;
-    position: relative;
-    animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-    from { transform: translateY(10px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
 }
 
 .user {
     align-self: flex-end;
     background-color: var(--message-user-bg);
     color: var(--message-user-text);
-    border-radius: 20px 20px 4px 20px;
-    margin-left: 10px;
+    border-radius: 16px 16px 0 16px;
 }
 
 .bot {
     align-self: flex-start;
     background-color: var(--message-bot-bg);
     color: var(--message-bot-text);
-    border-radius: 20px 20px 20px 4px;
-    margin-right: 10px;
+    border-radius: 16px 16px 16px 0;
 }
 
 .user:before {
-    content: "\f007";
+    content: "\f007"; /* fa-user */
     font-family: "Font Awesome 5 Free";
-    font-weight: 900;
+    font-weight: 900; /* Asegura que use la variante sólida */
     margin-right: 8px;
-    font-size: 1rem;
+    font-size: 1rem; /* Tamaño consistente */
+    vertical-align: middle;
 }
 
 .bot:before {
-    content: "\f544";
+    content: "\f544"; /* fa-brain para el bot */
     font-family: "Font Awesome 5 Free";
-    font-weight: 900;
+    font-weight: 900; /* Asegura que use la variante sólida */
     margin-right: 8px;
-    font-size: 1rem;
+    font-size: 1rem; /* Tamaño consistente */
+    vertical-align: middle;
 }
 
 .copy-btn {
@@ -299,57 +296,50 @@ body {
     cursor: pointer;
     margin-left: 8px;
     color: var(--text-secondary);
-    font-size: 0.9rem;
-    transition: color 0.2s, transform 0.2s;
+    font-size: 1rem; /* Tamaño consistente con los íconos de usuario/bot */
+    transition: color 0.2s;
+    vertical-align: middle;
+    padding: 0; /* Eliminar padding para alinear mejor */
+}
+
+.copy-btn i.fas.fa-copy {
+    font-size: 1rem; /* Tamaño consistente */
+    vertical-align: middle;
 }
 
 .copy-btn:hover {
     color: var(--accent);
-    transform: scale(1.1);
 }
 
-.avatar-display {
-    height: 80px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--bg-primary);
-    border-top: 1px solid var(--border);
-    padding: 10px;
-}
-
-#avatar-img {
-    width: 60px;
-    height: 60px;
+.bot-avatar {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+    margin-right: 8px;
     border-radius: 50%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
-
-#avatar-img:hover {
-    transform: scale(1.1);
+    display: none; /* Ocultar por ahora, ya que no se usa */
 }
 
 .input-group {
     display: flex;
-    align-items: center;
     padding: 12px;
     border-top: 1px solid var(--border);
     background-color: var(--bg-primary);
     transition: background-color 0.3s, border-color 0.3s;
+    align-items: center;
 }
 
 .input-buttons.left, .input-buttons.right {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 #input {
     flex: 1;
-    padding: 12px 16px;
+    padding: 10px 16px;
     border: 1px solid var(--border);
-    border-radius: 25px;
-    margin: 0 10px;
+    border-radius: 20px;
+    margin: 0 8px;
     font-size: 0.95rem;
     background-color: var(--bg-primary);
     color: var(--text-primary);
@@ -365,25 +355,28 @@ body {
     background-color: var(--button-bg);
     color: var(--button-text);
     border: none;
-    padding: 10px;
-    border-radius: 25px;
+    padding: 8px 12px;
+    border-radius: 20px;
     cursor: pointer;
     font-size: 0.95rem;
-    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    transition: background-color 0.2s;
 }
 
-#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover, #btn-clear:hover {
+#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover {
     background-color: var(--button-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px var(--shadow);
 }
 
 #btn-clear {
     background-color: #e74c3c;
+    color: #ffffff;
 }
 
 #btn-clear:hover {
     background-color: #c0392b;
+}
+
+#voice-toggle-btn.voice-active i {
+    content: "\f131"; /* fa-microphone-slash cuando activo */
 }
 
 /* Right Section: Avatar Selection */
@@ -394,7 +387,7 @@ body {
     padding: 16px;
     border-left: 1px solid var(--border);
     transition: transform 0.3s ease, background-color 0.3s;
-    height: 100%;
+    height: 100%; /* Altura completa */
 }
 
 .right-section h3 {
@@ -417,23 +410,20 @@ body {
     gap: 12px;
 }
 
-.avatar-options div, .avatar-options img {
+.avatar-options div {
     padding: 10px;
     border-radius: 8px;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: border 0.2s, background-color 0.2s, transform 0.2s;
-    max-width: 100%;
-    height: auto;
+    transition: border 0.2s, background-color 0.2s;
 }
 
-.avatar-options div:hover, .avatar-options img:hover {
+.avatar-options div:hover {
     background-color: var(--accent);
     color: var(--button-text);
-    transform: translateY(-2px);
 }
 
-.avatar-options div.selected, .avatar-options img.selected {
+.avatar-options div.selected {
     border: 2px solid var(--accent);
 }
 
@@ -511,15 +501,14 @@ body {
     color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px;
+    padding: 8px;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, transform 0.2s;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .quiz-option:hover {
     background-color: var(--accent);
     color: var(--button-text);
-    transform: translateY(-2px);
 }
 
 .quiz-option.selected {
@@ -534,12 +523,12 @@ body {
 }
 
 #quiz-submit, .modal-buttons button {
-    padding: 10px 16px;
+    padding: 8px 16px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.95rem;
-    transition: background-color 0.2s, transform 0.2s;
+    transition: background-color 0.2s;
 }
 
 #quiz-submit {
@@ -549,7 +538,6 @@ body {
 
 #quiz-submit:hover {
     background-color: var(--button-hover);
-    transform: translateY(-2px);
 }
 
 .modal-buttons button {
@@ -559,7 +547,6 @@ body {
 
 .modal-buttons button:hover {
     background-color: #c0392b;
-    transform: translateY(-2px);
 }
 
 /* Menu Toggles */
@@ -587,12 +574,11 @@ body {
     cursor: pointer;
     color: var(--text-secondary);
     font-size: 0.9rem;
-    transition: color 0.2s, transform 0.2s;
+    transition: color 0.2s;
 }
 
 .rename-btn:hover, .delete-btn:hover {
     color: var(--accent);
-    transform: scale(1.1);
 }
 
 /* Responsive Design */
@@ -605,6 +591,11 @@ body {
         max-width: 100%;
         margin: 0 10px;
     }
+
+    .app-title {
+        max-width: 100%;
+        padding: 0 10px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -612,6 +603,7 @@ body {
         flex-direction: column;
         height: auto;
         margin: 0;
+        border-radius: 0;
         height: calc(100 * var(--vh) - 60px);
     }
 
@@ -624,7 +616,7 @@ body {
         z-index: 1001;
         overflow-y: auto;
         padding: 8px;
-        background-color: var(--bg-secondary);
+        background-color: var(--bg-secondary); /* Fondo visible */
     }
 
     .right-section {
@@ -633,7 +625,8 @@ body {
 
     .left-section.active, .right-section.active {
         transform: translateX(0);
-        z-index: 1002;
+        z-index: 1002; /* Aumentar para que esté por encima */
+        background-color: var(--bg-secondary); /* Fondo consistente */
     }
 
     .main-section {
@@ -644,13 +637,9 @@ body {
     }
 
     #chatbox {
-        height: calc(100% - 140px); /* Adjust for avatar-display height */
-        overflow-y: auto;
-        padding-bottom: 20px;
-    }
-
-    .avatar-display {
-        height: 60px;
+        height: 100%;
+        overflow-y: scroll;
+        padding-bottom: 80px;
     }
 
     .input-group {
@@ -673,7 +662,7 @@ body {
         top: 10px;
         background-color: var(--bg-secondary);
         border-radius: 8px;
-        z-index: 1003;
+        z-index: 1003; /* Asegurar que esté por encima */
     }
 
     .menu-toggle {
@@ -682,6 +671,43 @@ body {
 
     .menu-toggle-right {
         right: 10px;
+    }
+
+    .app-title {
+        margin-top: 0;
+        font-size: 1.5rem;
+        padding: 10px 50px;
+        box-sizing: border-box;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: var(--bg-primary);
+        z-index: 1004; /* Por encima de todo */
+        border-bottom: 1px solid var(--border);
+    }
+}
+
+/* Ajustes para zoom y tamaño original */
+@media screen and (min-width: 1025px) {
+    body {
+        zoom: 100%;
+    }
+
+    .container {
+        width: 100vw;
+        height: calc(100vh - 60px);
+        max-width: none;
+    }
+}
+
+/* Añadir al final de style.css para mejorar tooltips en móviles */
+@media (max-width: 768px) {
+    .custom-tooltip {
+        font-size: 10px;
+        padding: 4px 8px;
+        max-width: 200px;
+        white-space: normal;
     }
 }
 
@@ -706,4 +732,35 @@ body {
     border-radius: 4px;
     font-size: 0.9rem;
     word-break: break-all;
+}
+
+.bot strong {
+    font-weight: bold; /* Para negrita */
+}
+
+.bot em {
+    font-style: italic; /* Para subrayado implícito (markdown usa <em> para __) */
+}
+
+/* Mejorar legibilidad de texto largo en bot */
+.bot {
+    align-self: flex-start;
+    background-color: var(--message-bot-bg);
+    color: var(--message-bot-text);
+    border-radius: 16px 16px 16px 0;
+    max-width: 90%; /* Aumentar para permitir más texto */
+    word-wrap: break-word;
+    font-size: 0.95rem;
+    padding: 10px 16px;
+}
+
+@media (max-width: 768px) {
+    .bot {
+        max-width: 95%; /* Más ancho en móviles */
+    }
+
+    .bot pre {
+        font-size: 0.85rem;
+        padding: 10px;
+    }
 }
