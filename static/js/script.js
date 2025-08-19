@@ -335,6 +335,11 @@ const cargarAvatares = async () => {
 };
 
 const guardarMensaje = (pregunta, respuesta, video_url = null, tema = null) => {
+    // Limpiar duplicaciones de "¿Deseas saber más?" en la respuesta
+    const regex = /(\?Deseas saber más\?)(?:\s*\1)+/g;
+    const respuestaLimpia = respuesta.replace(regex, '$1').trim();
+    console.log('Guardando mensaje con respuesta limpia:', respuestaLimpia);
+
     let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.id && currentConversation.id !== 0) {
         const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
@@ -353,7 +358,7 @@ const guardarMensaje = (pregunta, respuesta, video_url = null, tema = null) => {
         });
         localStorage.setItem('chatHistory', JSON.stringify(historial));
     }
-    currentConversation.mensajes.push({ pregunta, respuesta, video_url, tema });
+    currentConversation.mensajes.push({ pregunta, respuesta: respuestaLimpia, video_url, tema });
     if (currentConversation.mensajes.length > 5) {
         currentConversation.mensajes = currentConversation.mensajes.slice(-5);
     }
@@ -589,14 +594,21 @@ const sendMessage = () => {
         }
         return res.json();
     }).then(data => {
+        // Limpiar duplicaciones de "¿Deseas saber más?" en la respuesta
+        let respuestaLimpia = data.respuesta;
+        const regex = /(\?Deseas saber más\?)(?:\s*\1)+/g; // Busca repeticiones de la frase
+        respuestaLimpia = respuestaLimpia.replace(regex, '$1').trim(); // Conserva solo una instancia
+        console.log('Respuesta limpia:', respuestaLimpia);
+
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia) : respuestaLimpia) + 
+            `<button class="copy-btn" data-text="${respuestaLimpia}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAllUnder(botDiv);
-        speakText(data.respuesta);
-        guardarMensaje(pregunta, data.respuesta, data.video_url);
+        speakText(respuestaLimpia);
+        guardarMensaje(pregunta, respuestaLimpia, data.video_url);
         addCopyButtonListeners();
     }).catch(error => {
         mostrarNotificacion(`Error al obtener respuesta: ${error.message}`, 'error');
