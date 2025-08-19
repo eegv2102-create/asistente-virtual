@@ -18,8 +18,8 @@
     --scrollbar-thumb: #1abc9c;
     --scrollbar-track: #f5f6f5;
     --vh: 1vh;
-    --success: #2ecc71; /* Añadido para feedback de quiz */
-    --error: #e74c3c; /* Añadido para feedback de quiz */
+    --success: #2ecc71;
+    --error: #e74c3c;
 }
 
 body.modo-oscuro {
@@ -391,7 +391,7 @@ body {
     border-top: 1px solid var(--border);
     background-color: var(--bg-primary);
     transition: background-color 0.3s;
-    flex-wrap: wrap; /* Añadido para responsividad */
+    flex-wrap: wrap;
 }
 
 .input-buttons.left, .input-buttons.right {
@@ -621,22 +621,10 @@ body {
 
 /* Menu Toggles */
 .menu-toggle, .menu-toggle-right {
-    display: none;
-    background: var(--accent);
-    color: var(--button-text);
-    cursor: pointer;
-    font-size: 1.4rem;
-    padding: 8px;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px var(--shadow);
+    display: none; /* Ocultar por defecto en escritorio */
     position: fixed;
     top: 10px;
     z-index: 1005;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .menu-toggle {
@@ -645,12 +633,6 @@ body {
 
 .menu-toggle-right {
     right: 10px;
-}
-
-.menu-toggle:hover, .menu-toggle-right:hover,
-.menu-toggle:focus, .menu-toggle-right:focus {
-    background-color: var(--accent-hover);
-    transform: scale(1.1);
 }
 
 /* Responsive Design */
@@ -735,14 +717,24 @@ body {
     }
 
     .menu-toggle, .menu-toggle-right {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: flex; /* Mostrar en móvil */
+        background: var(--accent);
+        color: var(--button-text);
+        cursor: pointer;
         font-size: 1.4rem;
         padding: 8px;
         border-radius: 50%;
+        box-shadow: 0 2px 4px var(--shadow);
         width: 40px;
         height: 40px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .menu-toggle:hover, .menu-toggle-right:hover,
+    .menu-toggle:focus, .menu-toggle-right:focus {
+        background-color: var(--accent-hover);
+        transform: scale(1.1);
     }
 
     .user, .bot {
