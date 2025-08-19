@@ -73,6 +73,27 @@ body {
     padding: 10px;
 }
 
+/* Voice Hint */
+.voice-hint {
+    position: fixed;
+    top: 70px; /* Debajo del título */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow);
+    z-index: 1003;
+    font-size: 14px;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.voice-hint.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
 /* Main Layout */
 .container {
     display: flex;
@@ -696,5 +717,11 @@ body {
         width: 32px;
         height: 32px;
         font-size: 1rem;
+    }
+
+    .voice-hint {
+        top: 60px; /* Ajustado para pantallas pequeñas */
+        font-size: 12px;
+        padding: 8px 16px;
     }
 }
