@@ -332,7 +332,13 @@ const cargarChat = index => {
         console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
-    container.innerHTML = chat.mensajes.map(msg => `<div class="user">${msg.pregunta}</div><div class="bot">${msg.video_url ? `<img src="${msg.video_url}" alt="Avatar" class="selected-avatar">` : ''} ${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}<button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button></div>`).join('');
+    container.innerHTML = chat.mensajes.map(msg => `
+        <div class="user">${msg.pregunta}</div>
+        <div class="bot">
+            <span class="bot-icon">🤖</span> ${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}
+            <button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+        </div>
+    `).join('');
     scrollToBottom();
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
@@ -340,7 +346,6 @@ const cargarChat = index => {
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
-
 const renombrarChat = index => {
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     if (!historial[index]) {
