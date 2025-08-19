@@ -15,12 +15,10 @@ import bleach
 from gtts import gTTS
 import io
 
-# Configuración básica
 app = Flask(__name__)
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Cargar temas y prerequisitos
 try:
     with open("temas.json", "r", encoding="utf-8") as f:
         temas = json.load(f)
@@ -37,7 +35,6 @@ except Exception as e:
     logging.error(f"Error cargando prerequisitos.json: {str(e)}")
     prerequisitos = {}
 
-# Inicializar base de datos
 def init_db():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -60,7 +57,6 @@ def init_db():
         return False
     return True
 
-# Cache para progreso
 def cargar_progreso(usuario):
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -88,9 +84,8 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
-def buscar_respuesta_app(pregunta, nivel_explicacion="basica", historial=None):
+def buscar_respuesta_app(pregunta, historial=None):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    # Manejo de mensajes simples
     respuestas_simples = {
         "hola": "¡Hola! Estoy listo para ayudarte con Programación Avanzada. ¿Qué tema quieres explorar? ¿Deseas saber más?",
         "gracias": "¡De nada! Sigue aprendiendo, estoy aquí para apoyarte. ¿Deseas saber más?",
@@ -99,14 +94,12 @@ def buscar_respuesta_app(pregunta, nivel_explicacion="basica", historial=None):
     if pregunta.lower().strip() in respuestas_simples:
         return respuestas_simples[pregunta.lower().strip()]
 
-    # Buscar tema en temas.json
     tema_encontrado = None
     for tema_id, tema_data in temas.items():
         if tema_id in pregunta.lower() or any(kw.lower() in pregunta.lower() for kw in tema_data["palabras_clave"]):
             tema_encontrado = tema_id
             break
 
-    # Generar prerequisitos si corresponde
     prereq_text = ""
     if tema_encontrado and tema_encontrado in prerequisitos:
         prereq_text = (
@@ -114,25 +107,22 @@ def buscar_respuesta_app(pregunta, nivel_explicacion="basica", historial=None):
             "\n".join([f"- {temas[p]['descripcion']}" for p in prerequisitos[tema_encontrado] if p in temas])
         )
 
-    # Generar contexto del historial
     contexto = ""
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
-    # Personalizar respuesta según el nivel de explicación
     prompt = (
-        "Eres un asistente virtual con avatar inteligente diseñado para apoyar a estudiantes de Ingeniería en Telemática en la asignatura de Programación Avanzada.\n\n"
+        "Eres Y.E.L.I.A., un asistente virtual inteligente especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática.\n\n"
         "Tu comportamiento debe ser:\n"
-        "1. Responder de forma clara, completa y actualizada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
+        "1. Responder de forma clara, completa, actualizada y estructurada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
         "2. Aceptar preguntas con errores ortográficos o expresiones informales, incluyendo mensajes cortos.\n"
         "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
-        "4. Al final de cada respuesta, siempre preguntar: \n"
-        "   \"¿Deseas saber más?\"\n"
-        "5. Personalizar la respuesta según el nivel de explicación solicitado: básica (conceptos simples), ejemplos (con código práctico), o avanzada (teórica y detallada).\n"
+        "4. Al final de cada respuesta, siempre preguntar: \"¿Deseas saber más?\"\n"
+        "5. Incluir ejemplos de código prácticos en bloques Markdown (```python o ```java) cuando sea relevante, con explicaciones detalladas.\n"
+        "6. Proporcionar definiciones teóricas profundas y estructuradas, como en una IA profesional.\n"
         f"Contexto: {json.dumps(temas)}\n"
         f"Prerequisitos: {json.dumps(prerequisitos)}\n"
         f"Historial: {contexto}\n"
-        f"Nivel de explicación: {nivel_explicacion}\n"
         f"Pregunta: {pregunta}"
     )
 
@@ -147,26 +137,12 @@ def buscar_respuesta_app(pregunta, nivel_explicacion="basica", historial=None):
     )
     respuesta = completion.choices[0].message.content
     if tema_encontrado:
-        if nivel_explicacion == "basica":
-            respuesta = f"**{tema_encontrado} (Explicación básica)**: {temas[tema_encontrado]['descripcion']}{prereq_text}\n\n¿Deseas saber más?"
-        elif nivel_explicacion == "ejemplos":
-            respuesta = (
-                f"**{tema_encontrado} (Explicación con ejemplos)**: {temas[tema_encontrado]['descripcion']}\n\n"
-                f"**Ejemplo de código**:\n{temas[tema_encontrado].get('descripcion', '').split('Ejemplo')[1] if 'Ejemplo' in temas[tema_encontrado]['descripcion'] else '// Código de ejemplo no disponible'}\n"
-                f"{prereq_text}\n\n¿Deseas saber más?"
-            )
-        else:  # avanzada
-            respuesta = (
-                f"**{tema_encontrado} (Explicación avanzada)**: {temas[tema_encontrado]['descripcion']}\n\n"
-                f"**Detalles teóricos**: Este tema implica conceptos avanzados que requieren un entendimiento profundo de sus fundamentos.\n"
-                f"{prereq_text}\n\n¿Deseas saber más?"
-            )
+        respuesta = f"**{tema_encontrado}**: {temas[tema_encontrado]['descripcion']}\n\n{respuesta}{prereq_text}\n\n¿Deseas saber más?"
     else:
         respuesta += f"{prereq_text}\n\n¿Deseas saber más?"
 
     return respuesta
 
-# Rutas
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
@@ -182,7 +158,7 @@ def saludo_inicial():
         avatar_id = request.args.get("avatar_id", "default")
         avatar_id = bleach.clean(avatar_id[:50])
         respuesta_text = (
-            "¡Hola! Soy tu asistente virtual para Programación Avanzada en Ingeniería en Telemática. "
+            "¡Hola! Soy Y.E.L.I.A., tu asistente para Programación Avanzada en Ingeniería en Telemática. "
             "Estoy aquí para ayudarte con temas como POO, patrones de diseño, bases de datos y más. "
             "¿Qué quieres aprender hoy? ¿Deseas saber más?"
         )
@@ -228,14 +204,13 @@ def respuesta():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta").strip()[:300])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:20])
         historial = data.get("historial", [])
 
         if not pregunta:
             logging.info("Pregunta vacía ignorada")
             return jsonify({"respuesta": "Por favor, escribe una pregunta para continuar. ¿Deseas saber más?"})
 
-        respuesta_text = buscar_respuesta_app(pregunta, nivel_explicacion, historial)
+        respuesta_text = buscar_respuesta_app(pregunta, historial)
         avatar = None
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -411,7 +386,6 @@ def recommend():
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
         temas_disponibles = list(temas.keys())
 
-        # Filtrar temas no aprendidos
         temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
         contexto = "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
