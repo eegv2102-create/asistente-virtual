@@ -189,31 +189,62 @@ def avatars():
         logging.error(f"Error al consultar avatares: {str(e)}")
         return jsonify({"error": "Error al cargar avatares"}), 500
 
-@app.route("/quiz", methods=["GET"])
+@app.route("/quiz", methods=["POST"])
 def quiz():
-    usuario = request.args.get("usuario", "anonimo")
-    temas_disponibles = list(temas.keys())
-    tema = random.choice(temas_disponibles)
-    nivel = random.choice(["basico", "intermedio", "avanzado"])
-    pregunta = f"¿Qué es {tema} ({nivel}) en el contexto de programación avanzada?"
-    opciones = [temas[tema][nivel]]
-    for _ in range(3):
-        otro_tema = random.choice(temas_disponibles)
-        otro_nivel = random.choice(["basico", "intermedio", "avanzado"])
-        while otro_tema == tema and otro_nivel == nivel:
-            otro_tema = random.choice(temas_disponibles)
-            otro_nivel = random.choice(["basico", "intermedio", "avanzado"])
-        opciones.append(temas[otro_tema][otro_nivel])
-    random.shuffle(opciones)
-    response_data = {
-        "tema": tema,
-        "nivel": nivel,
-        "pregunta": pregunta,
-        "opciones": opciones,
-        "respuesta_correcta": temas[tema][nivel]
-    }
-    logging.info(f"Quiz generado: {response_data}")
-    return jsonify(response_data)
+    try:
+        data = request.get_json()
+        if not data or "tema" not in data:
+            logging.error("Solicitud inválida: falta tema")
+            return jsonify({"error": "El tema no puede estar vacío"}), 400
+
+        tema = bleach.clean(data.get("tema", "").strip()[:50])
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        if not tema:
+            logging.error("Tema vacío recibido")
+            return jsonify({"error": "El tema no puede estar vacío"}), 400
+
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        prompt = (
+            "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+            "Tu tarea es generar un quiz con 3 preguntas de opción múltiple sobre el tema proporcionado. "
+            "Cada pregunta debe tener 4 opciones y una respuesta correcta claramente identificada. "
+            "El tema es: {tema}. "
+            "Devuelve el resultado en formato JSON con la estructura: "
+            "{\"quiz\": [{\"pregunta\": \"texto\", \"opciones\": [\"op1\", \"op2\", \"op3\", \"op4\"], \"respuesta_correcta\": \"op_correcta\", \"tema\": \"tema\", \"nivel\": \"basico|intermedio|avanzado\"}]}"
+        ).format(tema=tema)
+        
+        completion = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Genera un quiz de 3 preguntas sobre {tema}."}
+            ],
+            max_tokens=1500,
+            temperature=0.5
+        )
+        
+        response_text = completion.choices[0].message.content
+        try:
+            quiz_data = json.loads(response_text)
+            if not isinstance(quiz_data.get("quiz"), list) or len(quiz_data["quiz"]) != 3:
+                raise ValueError("Formato de quiz inválido o número incorrecto de preguntas")
+            for q in quiz_data["quiz"]:
+                if not all(key in q for key in ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]):
+                    raise ValueError("Faltan campos requeridos en una pregunta del quiz")
+                if len(q["opciones"]) != 4:
+                    raise ValueError("Cada pregunta debe tener exactamente 4 opciones")
+        except json.JSONDecodeError:
+            logging.error("Respuesta de Groq no es un JSON válido")
+            return jsonify({"error": "Error al procesar el formato del quiz"}), 500
+        except ValueError as ve:
+            logging.error(f"Error en el formato del quiz: {str(ve)}")
+            return jsonify({"error": f"Error en el formato del quiz: {str(ve)}"}), 500
+
+        logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
+        return jsonify(quiz_data)
+    except Exception as e:
+        logging.error(f"Error en /quiz: {str(e)}")
+        return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
@@ -268,16 +299,47 @@ def tts():
         logging.error(f"Error en /tts: {str(e)}")
         return jsonify({"error": f"Error al procesar la solicitud: {str(e)}"}), 500
 
-@app.route("/recommend", methods=["GET"])
+@app.route("/recommend", methods=["POST"])
 def recommend():
-    usuario = request.args.get("usuario", "anonimo")
-    progreso = cargar_progreso(usuario)
-    temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
-    temas_disponibles = list(temas.keys())
-    temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
-    recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
-    logging.info(f"Recomendación para {usuario}: {recomendacion}")
-    return jsonify({"recomendacion": recomendacion})
+    try:
+        data = request.get_json()
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        contexto = bleach.clean(data.get("contexto", "").strip()[:300])
+        
+        progreso = cargar_progreso(usuario)
+        temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
+        temas_disponibles = list(temas.keys())
+        
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        prompt = (
+            "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+            "Tu tarea es recomendar un tema de Programación Avanzada (como POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.) "
+            "basado en el contexto proporcionado por el usuario y los temas ya aprendidos. "
+            "Si no hay contexto, elige un tema relevante de la lista de temas disponibles. "
+            "Devuelve solo el nombre del tema recomendado (por ejemplo, 'Patrones de diseño') sin explicaciones adicionales."
+            f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_disponibles)}"
+        )
+        
+        completion = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": "Recomienda un tema."}
+            ],
+            max_tokens=50,
+            temperature=0.5
+        )
+        
+        recomendacion = completion.choices[0].message.content.strip()
+        if not recomendacion:
+            logging.error("Recomendación vacía recibida de Groq")
+            return jsonify({"error": "No se pudo generar una recomendación válida"}), 500
+
+        logging.info(f"Recomendación para usuario {usuario}: {recomendacion}")
+        return jsonify({"recommendation": recomendacion})
+    except Exception as e:
+        logging.error(f"Error en /recommend: {str(e)}")
+        return jsonify({"error": f"Error al generar la recomendación: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()
