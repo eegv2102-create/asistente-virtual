@@ -67,74 +67,113 @@ const updateAvatarDisplay = () => {
     setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
 };
 
-const speakText = text => {
-    console.log('Attempting to speak:', { vozActiva, text, userHasInteracted });
+const speakText = async (text) => {
+    console.log('Intentando reproducir voz:', { vozActiva, text, userHasInteracted });
+    
     if (!vozActiva || !text) {
         console.warn('Voz desactivada o texto vacío, no se reproduce voz', { vozActiva, text });
+        mostrarNotificacion('Voz desactivada o texto vacío', 'error');
         return;
     }
+
     if (!userHasInteracted) {
         console.warn('No se puede reproducir audio: el usuario no ha interactuado con la página');
+        mostrarNotificacion('Haz clic en la página para habilitar la voz', 'info');
         toggleVoiceHint(true);
         return;
     }
+
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
-    fetch('/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-    }).then(res => {
-        if (!res.ok) {
-            return res.json().then(err => {
-                throw new Error(err.error || `Error en TTS: ${res.status} ${res.statusText}`);
-            });
-        }
-        return res.blob();
-    }).then(blob => {
-        if (currentAudio) {
+
+    // Detener cualquier audio en curso
+    if (currentAudio) {
+        if (currentAudio instanceof Audio) {
             currentAudio.pause();
             currentAudio.currentTime = 0;
+        } else if ('speechSynthesis' in window) {
+            speechSynthesis.cancel();
         }
+        currentAudio = null;
+    }
+
+    // Intentar con el endpoint /tts
+    try {
+        console.log('Enviando solicitud al endpoint /tts');
+        const res = await fetch('/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
+        }
+
+        const blob = await res.blob();
+        console.log('Blob recibido del endpoint /tts:', blob);
         currentAudio = new Audio(URL.createObjectURL(blob));
-        currentAudio.play().catch(error => {
-            console.error('Error al reproducir audio:', error);
+        currentAudio.play().then(() => {
+            console.log('Reproduciendo audio desde /tts');
+        }).catch(error => {
+            console.error('Error al reproducir audio desde /tts:', error);
+            mostrarNotificacion('Error al reproducir voz: ' + error.message, 'error');
             if (error.message.includes("user didn't interact")) {
-                console.warn('Intento de reproducción bloqueado por falta de interacción');
                 toggleVoiceHint(true);
-            } else {
-                mostrarNotificacion('Error al reproducir voz de IA: ' + error.message, 'error');
             }
+            if (botMessage) botMessage.classList.remove('speaking');
         });
         currentAudio.onended = () => {
+            console.log('Audio de /tts finalizado');
             if (botMessage) botMessage.classList.remove('speaking');
+            currentAudio = null;
         };
-    }).catch(error => {
-        console.error('TTS /tts falló, intentando speechSynthesis', error.message);
-        mostrarNotificacion(`Error en TTS: ${error.message}`, 'error');
-        if ('speechSynthesis' in window && userHasInteracted) {
+    } catch (error) {
+        console.error('Fallo en /tts, intentando speechSynthesis:', error);
+        mostrarNotificacion(`Error en TTS: ${error.message}. Intentando voz local.`, 'error');
+
+        // Intentar con speechSynthesis como respaldo
+        if ('speechSynthesis' in window) {
+            const voices = speechSynthesis.getVoices();
+            console.log('Voces disponibles en speechSynthesis:', voices);
+            const esVoice = voices.find(v => v.lang.includes('es'));
+            if (!esVoice) {
+                console.warn('No se encontró voz en español (es-ES) para speechSynthesis');
+                mostrarNotificacion('No se encontró voz en español en este navegador', 'error');
+                if (botMessage) botMessage.classList.remove('speaking');
+                return;
+            }
+
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'es-ES';
+            utterance.voice = esVoice;
+            utterance.onstart = () => console.log('Iniciando reproducción con speechSynthesis');
             utterance.onend = () => {
+                console.log('Reproducción de speechSynthesis finalizada');
                 if (botMessage) botMessage.classList.remove('speaking');
+                currentAudio = null;
             };
             utterance.onerror = (event) => {
                 console.error('Error en speechSynthesis:', event.error);
-                if (event.error !== 'not-allowed') {
-                    mostrarNotificacion('Error en voz de IA: ' + event.error, 'error');
-                } else {
+                mostrarNotificacion('Error en voz local: ' + event.error, 'error');
+                if (event.error === 'not-allowed') {
                     toggleVoiceHint(true);
                 }
+                if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
             currentAudio = utterance;
         } else {
-            console.warn('No se puede usar speechSynthesis: sin soporte o sin interacción');
+            console.warn('speechSynthesis no soportado en este navegador');
+            mostrarNotificacion('El navegador no soporta voz local (speechSynthesis)', 'error');
+            if (botMessage) botMessage.classList.remove('speaking');
         }
-    });
+    }
 };
 
 const stopSpeech = () => {
+    console.log('Deteniendo cualquier audio en curso');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
@@ -143,6 +182,7 @@ const stopSpeech = () => {
         currentAudio.pause();
         currentAudio.currentTime = 0;
     }
+    currentAudio = null;
     if (isListening && recognition) {
         try {
             recognition.stop();
@@ -225,6 +265,7 @@ const toggleVoiceRecognition = () => {
     }
 };
 
+// Resto de las funciones (sin cambios)
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
     if (!avatarContainer) {
@@ -665,10 +706,11 @@ const addCopyButtonListeners = () => {
 
 document.addEventListener('click', () => {
     if (!userHasInteracted) {
+        console.log('Usuario interactuó con la página');
         userHasInteracted = true;
         toggleVoiceHint(false);
         if (vozActiva && pendingWelcomeMessage) {
-            console.log('Playing pending welcome message');
+            console.log('Reproduciendo mensaje de bienvenida pendiente');
             speakText(pendingWelcomeMessage);
             pendingWelcomeMessage = null;
         }
@@ -720,6 +762,15 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarListaChats();
     cargarAnalytics();
 
+    // Verificar soporte de voz al cargar la página
+    console.log('Verificando soporte de speechSynthesis:', 'speechSynthesis' in window);
+    if ('speechSynthesis' in window) {
+        speechSynthesis.onvoiceschanged = () => {
+            const voices = speechSynthesis.getVoices();
+            console.log('Voces disponibles:', voices);
+        };
+    }
+
     if (vozActiva) {
         toggleVoiceHint(true);
     }
@@ -747,6 +798,11 @@ document.addEventListener('DOMContentLoaded', () => {
             pendingWelcomeMessage = data.respuesta;
             guardarMensaje('Saludo inicial', data.respuesta, data.video_url);
             addCopyButtonListeners();
+            if (vozActiva && userHasInteracted) {
+                console.log('Reproduciendo mensaje de bienvenida inicial');
+                speakText(data.respuesta);
+                pendingWelcomeMessage = null;
+            }
         }).catch(error => {
             mostrarNotificacion(`Error al cargar mensaje inicial: ${error.message}`, 'error');
             console.error('Error en fetch /saludo_inicial:', error);
@@ -827,8 +883,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.voiceBtn) {
+        elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
         elements.voiceBtn.addEventListener('click', () => {
-            console.log('Botón #voice-btn clicado');
+            console.log('Botón #voice-btn clicado, vozActiva:', vozActiva);
             vozActiva = !vozActiva;
             localStorage.setItem('vozActiva', vozActiva);
             elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
@@ -839,6 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 toggleVoiceHint(!userHasInteracted);
                 if (pendingWelcomeMessage && userHasInteracted) {
+                    console.log('Reproduciendo mensaje de bienvenida tras activar voz');
                     speakText(pendingWelcomeMessage);
                     pendingWelcomeMessage = null;
                 }
