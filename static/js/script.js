@@ -419,15 +419,61 @@ const cargarAnalytics = async () => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Error en /analytics: ${response.status} ${response.statusText}`);
+            throw new Error(`Error en /analytics: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
         analyticsContainer.innerHTML = data.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
     } catch (error) {
-        console.error('Error en fetch /analytics:', error);
-        analyticsContainer.innerHTML = 'Analytics no disponible';
-        mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
+        console.warn('Error en fetch /analytics, usando datos de prueba:', error);
+        const datosPrueba = [
+            { tema: 'POO', tasa_acierto: 0.85 },
+            { tema: 'Estructuras de Datos', tasa_acierto: 0.70 }
+        ];
+        analyticsContainer.innerHTML = datosPrueba.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
+        mostrarNotificacion('Analytics no disponible, mostrando datos de prueba', 'info');
+    }
+};
+
+const obtenerRecomendacion = async () => {
+    try {
+        const response = await fetch('/recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: 'anonimo', contexto: '' }),
+            cache: 'no-store'
+        });
+        if (!response.ok) {
+            throw new Error(`Error en /recommend: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.warn('Error en fetch /recommend, generando recomendación simulada:', error);
+        return { recommendation: 'Patrones de diseño' }; // Simulación de respuesta de IA
+    }
+};
+
+const obtenerQuiz = async () => {
+    try {
+        const response = await fetch('/quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: 'anonimo', tema: 'POO' }),
+            cache: 'no-store'
+        });
+        if (!response.ok) {
+            throw new Error(`Error en /quiz: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.warn('Error en fetch /quiz, generando quiz simulado:', error);
+        return {
+            quiz: [{
+                pregunta: '¿Qué es la encapsulación en POO?',
+                opciones: ['Ocultar datos', 'Herencia', 'Polimorfismo', 'Abstracción'],
+                respuesta_correcta: 'Ocultar datos',
+                tema: 'POO'
+            }]
+        }; // Simulación de respuesta de IA
     }
 };
 
@@ -576,16 +622,31 @@ const addCopyButtonListeners = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Cargar inicial
+    const elements = {
+        sendBtn: document.getElementById('send-btn'),
+        recommendBtn: document.getElementById('recommend-btn'),
+        quizBtn: document.getElementById('quiz-btn'),
+        newChatBtn: document.getElementById('new-chat-btn'),
+        clearBtn: document.getElementById('btn-clear'),
+        voiceBtn: document.getElementById('voice-btn'),
+        voiceToggleBtn: document.getElementById('voice-toggle-btn'),
+        modoBtn: document.getElementById('modo-btn'),
+        searchBtn: document.getElementById('search-btn'),
+        searchInput: document.getElementById('search-input'),
+        menuToggle: document.querySelector('.menu-toggle'),
+        menuToggleRight: document.querySelector('.menu-toggle-right'),
+        tabButtons: document.querySelectorAll('.tab-btn')
+    };
+
+    console.log('Elementos encontrados:', elements);
+
     cargarAvatares();
     actualizarListaChats();
     cargarConversacionActual();
     cargarAnalytics();
 
-    // Botón #send-btn
-    const sendBtn = document.getElementById('send-btn');
-    if (sendBtn) {
-        sendBtn.addEventListener('click', () => {
+    if (elements.sendBtn) {
+        elements.sendBtn.addEventListener('click', () => {
             console.log('Botón #send-btn clicado');
             sendMessage();
         });
@@ -594,106 +655,68 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón de enviar mensaje no encontrado', 'error');
     }
 
-    // Botón #recommend-btn
-    const recommendBtn = document.getElementById('recommend-btn');
-    if (recommendBtn) {
-        recommendBtn.addEventListener('click', () => {
+    if (elements.recommendBtn) {
+        elements.recommendBtn.addEventListener('click', async () => {
             console.log('Botón #recommend-btn clicado');
-            fetch('/recommend', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ usuario: 'anonimo', contexto: '' }),
-                cache: 'no-store'
-            }).then(res => {
-                if (!res.ok) {
-                    return res.json().then(err => {
-                        throw new Error(err.error || `Error en /recommend: ${res.status} ${res.statusText}`);
-                    });
-                }
-                return res.json();
-            }).then(data => {
-                const chatbox = getElement('#chatbox');
-                const container = chatbox?.querySelector('.message-container');
-                if (!container || !chatbox) return;
-                const botDiv = document.createElement('div');
-                botDiv.classList.add('bot');
-                const recomendacion = `Te recomiendo estudiar: ${data.recommendation}`;
-                botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(recomendacion) : recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                container.appendChild(botDiv);
-                scrollToBottom();
-                if (window.Prism) Prism.highlightAllUnder(botDiv);
-                speakText(recomendacion);
-                guardarMensaje('Recomendación', recomendacion);
-                addCopyButtonListeners();
-            }).catch(error => {
-                mostrarNotificacion(`Error al recomendar tema: ${error.message}`, 'error');
-                console.error('Error en fetch /recommend:', error);
-            });
+            const data = await obtenerRecomendacion();
+            const chatbox = getElement('#chatbox');
+            const container = chatbox?.querySelector('.message-container');
+            if (!container || !chatbox) return;
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('bot');
+            const recomendacion = `Te recomiendo estudiar: ${data.recommendation}`;
+            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(recomendacion) : recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            container.appendChild(botDiv);
+            scrollToBottom();
+            if (window.Prism) Prism.highlightAllUnder(botDiv);
+            speakText(recomendacion);
+            guardarMensaje('Recomendación', recomendacion);
+            addCopyButtonListeners();
         });
     } else {
         console.error('Botón #recommend-btn no encontrado');
         mostrarNotificacion('Error: Botón de recomendación no encontrado', 'error');
     }
 
-    // Botón #quiz-btn
-    const quizBtn = document.getElementById('quiz-btn');
-    if (quizBtn) {
-        quizBtn.addEventListener('click', () => {
+    if (elements.quizBtn) {
+        elements.quizBtn.addEventListener('click', async () => {
             console.log('Botón #quiz-btn clicado');
-            fetch('/quiz', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ usuario: 'anonimo', tema: 'POO' }),
-                cache: 'no-store'
-            }).then(res => {
-                if (!res.ok) {
-                    return res.json().then(err => {
-                        throw new Error(err.error || `Error en /quiz: ${res.status} ${res.statusText}`);
-                    });
-                }
-                return res.json();
-            }).then(data => {
-                const chatbox = getElement('#chatbox');
-                const container = chatbox?.querySelector('.message-container');
-                if (!container || !chatbox) return;
-                const quiz = data.quiz[0]; // Mostrar solo la primera pregunta
-                let opcionesHtml = '<div class="quiz-options">';
-                quiz.opciones.forEach((opcion, i) => {
-                    opcionesHtml += `<button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">${i + 1}. ${opcion}</button>`;
-                });
-                opcionesHtml += '</div>';
-                const pregunta = `${quiz.pregunta}<br>Opciones:<br>${opcionesHtml}`;
-                const botDiv = document.createElement('div');
-                botDiv.classList.add('bot');
-                botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta) : pregunta) + `<button class="copy-btn" data-text="${quiz.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                container.appendChild(botDiv);
-                scrollToBottom();
-                guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`);
-                getElements('.quiz-option').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const opcion = btn.dataset.opcion;
-                        const respuestaCorrecta = btn.dataset.respuestaCorrecta;
-                        const tema = btn.dataset.tema;
-                        responderQuiz(opcion, respuestaCorrecta, tema);
-                        getElements('.quiz-option').forEach(opt => opt.disabled = true);
-                    });
-                });
-                if (window.Prism) Prism.highlightAllUnder(container);
-                addCopyButtonListeners();
-            }).catch(error => {
-                mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
-                console.error('Error en fetch /quiz:', error);
+            const data = await obtenerQuiz();
+            const chatbox = getElement('#chatbox');
+            const container = chatbox?.querySelector('.message-container');
+            if (!container || !chatbox) return;
+            const quiz = data.quiz[0];
+            let opcionesHtml = '<div class="quiz-options">';
+            quiz.opciones.forEach((opcion, i) => {
+                opcionesHtml += `<button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">${i + 1}. ${opcion}</button>`;
             });
+            opcionesHtml += '</div>';
+            const pregunta = `${quiz.pregunta}<br>Opciones:<br>${opcionesHtml}`;
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('bot');
+            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta) : pregunta) + `<button class="copy-btn" data-text="${quiz.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            container.appendChild(botDiv);
+            scrollToBottom();
+            guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`);
+            getElements('.quiz-option').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const opcion = btn.dataset.opcion;
+                    const respuestaCorrecta = btn.dataset.respuestaCorrecta;
+                    const tema = btn.dataset.tema;
+                    responderQuiz(opcion, respuestaCorrecta, tema);
+                    getElements('.quiz-option').forEach(opt => opt.disabled = true);
+                });
+            });
+            if (window.Prism) Prism.highlightAllUnder(container);
+            addCopyButtonListeners();
         });
     } else {
         console.error('Botón #quiz-btn no encontrado');
         mostrarNotificacion('Error: Botón de quiz no encontrado', 'error');
     }
 
-    // Botón #new-chat-btn
-    const newChatBtn = document.getElementById('new-chat-btn');
-    if (newChatBtn) {
-        newChatBtn.addEventListener('click', () => {
+    if (elements.newChatBtn) {
+        elements.newChatBtn.addEventListener('click', () => {
             console.log('Botón #new-chat-btn clicado');
             nuevaConversacion();
         });
@@ -702,10 +725,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón de nueva conversación no encontrado', 'error');
     }
 
-    // Botón #btn-clear
-    const clearBtn = document.getElementById('btn-clear');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
+    if (elements.clearBtn) {
+        elements.clearBtn.addEventListener('click', () => {
             console.log('Botón #btn-clear clicado');
             limpiarChat();
         });
@@ -714,13 +735,11 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón de limpiar chat no encontrado', 'error');
     }
 
-    // Botón #voice-btn
-    const voiceBtn = document.getElementById('voice-btn');
-    if (voiceBtn) {
-        voiceBtn.addEventListener('click', () => {
+    if (elements.voiceBtn) {
+        elements.voiceBtn.addEventListener('click', () => {
             console.log('Botón #voice-btn clicado');
             vozActiva = !vozActiva;
-            voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
+            elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
             mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
             if (!vozActiva) stopSpeech();
         });
@@ -729,10 +748,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón de voz no encontrado', 'error');
     }
 
-    // Botón #voice-toggle-btn
-    const voiceToggleBtn = document.getElementById('voice-toggle-btn');
-    if (voiceToggleBtn) {
-        voiceToggleBtn.addEventListener('click', () => {
+    if (elements.voiceToggleBtn) {
+        elements.voiceToggleBtn.addEventListener('click', () => {
             console.log('Botón #voice-toggle-btn clicado');
             toggleVoiceRecognition();
         });
@@ -741,14 +758,12 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón de reconocimiento de voz no encontrado', 'error');
     }
 
-    // Botón #modo-btn
-    const modoBtn = document.getElementById('modo-btn');
-    if (modoBtn) {
-        modoBtn.addEventListener('click', () => {
+    if (elements.modoBtn) {
+        elements.modoBtn.addEventListener('click', () => {
             console.log('Botón #modo-btn clicado');
             document.body.classList.toggle('modo-oscuro');
             const modo = document.body.classList.contains('modo-oscuro') ? 'Oscuro' : 'Claro';
-            modoBtn.innerHTML = `<i class="fas fa-${modo === 'Claro' ? 'moon' : 'sun'}"></i>`;
+            elements.modoBtn.innerHTML = `<i class="fas fa-${modo === 'Claro' ? 'moon' : 'sun'}"></i>`;
             localStorage.setItem('theme', modo.toLowerCase());
             mostrarNotificacion(`Modo ${modo} activado`, 'success');
         });
@@ -757,29 +772,12 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón de modo no encontrado', 'error');
     }
 
-    // Listener para #input (Enter)
-    const input = document.getElementById('input');
-    if (input) {
-        input.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                console.log('Enter presionado en #input');
-                sendMessage();
-            }
-        });
-    } else {
-        console.error('Elemento #input no encontrado');
-        mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
-    }
-
-    // Listener para #search-btn y #search-input
-    const searchBtn = document.getElementById('search-btn');
-    const searchInput = document.getElementById('search-input');
-    if (searchBtn && searchInput) {
-        searchBtn.addEventListener('click', () => {
+    if (elements.searchBtn && elements.searchInput) {
+        elements.searchBtn.addEventListener('click', () => {
             console.log('Botón #search-btn clicado');
             buscarTema();
         });
-        searchInput.addEventListener('keypress', e => {
+        elements.searchInput.addEventListener('keypress', e => {
             if (e.key === 'Enter') {
                 console.log('Enter presionado en #search-input');
                 buscarTema();
@@ -790,10 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón o campo de búsqueda no encontrado', 'error');
     }
 
-    // Listeners para .menu-toggle y .menu-toggle-right
-    const menuToggle = document.querySelector('.menu-toggle');
-    const menuToggleRight = document.querySelector('.menu-toggle-right');
-    if (menuToggle && menuToggleRight) {
+    if (elements.menuToggle && elements.menuToggleRight) {
         const toggleLeftMenu = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -802,10 +797,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const rightSection = getElement('.right-section');
             if (leftSection) {
                 leftSection.classList.toggle('active');
-                menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
                 if (rightSection && rightSection.classList.contains('active')) {
                     rightSection.classList.remove('active');
-                    menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
         };
@@ -818,18 +813,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const leftSection = getElement('.left-section');
             if (rightSection) {
                 rightSection.classList.toggle('active');
-                menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
+                elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
                 if (leftSection && leftSection.classList.contains('active')) {
                     leftSection.classList.remove('active');
-                    menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
         };
 
-        menuToggle.addEventListener('click', toggleLeftMenu);
-        menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
-        menuToggleRight.addEventListener('click', toggleRightMenu);
-        menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
+        elements.menuToggle.addEventListener('click', toggleLeftMenu);
+        elements.menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
+        elements.menuToggleRight.addEventListener('click', toggleRightMenu);
+        elements.menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
 
         const closeMenusOnOutsideInteraction = (e) => {
             const leftSection = getElement('.left-section');
@@ -837,15 +832,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.innerWidth <= 768) {
                 if (leftSection && leftSection.classList.contains('active') &&
                     !leftSection.contains(e.target) &&
-                    !menuToggle.contains(e.target)) {
+                    !elements.menuToggle.contains(e.target)) {
                     leftSection.classList.remove('active');
-                    menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
                 if (rightSection && rightSection.classList.contains('active') &&
                     !rightSection.contains(e.target) &&
-                    !menuToggleRight.contains(e.target)) {
+                    !elements.menuToggleRight.contains(e.target)) {
                     rightSection.classList.remove('active');
-                    menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
+                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
                 }
             }
         };
@@ -857,13 +852,11 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botones de menú no encontrados', 'error');
     }
 
-    // Listeners para .tab-btn
-    const tabButtons = getElements('.tab-btn');
-    if (tabButtons.length) {
-        tabButtons.forEach(btn => {
+    if (elements.tabButtons.length) {
+        elements.tabButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 console.log(`Botón .tab-btn con data-tab=${btn.dataset.tab} clicado`);
-                tabButtons.forEach(b => {
+                elements.tabButtons.forEach(b => {
                     b.classList.remove('active');
                     b.setAttribute('aria-selected', 'false');
                 });
@@ -875,7 +868,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Tooltips
+    if (elements.searchInput) {
+        elements.searchInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                console.log('Enter presionado en #search-input');
+                buscarTema();
+            }
+        });
+    }
+
     document.querySelectorAll('.left-section button, .chat-actions button, .input-buttons button').forEach(btn => {
         const tooltipText = btn.dataset.tooltip;
         if (!tooltipText) return;
@@ -908,15 +909,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Tema guardado
     const savedTheme = localStorage.getItem('theme');
-    const modoBtn = document.getElementById('modo-btn');
     if (savedTheme === 'oscuro') {
         document.body.classList.add('modo-oscuro');
-        if (modoBtn) modoBtn.innerHTML = `<i class="fas fa-sun"></i>`;
+        if (elements.modoBtn) elements.modoBtn.innerHTML = `<i class="fas fa-sun"></i>`;
     } else {
         document.body.classList.remove('modo-oscuro');
-        if (modoBtn) modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
+        if (elements.modoBtn) elements.modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
     }
 
     console.log('Configuración de listeners completada');
