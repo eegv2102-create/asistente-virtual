@@ -334,8 +334,7 @@ const cargarChat = index => {
     }
     container.innerHTML = chat.mensajes.map(msg => `
         <div class="user">${msg.pregunta}</div>
-        <div class="bot">
-            <span class="bot-icon">🤖</span> ${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}
+        <div class="bot">${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}
             <button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
         </div>
     `).join('');
@@ -346,6 +345,7 @@ const cargarChat = index => {
     if (window.Prism) Prism.highlightAll();
     addCopyButtonListeners();
 };
+
 const renombrarChat = index => {
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     if (!historial[index]) {
