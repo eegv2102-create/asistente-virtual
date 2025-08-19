@@ -5,6 +5,7 @@ let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
 let userHasInteracted = false;
 let pendingWelcomeMessage = null;
+let currentChatId = null;
 
 const getElement = selector => {
     const element = document.querySelector(selector);
@@ -86,7 +87,6 @@ const speakText = async (text) => {
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
 
-    // Detener cualquier audio en curso
     if (currentAudio) {
         if (currentAudio instanceof Audio) {
             currentAudio.pause();
@@ -97,7 +97,6 @@ const speakText = async (text) => {
         currentAudio = null;
     }
 
-    // Intentar con el endpoint /tts
     try {
         console.log('Enviando solicitud al endpoint /tts');
         const res = await fetch('/tts', {
@@ -133,7 +132,6 @@ const speakText = async (text) => {
         console.error('Fallo en /tts, intentando speechSynthesis:', error);
         mostrarNotificacion(`Error en TTS: ${error.message}. Intentando voz local.`, 'error');
 
-        // Intentar con speechSynthesis como respaldo
         if ('speechSynthesis' in window) {
             const voices = speechSynthesis.getVoices();
             console.log('Voces disponibles en speechSynthesis:', voices);
@@ -190,7 +188,7 @@ const stopSpeech = () => {
             if (voiceToggleBtn) {
                 voiceToggleBtn.classList.remove('voice-active');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
+                voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
                 voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
             }
             mostrarNotificacion('Reconocimiento de voz detenido', 'info');
@@ -223,7 +221,7 @@ const toggleVoiceRecognition = () => {
         isListening = true;
         voiceToggleBtn.classList.add('voice-active');
         voiceToggleBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
-        voiceToggleBtn.setAttribute('data-tooltip', 'Detener reconocimiento de voz');
+        voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Detener reconocimiento de voz');
         mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
         recognition.onresult = event => {
@@ -236,7 +234,7 @@ const toggleVoiceRecognition = () => {
                 isListening = false;
                 voiceToggleBtn.classList.remove('voice-active');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
+                voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
                 voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
             }
         };
@@ -247,7 +245,7 @@ const toggleVoiceRecognition = () => {
             isListening = false;
             voiceToggleBtn.classList.remove('voice-active');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-            voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
+            voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
             voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         };
         recognition.onend = () => {
@@ -256,7 +254,7 @@ const toggleVoiceRecognition = () => {
             } else {
                 voiceToggleBtn.classList.remove('voice-active');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar reconocimiento de voz');
+                voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
                 voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
             }
         };
@@ -594,10 +592,9 @@ const sendMessage = () => {
         }
         return res.json();
     }).then(data => {
-        // Limpiar duplicaciones de "¿Deseas saber más?" en la respuesta
         let respuestaLimpia = data.respuesta;
-        const regex = /(\?Deseas saber más\?)(?:\s*\1)+/g; // Busca repeticiones de la frase
-        respuestaLimpia = respuestaLimpia.replace(regex, '$1').trim(); // Conserva solo una instancia
+        const regex = /(\?Deseas saber más\?)(?:\s*\1)+/g;
+        respuestaLimpia = respuestaLimpia.replace(regex, '$1').trim();
         console.log('Respuesta limpia:', respuestaLimpia);
 
         const botDiv = document.createElement('div');
@@ -716,19 +713,6 @@ const addCopyButtonListeners = () => {
     });
 };
 
-document.addEventListener('click', () => {
-    if (!userHasInteracted) {
-        console.log('Usuario interactuó con la página');
-        userHasInteracted = true;
-        toggleVoiceHint(false);
-        if (vozActiva && pendingWelcomeMessage) {
-            console.log('Reproduciendo mensaje de bienvenida pendiente');
-            speakText(pendingWelcomeMessage);
-            pendingWelcomeMessage = null;
-        }
-    }
-});
-
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         sendBtn: document.getElementById('send-btn') || (console.error('Botón #send-btn no encontrado'), null),
@@ -739,11 +723,8 @@ document.addEventListener('DOMContentLoaded', () => {
         voiceBtn: document.getElementById('voice-btn') || (console.error('Botón #voice-btn no encontrado'), null),
         voiceToggleBtn: document.getElementById('voice-toggle-btn') || (console.error('Botón #voice-toggle-btn no encontrado'), null),
         modoBtn: document.getElementById('modo-btn') || (console.error('Botón #modo-btn no encontrado'), null),
-        searchBtn: document.getElementById('search-btn') || (console.error('Botón #search-btn no encontrado'), null),
-        searchInput: document.getElementById('search-input') || (console.error('Elemento #search-input no encontrado'), null),
         menuToggle: getElement('.menu-toggle'),
         menuToggleRight: getElement('.menu-toggle-right'),
-        tabButtons: getElements('.tab-btn'),
         nivelExplicacion: document.getElementById('nivel-explicacion') || (console.error('Elemento #nivel-explicacion no encontrado'), null)
     };
 
@@ -895,12 +876,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.voiceBtn) {
-        elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
+        const voiceText = document.getElementById('voice-text');
+        voiceText.textContent = vozActiva ? 'Desactivar Voz' : 'Activar Voz';
+        elements.voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
+        elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i> <span id="voice-text">${vozActiva ? 'Desactivar Voz' : 'Activar Voz'}</span>`;
         elements.voiceBtn.addEventListener('click', () => {
             console.log('Botón #voice-btn clicado, vozActiva:', vozActiva);
             vozActiva = !vozActiva;
             localStorage.setItem('vozActiva', vozActiva);
-            elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
+            const voiceText = document.getElementById('voice-text');
+            voiceText.textContent = vozActiva ? 'Desactivar Voz' : 'Activar Voz';
+            elements.voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
             mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
             if (!vozActiva) {
                 stopSpeech();
@@ -926,25 +912,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.modoBtn) {
+        const modoText = document.getElementById('modo-text');
+        modoText.textContent = document.body.classList.contains('modo-oscuro') ? 'Modo Claro' : 'Modo Oscuro';
+        elements.modoBtn.setAttribute('data-tooltip', document.body.classList.contains('modo-oscuro') ? 'Modo Claro' : 'Modo Oscuro');
         elements.modoBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-oscuro');
             const modo = document.body.classList.contains('modo-oscuro') ? 'Oscuro' : 'Claro';
-            elements.modoBtn.innerHTML = `<i class="fas fa-${modo === 'Claro' ? 'moon' : 'sun'}"></i>`;
+            const modoText = document.getElementById('modo-text');
+            modoText.textContent = modo === 'Claro' ? 'Modo Oscuro' : 'Modo Claro';
+            elements.modoBtn.setAttribute('data-tooltip', modo === 'Claro' ? 'Modo Oscuro' : 'Modo Claro');
             localStorage.setItem('theme', modo.toLowerCase());
             mostrarNotificacion(`Modo ${modo} activado`, 'success');
-        });
-    }
-
-    if (elements.searchBtn) {
-        elements.searchBtn.addEventListener('click', buscarTema);
-    }
-
-    if (elements.searchInput) {
-        elements.searchInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                console.log('Enter presionado en #search-input');
-                buscarTema();
-            }
         });
     }
 
@@ -1013,27 +991,20 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
     }
 
-    if (elements.tabButtons.length) {
-        elements.tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                elements.tabButtons.forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-selected', 'false');
-                });
-                btn.classList.add('active');
-                btn.setAttribute('aria-selected', 'true');
-                getElements('.tab-content > div').forEach(div => div.classList.remove('active'));
-                getElement(`.${btn.dataset.tab}`)?.classList.add('active');
-            });
-        });
-    }
-
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'oscuro') {
         document.body.classList.add('modo-oscuro');
-        if (elements.modoBtn) elements.modoBtn.innerHTML = `<i class="fas fa-sun"></i>`;
+        const modoText = document.getElementById('modo-text');
+        modoText.textContent = 'Modo Claro';
+        elements.modoBtn.setAttribute('data-tooltip', 'Modo Claro');
     } else {
         document.body.classList.remove('modo-oscuro');
-        if (elements.modoBtn) elements.modoBtn.innerHTML = `<i class="fas fa-moon"></i>`;
+        const modoText = document.getElementById('modo-text');
+        modoText.textContent = 'Modo Oscuro';
+        elements.modoBtn.setAttribute('data-tooltip', 'Modo Oscuro');
     }
+
+    cargarAvatares();
+    actualizarListaChats();
+    nuevaConversacion();
 });
