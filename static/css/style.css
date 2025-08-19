@@ -17,7 +17,7 @@
     --button-hover: #16a085;
     --scrollbar-thumb: #1abc9c;
     --scrollbar-track: #f5f6f5;
-    --vh: 1vh; /* Variable para altura dinámica */
+    --vh: 1vh;
 }
 
 body.modo-oscuro {
@@ -76,7 +76,7 @@ body {
     justify-content: space-between;
     width: 100%;
     max-width: 1200px;
-    height: calc(100vh - 60px); /* Ajustar altura para título */
+    height: calc(100vh - 60px);
     background-color: var(--bg-primary);
     border-radius: 8px;
     overflow: hidden;
@@ -216,12 +216,14 @@ body {
 }
 
 .user, .bot {
-    padding: 10px 16px;
+    padding: 12px 16px;
     border-radius: 16px;
     max-width: 70%;
     word-wrap: break-word;
     font-size: 0.95rem;
+    box-shadow: 0 2px 4px var(--shadow);
     position: relative;
+    line-height: 1.5;
 }
 
 .user {
@@ -229,6 +231,7 @@ body {
     background-color: var(--message-user-bg);
     color: var(--message-user-text);
     border-radius: 16px 16px 0 16px;
+    margin-left: 10%;
 }
 
 .bot {
@@ -236,6 +239,7 @@ body {
     background-color: var(--message-bot-bg);
     color: var(--message-bot-text);
     border-radius: 16px 16px 16px 0;
+    margin-right: 10%;
 }
 
 .user:before {
@@ -243,6 +247,7 @@ body {
     font-family: "Font Awesome 5 Free";
     font-weight: 900;
     margin-right: 8px;
+    font-size: 0.9rem;
 }
 
 .bot:before {
@@ -250,6 +255,7 @@ body {
     font-family: "Font Awesome 5 Free";
     font-weight: 900;
     margin-right: 8px;
+    font-size: 0.9rem;
 }
 
 .copy-btn {
@@ -264,6 +270,36 @@ body {
 
 .copy-btn:hover {
     color: var(--accent);
+}
+
+.bot pre {
+    background: color-mix(in srgb, var(--message-bot-bg), #000 20%);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    max-width: 100%;
+    margin-top: 8px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.bot code {
+    background: color-mix(in srgb, var(--message-bot-bg), #000 10%);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9rem;
+}
+
+.bot strong {
+    font-weight: 700;
+}
+
+.bot em {
+    font-style: italic;
 }
 
 .input-group {
@@ -557,23 +593,16 @@ body {
         z-index: 1004;
         padding: 10px;
     }
+
+    .user, .bot {
+        max-width: 85%;
+    }
 }
 
 /* Estilos para ejemplos de código en respuestas del bot */
-.bot pre {
-    background: color-mix(in srgb, var(--message-bot-bg), #000 10%);
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    font-size: 0.9rem;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    max-width: 100%;
-}
-
-.bot code {
-    background: color-mix(in srgb, var(--message-bot-bg), #000 5%);
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-size: 0.9rem;
+@media (max-width: 768px) {
+    .bot pre {
+        font-size: 0.85rem;
+        padding: 10px;
+    }
 }
