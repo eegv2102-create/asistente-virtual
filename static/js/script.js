@@ -465,7 +465,6 @@ const sendMessage = () => {
         console.error('Error en fetch /respuesta:', error);
     });
 };
-
 const limpiarChat = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
@@ -557,15 +556,6 @@ const addCopyButtonListeners = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Configurar marked para subrayado personalizado
-    marked.use({
-        renderer: {
-            text: function(text) {
-                return text.replace(/\_\_([^_]+)\_\_/g, '<u>$1</u>');
-            }
-        }
-    });
-
     const elements = {
         chatbox: getElement('#chatbox'),
         input: getElement('#input'),
