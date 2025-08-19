@@ -1,12 +1,18 @@
-let vozActiva = true, isListening = false, recognition = null, voicesLoaded = false;
+let vozActiva = localStorage.getItem('vozActiva') === 'true' || false; // Persistir estado de voz
+let isListening = false;
+let recognition = null;
+let voicesLoaded = false;
 let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
+let userHasInteracted = false;
+let pendingWelcomeMessage = null;
 
 const getElement = selector => {
     const element = document.querySelector(selector);
     if (!element) console.warn(`Elemento ${selector} no encontrado en el DOM`);
     return element;
 };
+
 const getElements = selector => {
     const elements = document.querySelectorAll(selector);
     if (!elements.length) console.warn(`No se encontraron elementos para ${selector}`);
@@ -29,6 +35,14 @@ const mostrarNotificacion = (mensaje, tipo = 'info') => {
         card.style.animation = 'fadeOut 0.5s ease-out';
         setTimeout(() => card.classList.remove('active', tipo), 500);
     }, 5000);
+};
+
+const toggleVoiceHint = (show) => {
+    const voiceHint = getElement('#voice-hint');
+    if (voiceHint) {
+        voiceHint.style.display = show ? 'block' : 'none';
+        voiceHint.classList.toggle('hidden', !show);
+    }
 };
 
 const scrollToBottom = () => {
@@ -59,6 +73,11 @@ const speakText = text => {
         console.warn('Voz desactivada o texto vacío, no se reproduce voz', { vozActiva, text });
         return;
     }
+    if (!userHasInteracted) {
+        console.warn('No se puede reproducir audio: el usuario no ha interactuado con la página');
+        toggleVoiceHint(true);
+        return;
+    }
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
     console.log('speakText called with:', text);
@@ -81,7 +100,12 @@ const speakText = text => {
         currentAudio = new Audio(URL.createObjectURL(blob));
         currentAudio.play().catch(error => {
             console.error('Error al reproducir audio:', error);
-            mostrarNotificacion('Error al reproducir voz de IA: ' + error.message, 'error');
+            if (error.message.includes("user didn't interact")) {
+                console.warn('Intento de reproducción bloqueado por falta de interacción');
+                toggleVoiceHint(true);
+            } else {
+                mostrarNotificacion('Error al reproducir voz de IA: ' + error.message, 'error');
+            }
         });
         currentAudio.onended = () => {
             if (botMessage) botMessage.classList.remove('speaking');
@@ -89,7 +113,7 @@ const speakText = text => {
     }).catch(error => {
         console.error('TTS /tts falló, intentando speechSynthesis', error.message);
         mostrarNotificacion(`Error en TTS: ${error.message}`, 'error');
-        if ('speechSynthesis' in window) {
+        if ('speechSynthesis' in window && userHasInteracted) {
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'es-ES';
             utterance.onend = () => {
@@ -97,13 +121,16 @@ const speakText = text => {
             };
             utterance.onerror = (event) => {
                 console.error('Error en speechSynthesis:', event.error);
-                mostrarNotificacion('Error en voz de IA: ' + event.error, 'error');
+                if (event.error !== 'not-allowed') {
+                    mostrarNotificacion('Error en voz de IA: ' + event.error, 'error');
+                } else {
+                    toggleVoiceHint(true);
+                }
             };
             speechSynthesis.speak(utterance);
             currentAudio = utterance;
         } else {
-            console.error('speechSynthesis no soportado en este navegador');
-            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
+            console.warn('No se puede usar speechSynthesis: sin soporte o sin interacción');
         }
     });
 };
@@ -269,7 +296,6 @@ const cargarAvatares = async () => {
     }
 };
 
-
 const guardarMensaje = (pregunta, respuesta, video_url = null) => {
     let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.id && currentConversation.id !== 0) {
@@ -338,6 +364,7 @@ const actualizarListaChats = () => {
 };
 
 const cargarChat = index => {
+    stopSpeech(); // Detener cualquier audio al cambiar de chat
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const chat = historial[index];
     if (!chat) {
@@ -508,7 +535,7 @@ const sendMessage = () => {
     }).then(res => {
         if (!res.ok) {
             return res.json().then(err => {
-                throw new Error(err.error || `Error en /respuesta: ${res.status} ${response.statusText}`);
+                throw new Error(err.error || `Error en /respuesta: ${res.status} ${res.statusText}`);
             });
         }
         return res.json();
@@ -529,6 +556,7 @@ const sendMessage = () => {
 };
 
 const limpiarChat = () => {
+    stopSpeech(); // Detener cualquier audio al limpiar chat
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (!container || !chatbox) {
@@ -541,6 +569,7 @@ const limpiarChat = () => {
 };
 
 const nuevaConversacion = () => {
+    stopSpeech(); // Detener cualquier audio al iniciar nueva conversación
     const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const newId = historial.length;
     const newConversation = {
@@ -622,6 +651,18 @@ const addCopyButtonListeners = () => {
     });
 };
 
+// Registrar interacción del usuario
+document.addEventListener('click', () => {
+    if (!userHasInteracted) {
+        userHasInteracted = true;
+        toggleVoiceHint(false);
+        if (vozActiva && pendingWelcomeMessage) {
+            speakText(pendingWelcomeMessage);
+            pendingWelcomeMessage = null;
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         sendBtn: document.getElementById('send-btn'),
@@ -645,7 +686,12 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarListaChats();
     cargarAnalytics();
 
-    // Mostrar mensaje de saludo inicial
+    // Mostrar mensaje de interacción si la voz está activada
+    if (vozActiva) {
+        toggleVoiceHint(true);
+    }
+
+    // Mostrar mensaje de saludo inicial sin reproducir audio
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (container && chatbox) {
@@ -666,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(botDiv);
             scrollToBottom();
             if (window.Prism) Prism.highlightAllUnder(botDiv);
-            speakText(data.respuesta);
+            pendingWelcomeMessage = data.respuesta; // Guardar para reproducir después
             guardarMensaje('Saludo inicial', data.respuesta, data.video_url);
             addCopyButtonListeners();
         }).catch(error => {
@@ -769,9 +815,19 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.voiceBtn.addEventListener('click', () => {
             console.log('Botón #voice-btn clicado');
             vozActiva = !vozActiva;
+            localStorage.setItem('vozActiva', vozActiva);
             elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i>`;
             mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
-            if (!vozActiva) stopSpeech();
+            if (!vozActiva) {
+                stopSpeech();
+                toggleVoiceHint(false);
+            } else {
+                toggleVoiceHint(!userHasInteracted);
+                if (pendingWelcomeMessage && userHasInteracted) {
+                    speakText(pendingWelcomeMessage);
+                    pendingWelcomeMessage = null;
+                }
+            }
         });
     } else {
         console.error('Botón #voice-btn no encontrado');
@@ -843,7 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             console.log('Botón .menu-toggle-right clicado');
             const rightSection = getElement('.right-section');
-            const leftSection = getElement('.left-section');
+            const leftSection = getElement('.left-section'); // Corrección: eliminado "Server"
             if (rightSection) {
                 rightSection.classList.toggle('active');
                 elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
