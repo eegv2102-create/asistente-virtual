@@ -20,7 +20,7 @@ app = Flask(__name__)
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Cargar temas y prerequisitos
+# Cargar temas.json
 try:
     with open("temas.json", "r", encoding="utf-8") as f:
         temas = json.load(f)
@@ -28,14 +28,6 @@ try:
 except Exception as e:
     logging.error(f"Error cargando temas.json: {str(e)}")
     temas = {}
-
-try:
-    with open("prerequisitos.json", "r", encoding="utf-8") as f:
-        prerequisitos = json.load(f)
-    logging.info("Prerequisitos cargados: %s", list(prerequisitos.keys()))
-except Exception as e:
-    logging.error(f"Error cargando prerequisitos.json: {str(e)}")
-    prerequisitos = {}
 
 # Inicializar base de datos
 def init_db():
@@ -88,82 +80,35 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
-def buscar_respuesta_app(pregunta, nivel_explicacion="basica", historial=None):
+def buscar_respuesta_app(pregunta):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    # Manejo de mensajes simples
-    respuestas_simples = {
-        "hola": "¡Hola! Estoy listo para ayudarte con Programación Avanzada. ¿Qué tema quieres explorar? ¿Deseas saber más?",
-        "gracias": "¡De nada! Sigue aprendiendo, estoy aquí para apoyarte. ¿Deseas saber más?",
-        "adiós": "¡Hasta pronto! Espero verte de nuevo para seguir aprendiendo. ¿Deseas saber más?"
-    }
-    if pregunta.lower().strip() in respuestas_simples:
-        return respuestas_simples[pregunta.lower().strip()]
-
-    # Buscar tema en temas.json
-    tema_encontrado = None
-    for tema_id, tema_data in temas.items():
-        if tema_id in pregunta.lower() or any(kw.lower() in pregunta.lower() for kw in tema_data["palabras_clave"]):
-            tema_encontrado = tema_id
-            break
-
-    # Generar prerequisitos si corresponde
-    prereq_text = ""
-    if tema_encontrado and tema_encontrado in prerequisitos:
-        prereq_text = (
-            "\n\n**Prerequisitos recomendados**: Antes de profundizar en este tema, te sugiero repasar:\n" +
-            "\n".join([f"- {temas[p]['descripcion']}" for p in prerequisitos[tema_encontrado] if p in temas])
-        )
-
-    # Generar contexto del historial
-    contexto = ""
-    if historial:
-        contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
-
-    # Personalizar respuesta según el nivel de explicación
-    prompt = (
-        "Eres un asistente virtual con avatar inteligente diseñado para apoyar a estudiantes de Ingeniería en Telemática en la asignatura de Programación Avanzada.\n\n"
-        "Tu comportamiento debe ser:\n"
-        "1. Responder de forma clara, completa y actualizada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
-        "2. Aceptar preguntas con errores ortográficos o expresiones informales, incluyendo mensajes cortos.\n"
-        "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
-        "4. Al final de cada respuesta, siempre preguntar: \n"
-        "   \"¿Deseas saber más?\"\n"
-        "5. Personalizar la respuesta según el nivel de explicación solicitado: básica (conceptos simples), ejemplos (con código práctico), o avanzada (teórica y detallada).\n"
-        f"Contexto: {json.dumps(temas)}\n"
-        f"Prerequisitos: {json.dumps(prerequisitos)}\n"
-        f"Historial: {contexto}\n"
-        f"Nivel de explicación: {nivel_explicacion}\n"
-        f"Pregunta: {pregunta}"
-    )
-
     completion = client.chat.completions.create(
         model="llama3-70b-8192",
         messages=[
-            {"role": "system", "content": prompt},
+            {
+                "role": "system",
+                "content": (
+                    "Eres un asistente virtual con avatar inteligente diseñado para apoyar a estudiantes de Ingeniería en Telemática en la asignatura de Programación Avanzada.\n\n"
+                    "Tu comportamiento debe ser:\n"
+                    "1. Responder de forma clara, completa y actualizada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
+                    "2. Aceptar también preguntas con errores ortográficos o expresiones informales, incluyendo mensajes cortos como 'hola' o 'temas'.\n"
+                    "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
+                    "4. Al final de cada respuesta, siempre preguntar: \n"
+                    "   \"¿Deseas saber más?\"\n"
+                    "5. Reconocer saludos y agradecimientos con respuestas breves y empáticas.\n"
+                    "6. Mantener respuestas educativas, sin desviarse a temas fuera de la materia salvo en cortesía básica.\n"
+                    "7. Nunca borrar ni dañar la lógica del sistema, solo mejorar la calidad de las respuestas.\n\n"
+                    "Objetivo principal:\n"
+                    "Mejorar la calidad del proceso de enseñanza-aprendizaje de los estudiantes de Telemática en la materia de Programación Avanzada, actuando como un tutor complementario.\n\n"
+                    f"Contexto: {json.dumps(temas)}"
+                )
+            },
             {"role": "user", "content": pregunta}
         ],
         max_tokens=1000,
         temperature=0.5
     )
     respuesta = completion.choices[0].message.content
-    if tema_encontrado:
-        if nivel_explicacion == "basica":
-            respuesta = f"**{tema_encontrado} (Explicación básica)**: {temas[tema_encontrado]['descripcion']}{prereq_text}\n\n¿Deseas saber más?"
-        elif nivel_explicacion == "ejemplos":
-            respuesta = (
-                f"**{tema_encontrado} (Explicación con ejemplos)**: {temas[tema_encontrado]['descripcion']}\n\n"
-                f"**Ejemplo de código**:\n{temas[tema_encontrado].get('descripcion', '').split('Ejemplo')[1] if 'Ejemplo' in temas[tema_encontrado]['descripcion'] else '// Código de ejemplo no disponible'}\n"
-                f"{prereq_text}\n\n¿Deseas saber más?"
-            )
-        else:  # avanzada
-            respuesta = (
-                f"**{tema_encontrado} (Explicación avanzada)**: {temas[tema_encontrado]['descripcion']}\n\n"
-                f"**Detalles teóricos**: Este tema implica conceptos avanzados que requieren un entendimiento profundo de sus fundamentos.\n"
-                f"{prereq_text}\n\n¿Deseas saber más?"
-            )
-    else:
-        respuesta += f"{prereq_text}\n\n¿Deseas saber más?"
-
     return respuesta
 
 # Rutas
@@ -182,9 +127,9 @@ def saludo_inicial():
         avatar_id = request.args.get("avatar_id", "default")
         avatar_id = bleach.clean(avatar_id[:50])
         respuesta_text = (
-            "¡Hola! Soy tu asistente virtual para Programación Avanzada en Ingeniería en Telemática. "
-            "Estoy aquí para ayudarte con temas como POO, patrones de diseño, bases de datos y más. "
-            "¿Qué quieres aprender hoy? ¿Deseas saber más?"
+            "¡Hola! Me alegra verte aquí. Soy tu asistente virtual para Programación Avanzada en Ingeniería en Telemática. "
+            "Estoy aquí para ayudarte en cualquier tema que necesites, desde POO hasta patrones de diseño, bases de datos y más. "
+            "¿En qué puedo ayudarte hoy? ¿Deseas saber más?"
         )
         avatar = None
         try:
@@ -228,14 +173,12 @@ def respuesta():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta").strip()[:300])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:20])
-        historial = data.get("historial", [])
 
         if not pregunta:
-            logging.info("Pregunta vacía ignorada")
-            return jsonify({"respuesta": "Por favor, escribe una pregunta para continuar. ¿Deseas saber más?"})
+            logging.error("Pregunta vacía recibida")
+            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
 
-        respuesta_text = buscar_respuesta_app(pregunta, nivel_explicacion, historial)
+        respuesta_text = buscar_respuesta_app(pregunta)
         avatar = None
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -298,29 +241,30 @@ def quiz():
 
         tema = bleach.clean(data.get("tema", "").strip()[:50])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones")[:20])
+        if not tema:
+            logging.error("Tema vacío recibido")
+            return jsonify({"error": "El tema no puede estar vacío"}), 400
 
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
             "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-            f"Tu tarea es generar un quiz de {tipo_quiz} sobre el tema proporcionado. "
-            f"Si tipo_quiz es 'opciones', genera 3 preguntas de opción múltiple, cada una con 4 opciones y una respuesta correcta. "
-            f"Si tipo_quiz es 'verdadero_falso', genera 3 preguntas de verdadero o falso. "
-            f"El tema es: {tema}. "
+            "Tu tarea es generar un quiz con 3 preguntas de opción múltiple sobre el tema proporcionado. "
+            "Cada pregunta debe tener 4 opciones y una respuesta correcta claramente identificada. "
+            "El tema es: {tema}. "
             "Devuelve el resultado en formato JSON con la estructura: "
-            "{\"quiz\": [{\"pregunta\": \"texto\", \"opciones\": [\"op1\", \"op2\", ...], \"respuesta_correcta\": \"op_correcta\", \"tema\": \"tema\", \"nivel\": \"basico|intermedio|avanzado\"}]}"
-        )
-
+            "{\"quiz\": [{\"pregunta\": \"texto\", \"opciones\": [\"op1\", \"op2\", \"op3\", \"op4\"], \"respuesta_correcta\": \"op_correcta\", \"tema\": \"tema\", \"nivel\": \"basico|intermedio|avanzado\"}]}"
+        ).format(tema=tema)
+        
         completion = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": f"Genera un quiz de {tipo_quiz} sobre {tema}."}
+                {"role": "user", "content": f"Genera un quiz de 3 preguntas sobre {tema}."}
             ],
             max_tokens=1500,
             temperature=0.5
         )
-
+        
         response_text = completion.choices[0].message.content
         try:
             quiz_data = json.loads(response_text)
@@ -329,10 +273,8 @@ def quiz():
             for q in quiz_data["quiz"]:
                 if not all(key in q for key in ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]):
                     raise ValueError("Faltan campos requeridos en una pregunta del quiz")
-                if tipo_quiz == "opciones" and len(q["opciones"]) != 4:
-                    raise ValueError("Cada pregunta de opción múltiple debe tener exactamente 4 opciones")
-                if tipo_quiz == "verdadero_falso" and len(q["opciones"]) != 2:
-                    raise ValueError("Cada pregunta de verdadero/falso debe tener exactamente 2 opciones")
+                if len(q["opciones"]) != 4:
+                    raise ValueError("Cada pregunta debe tener exactamente 4 opciones")
         except json.JSONDecodeError:
             logging.error("Respuesta de Groq no es un JSON válido")
             return jsonify({"error": "Error al procesar el formato del quiz"}), 500
@@ -354,23 +296,22 @@ def responder_quiz():
         respuesta = bleach.clean(data.get("respuesta", "")[:300])
         respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300])
         tema = bleach.clean(data.get("tema", "")[:50])
-
+        
         progreso = cargar_progreso(usuario)
         puntos = progreso["puntos"]
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
-
-        es_correcta = respuesta == respuesta_correcta
-        if es_correcta:
+        
+        if respuesta == respuesta_correcta:
             puntos += 10
             if tema not in temas_aprendidos:
                 temas_aprendidos.append(tema)
-            mensaje = f"✅ ¡Correcto! Has ganado 10 puntos. Tema: {tema}. ¿Deseas saber más?"
+            mensaje = f"¡Correcto! Has ganado 10 puntos. Tema: {tema}"
         else:
-            mensaje = f"❌ Incorrecto. La respuesta correcta era: {respuesta_correcta}. ¿Deseas saber más?"
-
+            mensaje = f"Incorrecto. La respuesta correcta era: {respuesta_correcta}"
+        
         guardar_progreso(usuario, puntos, ",".join(temas_aprendidos))
         logging.info(f"Quiz respondido por {usuario}: {mensaje}")
-        return jsonify({"respuesta": mensaje, "es_correcta": es_correcta})
+        return jsonify({"respuesta": mensaje})
     except Exception as e:
         logging.error(f"Error en /responder_quiz: {str(e)}")
         return jsonify({"error": f"Error al responder quiz: {str(e)}"}), 500
@@ -405,25 +346,22 @@ def recommend():
     try:
         data = request.get_json()
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        historial = data.get("historial", [])
-
+        contexto = bleach.clean(data.get("contexto", "").strip()[:300])
+        
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
         temas_disponibles = list(temas.keys())
-
-        # Filtrar temas no aprendidos
-        temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
-        contexto = "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
-
+        
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
             "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-            "Tu tarea es recomendar un tema de Programación Avanzada basado en el historial de interacciones y los temas ya aprendidos. "
-            "Elige un tema de los disponibles que no haya sido aprendido, considerando el contexto del historial. "
+            "Tu tarea es recomendar un tema de Programación Avanzada (como POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.) "
+            "basado en el contexto proporcionado por el usuario y los temas ya aprendidos. "
+            "Si no hay contexto, elige un tema relevante de la lista de temas disponibles. "
             "Devuelve solo el nombre del tema recomendado (por ejemplo, 'Patrones de diseño') sin explicaciones adicionales."
-            f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}"
+            f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_disponibles)}"
         )
-
+        
         completion = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
@@ -433,10 +371,11 @@ def recommend():
             max_tokens=50,
             temperature=0.5
         )
-
+        
         recomendacion = completion.choices[0].message.content.strip()
-        if not recomendacion or recomendacion not in temas_disponibles:
-            recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else "Patrones de diseño"
+        if not recomendacion:
+            logging.error("Recomendación vacía recibida de Groq")
+            return jsonify({"error": "No se pudo generar una recomendación válida"}), 500
 
         logging.info(f"Recomendación para usuario {usuario}: {recomendacion}")
         return jsonify({"recommendation": recomendacion})
