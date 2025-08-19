@@ -1,4 +1,3 @@
-/* CSS Variables for Light and Dark Modes */
 :root {
     --bg-primary: #ffffff;
     --bg-secondary: #f5f6f5;
@@ -20,6 +19,7 @@
     --vh: 1vh;
     --success: #2ecc71;
     --error: #e74c3c;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 body.modo-oscuro {
@@ -42,14 +42,15 @@ body.modo-oscuro {
     --scrollbar-track: #2c2c2c;
     --success: #2ecc71;
     --error: #e74c3c;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Reset and Global Styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 body {
@@ -59,7 +60,6 @@ body {
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
-    transition: background-color 0.3s, color 0.3s;
 }
 
 .app-title {
@@ -74,6 +74,7 @@ body {
     z-index: 1004;
     background-color: var(--bg-primary);
     padding: 10px;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .voice-hint {
@@ -88,7 +89,7 @@ body {
     box-shadow: 0 2px 4px var(--shadow);
     z-index: 1003;
     font-size: 14px;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.3s ease;
 }
 
 .voice-hint.hidden {
@@ -106,16 +107,16 @@ body {
     background-color: var(--bg-primary);
     border-radius: 8px;
     overflow: hidden;
+    transition: background-color 0.3s ease;
 }
 
-/* Left Section: Sidebar */
 .left-section {
     width: 240px;
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     padding: 16px;
     border-right: 1px solid var(--border);
-    transition: transform 0.3s ease, background-color 0.3s;
+    transition: transform 0.3s ease, background-color 0.3s ease;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -127,6 +128,7 @@ body {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+    transition: border-color 0.3s ease;
 }
 
 .sidebar-content {
@@ -150,7 +152,11 @@ body {
     padding: 8px;
     border-radius: 8px;
     font-size: 1rem;
-    transition: background-color 0.3s, transform 0.2s;
+    transition: background-color 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
@@ -160,12 +166,17 @@ body {
     transform: scale(1.05);
 }
 
+.sidebar-buttons button span {
+    display: inline;
+}
+
 .chat-history {
     flex: 1;
     overflow-y: auto;
     border: 1px solid var(--border);
     border-radius: 8px;
     background-color: var(--bg-primary);
+    transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
 #chat-list {
@@ -180,10 +191,12 @@ body {
 #chat-list::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: 4px;
+    transition: background-color 0.3s ease;
 }
 
 #chat-list::-webkit-scrollbar-track {
     background-color: var(--scrollbar-track);
+    transition: background-color 0.3s ease;
 }
 
 #chat-list li {
@@ -192,7 +205,7 @@ body {
     border-radius: 8px;
     margin-bottom: 8px;
     background-color: var(--bg-secondary);
-    transition: background-color 0.3s, transform 0.2s;
+    transition: background-color 0.3s ease, transform 0.2s ease;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -225,12 +238,13 @@ body {
     justify-content: center;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: background-color 0.3s, transform 0.2s;
+    transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 .chat-actions .rename-btn {
     background-color: var(--accent);
     color: var(--button-text);
+    transition: background-color 0.3s ease;
 }
 
 .chat-actions .rename-btn:hover, .chat-actions .rename-btn:focus {
@@ -241,6 +255,7 @@ body {
 .chat-actions .delete-btn {
     background-color: var(--error);
     color: #ffffff;
+    transition: background-color 0.3s ease;
 }
 
 .chat-actions .delete-btn:hover, .chat-actions .delete-btn:focus {
@@ -248,7 +263,6 @@ body {
     transform: scale(1.1);
 }
 
-/* Main Section */
 .main-section {
     flex: 1;
     display: flex;
@@ -261,7 +275,7 @@ body {
     padding: 16px;
     overflow-y: auto;
     background-color: var(--bg-secondary);
-    transition: background-color 0.3s;
+    transition: background-color 0.3s ease;
     max-height: calc(100vh - 120px);
 }
 
@@ -272,10 +286,12 @@ body {
 #chatbox::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: 4px;
+    transition: background-color 0.3s ease;
 }
 
 #chatbox::-webkit-scrollbar-track {
     background-color: var(--scrollbar-track);
+    transition: background-color 0.3s ease;
 }
 
 .message-container {
@@ -293,6 +309,7 @@ body {
     box-shadow: 0 2px 4px var(--shadow);
     line-height: 1.5;
     position: relative;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .user {
@@ -334,7 +351,7 @@ body {
     margin-left: 8px;
     color: var(--text-secondary);
     font-size: 0.9rem;
-    transition: color 0.3s;
+    transition: color 0.3s ease;
 }
 
 .copy-btn:hover, .copy-btn:focus {
@@ -366,6 +383,7 @@ body {
     max-width: 100%;
     margin-top: 8px;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease;
 }
 
 .bot code {
@@ -374,6 +392,7 @@ body {
     border-radius: 4px;
     font-family: 'Fira Code', 'Consolas', monospace;
     font-size: 0.9rem;
+    transition: background-color 0.3s ease;
 }
 
 .bot strong {
@@ -390,7 +409,7 @@ body {
     padding: 12px;
     border-top: 1px solid var(--border);
     background-color: var(--bg-primary);
-    transition: background-color 0.3s;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
     flex-wrap: wrap;
 }
 
@@ -407,6 +426,7 @@ body {
     color: var(--text-primary);
     font-size: 0.9rem;
     margin: 0 8px;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 #nivel-explicacion:focus {
@@ -423,7 +443,7 @@ body {
     font-size: 0.95rem;
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    transition: border-color 0.3s;
+    transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
 }
 
 #input:focus {
@@ -439,7 +459,8 @@ body {
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.95rem;
-    transition: background-color 0.3s, transform 0.2s;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    position: relative;
 }
 
 #new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover,
@@ -450,6 +471,7 @@ body {
 
 #btn-clear {
     background-color: var(--error);
+    transition: background-color 0.3s ease;
 }
 
 #btn-clear:hover, #btn-clear:focus {
@@ -457,14 +479,13 @@ body {
     transform: scale(1.05);
 }
 
-/* Right Section: Avatar Selection */
 .right-section {
     width: 240px;
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     padding: 16px;
     border-left: 1px solid var(--border);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, background-color 0.3s ease;
 }
 
 .right-section h3 {
@@ -473,11 +494,13 @@ body {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+    transition: border-color 0.3s ease;
 }
 
 .right-section p {
     font-size: 0.9rem;
     color: var(--text-secondary);
+    transition: color 0.3s ease;
 }
 
 .avatar-options {
@@ -491,7 +514,7 @@ body {
     height: 50px;
     border-radius: 8px;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease;
 }
 
 .avatar-options img:hover, .avatar-options img:focus {
@@ -502,7 +525,6 @@ body {
     border: 2px solid var(--accent);
 }
 
-/* Notification Card */
 #notification-card {
     position: fixed;
     bottom: 20px;
@@ -514,6 +536,7 @@ body {
     box-shadow: 0 2px 8px var(--shadow);
     display: none;
     z-index: 1002;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #notification-card.active {
@@ -532,7 +555,6 @@ body {
     border-left: 4px solid var(--error);
 }
 
-/* Quiz Modal */
 #quiz-modal {
     position: fixed;
     top: 0;
@@ -544,6 +566,7 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1002;
+    transition: background-color 0.3s ease;
 }
 
 .modal-content {
@@ -553,12 +576,14 @@ body {
     max-width: 500px;
     width: 90%;
     box-shadow: 0 4px 16px var(--shadow);
+    transition: background-color 0.3s ease;
 }
 
 #quiz-question {
     font-size: 1.2rem;
     font-weight: 600;
     margin-bottom: 16px;
+    transition: color 0.3s ease;
 }
 
 #quiz-options {
@@ -574,7 +599,7 @@ body {
     border-radius: 8px;
     padding: 8px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .quiz-option:hover, .quiz-option:focus {
@@ -599,6 +624,7 @@ body {
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.95rem;
+    transition: background-color 0.3s ease;
 }
 
 #quiz-submit {
@@ -619,12 +645,22 @@ body {
     background-color: #c0392b;
 }
 
-/* Menu Toggles */
 .menu-toggle, .menu-toggle-right {
-    display: none; /* Ocultar por defecto en escritorio */
+    display: none;
     position: fixed;
     top: 10px;
     z-index: 1005;
+    background: var(--accent);
+    color: var(--button-text);
+    cursor: pointer;
+    font-size: 1.4rem;
+    padding: 8px;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px var(--shadow);
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
 }
 
 .menu-toggle {
@@ -635,7 +671,26 @@ body {
     right: 10px;
 }
 
-/* Responsive Design */
+.input-buttons button {
+    position: relative;
+}
+
+.input-buttons button[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
@@ -654,7 +709,8 @@ body {
         height: calc(100vh - 60px);
         z-index: 1001;
         transform: translateX(-100%);
-        transition: transform 0.3s ease, background-color 0.3s;
+        transition: transform 0.3s ease, background-color 0.3s ease;
+        padding: 12px;
     }
 
     .right-section {
@@ -675,7 +731,7 @@ body {
     #chatbox {
         max-height: calc(100vh - 100px);
         width: 100%;
-        padding: 12px;
+        padding: 8px;
     }
 
     .input-group {
@@ -690,13 +746,6 @@ body {
         align-items: center;
         box-sizing: border-box;
         flex-wrap: wrap;
-    }
-
-    #nivel-explicacion {
-        flex: 0 0 30%;
-        margin: 4px;
-        padding: 6px;
-        font-size: 0.8rem;
     }
 
     #input {
@@ -717,18 +766,7 @@ body {
     }
 
     .menu-toggle, .menu-toggle-right {
-        display: flex; /* Mostrar en móvil */
-        background: var(--accent);
-        color: var(--button-text);
-        cursor: pointer;
-        font-size: 1.4rem;
-        padding: 8px;
-        border-radius: 50%;
-        box-shadow: 0 2px 4px var(--shadow);
-        width: 40px;
-        height: 40px;
-        align-items: center;
-        justify-content: center;
+        display: flex;
     }
 
     .menu-toggle:hover, .menu-toggle-right:hover,
@@ -757,5 +795,21 @@ body {
         top: 60px;
         font-size: 12px;
         padding: 8px 16px;
+    }
+
+    .sidebar-buttons button {
+        font-size: 0.9rem;
+        padding: 6px;
+    }
+
+    .app-title {
+        font-size: 1.2rem;
+        padding: 8px;
+    }
+}
+
+@media (min-width: 769px) {
+    .menu-toggle, .menu-toggle-right {
+        display: none;
     }
 }
