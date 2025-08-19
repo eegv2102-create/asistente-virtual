@@ -62,12 +62,15 @@ body {
 .app-title {
     text-align: center;
     font-size: clamp(1.5rem, 4vw, 1.8rem);
-    margin: 10px 0;
+    margin: 0;
     color: var(--text-primary);
     width: 100%;
     max-width: 100%;
-    position: relative;
-    z-index: 1000;
+    position: fixed;
+    top: 0;
+    z-index: 1004;
+    background-color: var(--bg-primary);
+    padding: 10px;
 }
 
 /* Main Layout */
@@ -77,6 +80,7 @@ body {
     width: 100%;
     max-width: 1200px;
     height: calc(100vh - 60px);
+    margin-top: 60px;
     background-color: var(--bg-primary);
     border-radius: 8px;
     overflow: hidden;
@@ -193,7 +197,7 @@ body {
     overflow-y: auto;
     background-color: var(--bg-secondary);
     transition: background-color 0.3s;
-    max-height: calc(100vh - 120px); /* Ajustar para título y input-group */
+    max-height: calc(100vh - 120px);
 }
 
 #chatbox::-webkit-scrollbar {
@@ -222,7 +226,6 @@ body {
     word-wrap: break-word;
     font-size: 0.95rem;
     box-shadow: 0 2px 4px var(--shadow);
-    position: relative;
     line-height: 1.5;
 }
 
@@ -304,6 +307,7 @@ body {
 
 .input-group {
     display: flex;
+    align-items: center;
     padding: 12px;
     border-top: 1px solid var(--border);
     background-color: var(--bg-primary);
@@ -386,20 +390,19 @@ body {
     gap: 12px;
 }
 
-.avatar-options div {
-    padding: 10px;
+.avatar-options img {
+    width: 50px;
+    height: 50px;
     border-radius: 8px;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: border 0.3s, background-color 0.3s;
+    transition: transform 0.2s;
 }
 
-.avatar-options div:hover {
-    background-color: var(--accent);
-    color: var(--button-text);
+.avatar-options img:hover {
+    transform: scale(1.1);
 }
 
-.avatar-options div.selected {
+.avatar-options img.selected {
     border: 2px solid var(--accent);
 }
 
@@ -530,6 +533,7 @@ body {
     font-size: 1.2rem;
     padding: 8px;
     border-radius: 8px;
+    z-index: 1003;
 }
 
 /* Responsive Design */
@@ -537,15 +541,19 @@ body {
     .container {
         flex-direction: column;
         height: calc(100vh - 60px);
+        margin-top: 60px;
     }
 
     .left-section, .right-section {
-        width: 100%;
+        display: none;
+        width: 80%;
+        max-width: 300px;
         position: fixed;
         top: 60px;
         height: calc(100vh - 60px);
-        transform: translateX(-100%);
         z-index: 1001;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease, display 0.3s ease;
     }
 
     .right-section {
@@ -553,15 +561,17 @@ body {
     }
 
     .left-section.active, .right-section.active {
+        display: flex;
         transform: translateX(0);
     }
 
     .main-section {
+        width: 100%;
         height: calc(100vh - 60px);
     }
 
     #chatbox {
-        max-height: calc(100vh - 120px);
+        max-height: calc(100vh - 110px);
     }
 
     .input-group {
@@ -569,6 +579,20 @@ body {
         bottom: 0;
         width: 100%;
         z-index: 1000;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+    }
+
+    #input {
+        padding: 8px 12px;
+        margin: 0 6px;
+        font-size: 0.9rem;
+    }
+
+    #new-chat-btn, #btn-clear, #send-btn, #voice-toggle-btn {
+        padding: 6px 10px;
+        font-size: 0.9rem;
     }
 
     .menu-toggle, .menu-toggle-right {
@@ -585,22 +609,10 @@ body {
         right: 10px;
     }
 
-    .app-title {
-        position: fixed;
-        top: 0;
-        width: 100%;
-        background-color: var(--bg-primary);
-        z-index: 1004;
-        padding: 10px;
-    }
-
     .user, .bot {
         max-width: 85%;
     }
-}
 
-/* Estilos para ejemplos de código en respuestas del bot */
-@media (max-width: 768px) {
     .bot pre {
         font-size: 0.85rem;
         padding: 10px;
