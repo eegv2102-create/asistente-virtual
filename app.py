@@ -80,34 +80,30 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
-def buscar_respuesta_app(pregunta, usuario):
-    logging.info(f"Procesando pregunta: {pregunta} (usuario: {usuario})")
-    try:
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=httpx.Timeout(30.0))
-        completion = client.chat.completions.create(
-            model="llama3-70b-8192",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Eres un asistente experto en programación avanzada para estudiantes de Telemática. "
-                        "Responde en español con explicaciones claras, concisas y educativas, incluyendo ejemplos de código en Java o Python. "
-                        "Enfócate en temas como POO, UML, MVC, patrones de diseño, bases de datos relacionales, ORM, y pruebas unitarias. "
-                        "Si la pregunta es ambigua, pide aclaraciones. Si es un saludo, responde amigablemente y sugiere un tema. "
-                        f"Contexto: {json.dumps(temas)}"
-                        )
-                    },
-                {"role": "user", "content": pregunta}
-    ],
-    max_tokens=1000,  # Aumentar de 500 a 1000
-    temperature=0.5
-)
-        respuesta = completion.choices[0].message.content.strip()
-        logging.info(f"Respuesta de Groq: {respuesta}")
-        return respuesta
-    except Exception as e:
-        logging.error(f"Error en Groq: {str(e)}")
-        return "Lo siento, hubo un error al procesar tu pregunta. Intenta de nuevo."
+def buscar_respuesta_app(pregunta, temas):
+    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    completion = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Eres un asistente experto en programación avanzada para estudiantes de Telemática. "
+                    "Responde en español con explicaciones claras, concisas y educativas. "
+                    "Incluye ejemplos de código en Java o Python usando bloques de código markdown (por ejemplo, ```java\n// Ejemplo de código\n``` o ```python\n# Ejemplo de código\n```) con el lenguaje especificado. "
+                    "Enfócate en temas como POO, UML, MVC, patrones de diseño, bases de datos relacionales, ORM, y pruebas unitarias. "
+                    "Si la pregunta es ambigua, pide aclaraciones. Si es un saludo, responde amigablemente y sugiere un tema. "
+                    "Usa **negrita** para conceptos importantes y __subrayado__ para énfasis adicional. "
+                    f"Contexto: {json.dumps(temas)}"
+                )
+            },
+            {"role": "user", "content": pregunta}
+        ],
+        max_tokens=1000,  # Aumentado para permitir más texto
+        temperature=0.5
+    )
+    respuesta = completion.choices[0].message.content
+    return respuesta
 
 # Rutas
 @app.route('/favicon.ico')

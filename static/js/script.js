@@ -342,7 +342,7 @@ const cargarChat = index => {
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
-    if (window.Prism) Prism.highlightAll();
+    if (window.Prism) Prism.highlightAll(); // Asegurar resaltado de sintaxis
     addCopyButtonListeners();
 };
 
@@ -456,7 +456,7 @@ const sendMessage = () => {
                            `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
-        if (window.Prism) Prism.highlightAllUnder(botDiv);
+        if (window.Prism) Prism.highlightAllUnder(botDiv); // Resaltar solo el nuevo div
         speakText(data.respuesta);
         guardarMensaje(pregunta, data.respuesta, data.avatar_url);
         addCopyButtonListeners();
@@ -557,6 +557,15 @@ const addCopyButtonListeners = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Configurar marked para subrayado personalizado
+    marked.use({
+        renderer: {
+            text: function(text) {
+                return text.replace(/\_\_([^_]+)\_\_/g, '<u>$1</u>');
+            }
+        }
+    });
+
     const elements = {
         chatbox: getElement('#chatbox'),
         input: getElement('#input'),

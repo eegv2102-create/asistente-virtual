@@ -734,6 +734,14 @@ body {
     word-break: break-all;
 }
 
+.bot strong {
+    font-weight: bold; /* Para negrita */
+}
+
+.bot em {
+    font-style: italic; /* Para subrayado implícito (markdown usa <em> para __) */
+}
+
 /* Mejorar legibilidad de texto largo en bot */
 .bot {
     align-self: flex-start;
