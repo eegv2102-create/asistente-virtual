@@ -18,8 +18,6 @@
     --scrollbar-thumb: #1abc9c;
     --scrollbar-track: #f5f6f5;
     --vh: 1vh;
-    --success: #2ecc71; /* Añadido para feedback de quiz */
-    --error: #e74c3c; /* Añadido para feedback de quiz */
 }
 
 body.modo-oscuro {
@@ -40,8 +38,6 @@ body.modo-oscuro {
     --button-hover: #16a085;
     --scrollbar-thumb: #16a085;
     --scrollbar-track: #2c2c2c;
-    --success: #2ecc71;
-    --error: #e74c3c;
 }
 
 /* Reset and Global Styles */
@@ -62,6 +58,7 @@ body {
     transition: background-color 0.3s, color 0.3s;
 }
 
+/* Centrar el título arriba */
 .app-title {
     text-align: center;
     font-size: clamp(1.5rem, 4vw, 1.8rem);
@@ -76,9 +73,10 @@ body {
     padding: 10px;
 }
 
+/* Voice Hint */
 .voice-hint {
     position: fixed;
-    top: 70px;
+    top: 70px; /* Debajo del título */
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--bg-secondary);
@@ -96,6 +94,7 @@ body {
     visibility: hidden;
 }
 
+/* Main Layout */
 .container {
     display: flex;
     justify-content: space-between;
@@ -153,8 +152,7 @@ body {
     transition: background-color 0.3s, transform 0.2s;
 }
 
-#modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
-#modo-btn:focus, #voice-btn:focus, #quiz-btn:focus, #recommend-btn:focus {
+#modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover {
     background-color: var(--accent);
     color: var(--button-text);
     transform: scale(1.05);
@@ -198,7 +196,7 @@ body {
     align-items: center;
 }
 
-#chat-list li:hover, #chat-list li:focus {
+#chat-list li:hover {
     background-color: var(--accent);
     color: var(--button-text);
     transform: scale(1.02);
@@ -233,17 +231,17 @@ body {
     color: var(--button-text);
 }
 
-.chat-actions .rename-btn:hover, .chat-actions .rename-btn:focus {
+.chat-actions .rename-btn:hover {
     background-color: var(--accent-hover);
     transform: scale(1.1);
 }
 
 .chat-actions .delete-btn {
-    background-color: var(--error);
+    background-color: #e74c3c;
     color: #ffffff;
 }
 
-.chat-actions .delete-btn:hover, .chat-actions .delete-btn:focus {
+.chat-actions .delete-btn:hover {
     background-color: #c0392b;
     transform: scale(1.1);
 }
@@ -292,7 +290,6 @@ body {
     font-size: 0.95rem;
     box-shadow: 0 2px 4px var(--shadow);
     line-height: 1.5;
-    position: relative;
 }
 
 .user {
@@ -312,7 +309,7 @@ body {
 }
 
 .user:before {
-    content: "\f007";
+    content: "\f007"; /* fa-user */
     font-family: "Font Awesome 5 Free";
     font-weight: 900;
     margin-right: 8px;
@@ -320,7 +317,7 @@ body {
 }
 
 .bot:before {
-    content: "\f544";
+    content: "\f544"; /* fa-brain */
     font-family: "Font Awesome 5 Free";
     font-weight: 900;
     margin-right: 8px;
@@ -337,21 +334,8 @@ body {
     transition: color 0.3s;
 }
 
-.copy-btn:hover, .copy-btn:focus {
+.copy-btn:hover {
     color: var(--accent);
-}
-
-.quiz-feedback {
-    font-size: 1.2rem;
-    margin-right: 8px;
-}
-
-.quiz-feedback.correct {
-    color: var(--success);
-}
-
-.quiz-feedback.incorrect {
-    color: var(--error);
 }
 
 .bot pre {
@@ -391,27 +375,11 @@ body {
     border-top: 1px solid var(--border);
     background-color: var(--bg-primary);
     transition: background-color 0.3s;
-    flex-wrap: wrap; /* Añadido para responsividad */
 }
 
 .input-buttons.left, .input-buttons.right {
     display: flex;
     gap: 8px;
-}
-
-#nivel-explicacion {
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    margin: 0 8px;
-}
-
-#nivel-explicacion:focus {
-    outline: none;
-    border-color: var(--accent);
 }
 
 #input {
@@ -442,17 +410,16 @@ body {
     transition: background-color 0.3s, transform 0.2s;
 }
 
-#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover,
-#new-chat-btn:focus, #send-btn:focus, #voice-toggle-btn:focus {
+#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover {
     background-color: var(--button-hover);
     transform: scale(1.05);
 }
 
 #btn-clear {
-    background-color: var(--error);
+    background-color: #e74c3c;
 }
 
-#btn-clear:hover, #btn-clear:focus {
+#btn-clear:hover {
     background-color: #c0392b;
     transform: scale(1.05);
 }
@@ -494,7 +461,7 @@ body {
     transition: transform 0.2s;
 }
 
-.avatar-options img:hover, .avatar-options img:focus {
+.avatar-options img:hover {
     transform: scale(1.1);
 }
 
@@ -525,11 +492,11 @@ body {
 }
 
 #notification-card.success {
-    border-left: 4px solid var(--success);
+    border-left: 4px solid #2ecc71;
 }
 
 #notification-card.error {
-    border-left: 4px solid var(--error);
+    border-left: 4px solid #e74c3c;
 }
 
 /* Quiz Modal */
@@ -577,7 +544,7 @@ body {
     transition: background-color 0.3s;
 }
 
-.quiz-option:hover, .quiz-option:focus {
+.quiz-option:hover {
     background-color: var(--accent);
     color: var(--button-text);
 }
@@ -606,16 +573,16 @@ body {
     color: var(--button-text);
 }
 
-#quiz-submit:hover, #quiz-submit:focus {
+#quiz-submit:hover {
     background-color: var(--button-hover);
 }
 
 .modal-buttons button {
-    background-color: var(--error);
+    background-color: #e74c3c;
     color: #ffffff;
 }
 
-.modal-buttons button:hover, .modal-buttons button:focus {
+.modal-buttons button:hover {
     background-color: #c0392b;
 }
 
@@ -630,7 +597,7 @@ body {
     border-radius: 50%;
     box-shadow: 0 2px 4px var(--shadow);
     position: fixed;
-    top: 10px;
+    top: 10px; /* Ajustado para estar justo debajo del título */
     z-index: 1005;
     width: 40px;
     height: 40px;
@@ -647,8 +614,7 @@ body {
     right: 10px;
 }
 
-.menu-toggle:hover, .menu-toggle-right:hover,
-.menu-toggle:focus, .menu-toggle-right:focus {
+.menu-toggle:hover, .menu-toggle-right:hover {
     background-color: var(--accent-hover);
     transform: scale(1.1);
 }
@@ -707,21 +673,13 @@ body {
         display: flex;
         align-items: center;
         box-sizing: border-box;
-        flex-wrap: wrap;
-    }
-
-    #nivel-explicacion {
-        flex: 0 0 30%;
-        margin: 4px;
-        padding: 6px;
-        font-size: 0.8rem;
     }
 
     #input {
         flex: 1;
         flex-shrink: 1;
         padding: 6px 10px;
-        margin: 4px;
+        margin: 0 4px;
         font-size: 0.85rem;
         min-width: 0;
     }
@@ -762,7 +720,7 @@ body {
     }
 
     .voice-hint {
-        top: 60px;
+        top: 60px; /* Ajustado para pantallas pequeñas */
         font-size: 12px;
         padding: 8px 16px;
     }
