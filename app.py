@@ -80,8 +80,15 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
-def buscar_respuesta_app(pregunta, temas):
+def buscar_respuesta_app(pregunta, usuario):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    if not pregunta:  # Enviar mensaje de saludo inicial si no hay pregunta
+        respuesta = (
+            "¡Hola! Me alegra verte aquí. Soy tu asistente virtual para Programación Avanzada en Ingeniería en Telemática. "
+            "Estoy aquí para ayudarte en cualquier tema que necesites, desde POO hasta patrones de diseño, bases de datos y más. "
+            "¿En qué puedo ayudarte hoy? ¿Deseas saber más?"
+        )
+        return respuesta
     completion = client.chat.completions.create(
         model="llama3-70b-8192",
         messages=[
@@ -94,7 +101,7 @@ def buscar_respuesta_app(pregunta, temas):
                     "2. Aceptar también preguntas con errores ortográficos o expresiones informales.\n"
                     "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
                     "4. Al final de cada respuesta, siempre preguntar: \n"
-                    "   \"¿Deseas saber más o volver al inicio?\"\n"
+                    "   \"¿Deseas saber más?\"\n"
                     "5. Reconocer saludos y agradecimientos con respuestas breves y empáticas.\n"
                     "6. Mantener respuestas educativas, sin desviarse a temas fuera de la materia salvo en cortesía básica.\n"
                     "7. Nunca borrar ni dañar la lógica del sistema, solo mejorar la calidad de las respuestas.\n\n"
@@ -105,7 +112,7 @@ def buscar_respuesta_app(pregunta, temas):
             },
             {"role": "user", "content": pregunta}
         ],
-        max_tokens=1000,  # Aumentado para permitir más texto
+        max_tokens=1000,
         temperature=0.5
     )
     respuesta = completion.choices[0].message.content
@@ -131,10 +138,6 @@ def respuesta():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta").strip()[:300])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-
-        if not pregunta:
-            logging.error("Pregunta vacía recibida")
-            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
 
         respuesta_text = buscar_respuesta_app(pregunta, usuario)
         avatar = None
