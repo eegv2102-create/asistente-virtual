@@ -5,7 +5,6 @@ let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
 let userHasInteracted = false;
 let pendingWelcomeMessage = null;
-let currentChatId = null;
 
 const getElement = selector => {
     const element = document.querySelector(selector);
@@ -133,7 +132,7 @@ const speakText = async (text) => {
         mostrarNotificacion(`Error en TTS: ${error.message}. Intentando voz local.`, 'error');
 
         if ('speechSynthesis' in window) {
-            const voices = speechSynthesis.getVoices();
+            const voices = speechSynthesis.getVoes();
             console.log('Voces disponibles en speechSynthesis:', voices);
             const esVoice = voices.find(v => v.lang.includes('es'));
             if (!esVoice) {
@@ -202,7 +201,7 @@ const stopSpeech = () => {
 };
 
 const toggleVoiceRecognition = () => {
-    const voiceToggleBtn = document.getElementById('voice-toggle-btn');
+    const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) {
         console.error('Botón #voice-toggle-btn no encontrado');
         mostrarNotificacion('Error: No se encontró el botón de reconocimiento de voz', 'error');
@@ -226,7 +225,7 @@ const toggleVoiceRecognition = () => {
         mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
         recognition.onresult = event => {
             const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
-            const input = document.getElementById('input');
+            const input = getElement('#input');
             if (input) input.value = transcript;
             if (event.results[event.results.length - 1].isFinal) {
                 sendMessage();
@@ -263,7 +262,6 @@ const toggleVoiceRecognition = () => {
     }
 };
 
-// Resto de las funciones (sin cambios)
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
     if (!avatarContainer) {
@@ -333,7 +331,6 @@ const cargarAvatares = async () => {
 };
 
 const guardarMensaje = (pregunta, respuesta, video_url = null, tema = null) => {
-    // Limpiar duplicaciones de "¿Deseas saber más?" en la respuesta
     const regex = /(\?Deseas saber más\?)(?:\s*\1)+/g;
     const respuestaLimpia = respuesta.replace(regex, '$1').trim();
     console.log('Guardando mensaje con respuesta limpia:', respuestaLimpia);
@@ -555,9 +552,44 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
     }
 };
 
+const mostrarQuizEnChat = (quizData) => {
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox) return;
+    const quiz = quizData.quiz[0];
+    const botDiv = document.createElement('div');
+    botDiv.classList.add('bot');
+    const opcionesHtml = quiz.opciones.map((opcion, i) => `
+        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">
+            ${quiz.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
+        </button>
+    `).join('');
+    botDiv.innerHTML = `
+        ${typeof marked !== 'undefined' ? marked.parse(quiz.pregunta) : quiz.pregunta}
+        <div class="quiz-options">${opcionesHtml}</div>
+        <button class="copy-btn" data-text="${quiz.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
+    `;
+    container.appendChild(botDiv);
+    scrollToBottom();
+    if (window.Prism) Prism.highlightAllUnder(botDiv);
+    guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`, null, quiz.tema);
+    getElements('.quiz-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
+            btn.classList.add('selected');
+            const opcion = btn.dataset.opcion;
+            const respuestaCorrecta = btn.dataset.respuestaCorrecta;
+            const tema = btn.dataset.tema;
+            responderQuiz(opcion, respuestaCorrecta, tema);
+            getElements('.quiz-option').forEach(opt => opt.disabled = true);
+        });
+    });
+    speakText(quiz.pregunta);
+};
+
 const sendMessage = () => {
-    const input = document.getElementById('input');
-    const nivelExplicacion = document.getElementById('nivel-explicacion')?.value || 'basica';
+    const input = getElement('#input');
+    const nivelExplicacion = getElement('#nivel-explicacion')?.value || 'basica';
     if (!input) {
         console.error('Elemento #input no encontrado');
         mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
@@ -646,24 +678,6 @@ const nuevaConversacion = () => {
     mostrarNotificacion('Nueva conversación iniciada', 'success');
 };
 
-const buscarTema = () => {
-    const searchInput = document.getElementById('search-input');
-    if (!searchInput) {
-        console.error('Elemento #search-input no encontrado');
-        return;
-    }
-    const tema = searchInput.value.trim();
-    if (!tema) {
-        mostrarNotificacion('Por favor, escribe un tema para buscar.', 'error');
-        return;
-    }
-    const input = document.getElementById('input');
-    if (input) {
-        input.value = `Explica ${tema} en el contexto de programación avanzada`;
-        sendMessage();
-    }
-};
-
 const responderQuiz = (opcion, respuestaCorrecta, tema) => {
     fetch('/responder_quiz', {
         method: 'POST',
@@ -690,7 +704,6 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
         speakText(data.respuesta);
         guardarMensaje(`Respuesta al quiz sobre ${tema}`, data.respuesta);
         addCopyButtonListeners();
-        getElement('#quiz-modal').style.display = 'none';
     }).catch(error => {
         mostrarNotificacion(`Error al responder quiz: ${error.message}`, 'error');
         console.error('Error en fetch /responder_quiz:', error);
@@ -715,17 +728,17 @@ const addCopyButtonListeners = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
-        sendBtn: document.getElementById('send-btn') || (console.error('Botón #send-btn no encontrado'), null),
-        recommendBtn: document.getElementById('recommend-btn') || (console.error('Botón #recommend-btn no encontrado'), null),
-        quizBtn: document.getElementById('quiz-btn') || (console.error('Botón #quiz-btn no encontrado'), null),
-        newChatBtn: document.getElementById('new-chat-btn') || (console.error('Botón #new-chat-btn no encontrado'), null),
-        clearBtn: document.getElementById('btn-clear') || (console.error('Botón #btn-clear no encontrado'), null),
-        voiceBtn: document.getElementById('voice-btn') || (console.error('Botón #voice-btn no encontrado'), null),
-        voiceToggleBtn: document.getElementById('voice-toggle-btn') || (console.error('Botón #voice-toggle-btn no encontrado'), null),
-        modoBtn: document.getElementById('modo-btn') || (console.error('Botón #modo-btn no encontrado'), null),
+        sendBtn: getElement('#send-btn'),
+        recommendBtn: getElement('#recommend-btn'),
+        quizBtn: getElement('#quiz-btn'),
+        newChatBtn: getElement('#new-chat-btn'),
+        clearBtn: getElement('#btn-clear'),
+        voiceBtn: getElement('#voice-btn'),
+        voiceToggleBtn: getElement('#voice-toggle-btn'),
+        modoBtn: getElement('#modo-btn'),
         menuToggle: getElement('.menu-toggle'),
         menuToggleRight: getElement('.menu-toggle-right'),
-        nivelExplicacion: document.getElementById('nivel-explicacion') || (console.error('Elemento #nivel-explicacion no encontrado'), null)
+        nivelExplicacion: getElement('#nivel-explicacion')
     };
 
     if (elements.nivelExplicacion) {
@@ -736,8 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Attach Enter key listener directly to input
-    const input = document.getElementById('input');
+    const input = getElement('#input');
     if (input) {
         input.addEventListener('keypress', e => {
             if (e.key === 'Enter') {
@@ -751,12 +763,22 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
     }
 
+    document.addEventListener('click', () => {
+        if (!userHasInteracted) {
+            userHasInteracted = true;
+            toggleVoiceHint(false);
+            if (vozActiva && pendingWelcomeMessage) {
+                console.log('Reproduciendo mensaje de bienvenida tras primera interacción');
+                speakText(pendingWelcomeMessage);
+                pendingWelcomeMessage = null;
+            }
+        }
+    });
+
     cargarAvatares();
     actualizarListaChats();
     cargarAnalytics();
 
-    // Verificar soporte de voz al cargar la página
-    console.log('Verificando soporte de speechSynthesis:', 'speechSynthesis' in window);
     if ('speechSynthesis' in window) {
         speechSynthesis.onvoiceschanged = () => {
             const voices = speechSynthesis.getVoices();
@@ -765,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (vozActiva) {
-        toggleVoiceHint(true);
+        toggleVoiceHint(!userHasInteracted);
     }
 
     const chatbox = getElement('#chatbox');
@@ -834,36 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.quizBtn.addEventListener('click', async () => {
             const tipoQuiz = Math.random() < 0.5 ? 'opciones' : 'verdadero_falso';
             const data = await obtenerQuiz(tipoQuiz);
-            const quizModal = getElement('#quiz-modal');
-            const quizQuestion = getElement('#quiz-question');
-            const quizOptions = getElement('#quiz-options');
-            if (!quizModal || !quizQuestion || !quizOptions) return;
-            const quiz = data.quiz[0];
-            quizQuestion.textContent = quiz.pregunta;
-            quizOptions.innerHTML = quiz.opciones.map((opcion, i) => `
-                <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">
-                    ${tipoQuiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
-                </button>
-            `).join('');
-            quizModal.style.display = 'block';
-            getElements('.quiz-option').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
-                    btn.classList.add('selected');
-                });
-            });
-            getElement('#quiz-submit')?.addEventListener('click', () => {
-                const selectedOption = getElement('.quiz-option.selected');
-                if (!selectedOption) {
-                    mostrarNotificacion('Por favor, selecciona una opción.', 'error');
-                    return;
-                }
-                const opcion = selectedOption.dataset.opcion;
-                const respuestaCorrecta = selectedOption.dataset.respuestaCorrecta;
-                const tema = selectedOption.dataset.tema;
-                responderQuiz(opcion, respuestaCorrecta, tema);
-            });
-            guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`);
+            mostrarQuizEnChat(data);
         });
     }
 
@@ -876,7 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.voiceBtn) {
-        const voiceText = document.getElementById('voice-text');
+        const voiceText = getElement('#voice-text');
         voiceText.textContent = vozActiva ? 'Desactivar Voz' : 'Activar Voz';
         elements.voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
         elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i> <span id="voice-text">${vozActiva ? 'Desactivar Voz' : 'Activar Voz'}</span>`;
@@ -884,9 +877,10 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Botón #voice-btn clicado, vozActiva:', vozActiva);
             vozActiva = !vozActiva;
             localStorage.setItem('vozActiva', vozActiva);
-            const voiceText = document.getElementById('voice-text');
+            const voiceText = getElement('#voice-text');
             voiceText.textContent = vozActiva ? 'Desactivar Voz' : 'Activar Voz';
             elements.voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
+            elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i> <span id="voice-text">${vozActiva ? 'Desactivar Voz' : 'Activar Voz'}</span>`;
             mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
             if (!vozActiva) {
                 stopSpeech();
@@ -912,13 +906,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.modoBtn) {
-        const modoText = document.getElementById('modo-text');
+        const modoText = getElement('#modo-text');
         modoText.textContent = document.body.classList.contains('modo-oscuro') ? 'Modo Claro' : 'Modo Oscuro';
         elements.modoBtn.setAttribute('data-tooltip', document.body.classList.contains('modo-oscuro') ? 'Modo Claro' : 'Modo Oscuro');
         elements.modoBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-oscuro');
             const modo = document.body.classList.contains('modo-oscuro') ? 'Oscuro' : 'Claro';
-            const modoText = document.getElementById('modo-text');
+            const modoText = getElement('#modo-text');
             modoText.textContent = modo === 'Claro' ? 'Modo Oscuro' : 'Modo Claro';
             elements.modoBtn.setAttribute('data-tooltip', modo === 'Claro' ? 'Modo Oscuro' : 'Modo Claro');
             localStorage.setItem('theme', modo.toLowerCase());
@@ -990,21 +984,4 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('click', closeMenusOnOutsideInteraction);
         document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
     }
-
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'oscuro') {
-        document.body.classList.add('modo-oscuro');
-        const modoText = document.getElementById('modo-text');
-        modoText.textContent = 'Modo Claro';
-        elements.modoBtn.setAttribute('data-tooltip', 'Modo Claro');
-    } else {
-        document.body.classList.remove('modo-oscuro');
-        const modoText = document.getElementById('modo-text');
-        modoText.textContent = 'Modo Oscuro';
-        elements.modoBtn.setAttribute('data-tooltip', 'Modo Oscuro');
-    }
-
-    cargarAvatares();
-    actualizarListaChats();
-    nuevaConversacion();
 });
