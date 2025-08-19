@@ -419,7 +419,7 @@ const cargarAnalytics = async () => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            throw new Error(`Error en /analytics: ${response.status} ${response.statusText}`);
+            throw new Error(`Error en /analytics: ${response.status} ${res.statusText}`);
         }
         const data = await response.json();
         analyticsContainer.innerHTML = data.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
@@ -443,7 +443,7 @@ const obtenerRecomendacion = async () => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            throw new Error(`Error en /recommend: ${response.status} ${response.statusText}`);
+            throw new Error(`Error en /recommend: ${response.status} ${res.statusText}`);
         }
         return await response.json();
     } catch (error) {
@@ -461,7 +461,7 @@ const obtenerQuiz = async () => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            throw new Error(`Error en /quiz: ${response.status} ${response.statusText}`);
+            throw new Error(`Error en /quiz: ${response.status} ${res.statusText}`);
         }
         return await response.json();
     } catch (error) {
@@ -643,6 +643,36 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarAvatares();
     actualizarListaChats();
     cargarAnalytics();
+
+    // Mostrar mensaje de saludo inicial
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (container && chatbox) {
+        fetch('/respuesta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pregunta: '', usuario: 'anonimo', avatar_id: selectedAvatar })
+        }).then(res => {
+            if (!res.ok) {
+                return res.json().then(err => {
+                    throw new Error(err.error || `Error en /respuesta: ${res.status} ${res.statusText}`);
+                });
+            }
+            return res.json();
+        }).then(data => {
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('bot');
+            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            container.appendChild(botDiv);
+            scrollToBottom();
+            if (window.Prism) Prism.highlightAllUnder(botDiv);
+            speakText(data.respuesta);
+            addCopyButtonListeners();
+        }).catch(error => {
+            mostrarNotificacion(`Error al cargar mensaje inicial: ${error.message}`, 'error');
+            console.error('Error en fetch inicial /respuesta:', error);
+        });
+    }
 
     if (elements.sendBtn) {
         elements.sendBtn.addEventListener('click', () => {
