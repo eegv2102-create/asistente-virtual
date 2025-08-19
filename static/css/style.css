@@ -621,10 +621,11 @@ body {
     .right-section {
         transform: translateX(100%);
     }
-
+    
     .left-section.active, .right-section.active {
         transform: translateX(0);
         border-bottom: 1px solid var(--border);
+        z-index: 1002; /* Aumentar para que esté por encima de otros elementos */
     }
 
     .main-section {
@@ -637,7 +638,7 @@ body {
     #chatbox {
         height: 100%;
         overflow-y: scroll;
-        padding-bottom: 80px;
+        padding-bottom: 80px; /* Espacio para el input-group */
     }
 
     .input-group {
@@ -649,6 +650,25 @@ body {
         padding: 8px;
         box-sizing: border-box;
         border-top: 1px solid var(--border);
+        display: flex; /* Asegurar que se muestre */
+        justify-content: space-between; /* Distribuir botones e input */
+        align-items: center; /* Centrar verticalmente */
+    }
+
+    .input-buttons.left, .input-buttons.right {
+        display: flex; /* Asegurar visibilidad */
+        gap: 8px; /* Espacio entre botones */
+    }
+
+    #input {
+        flex: 1;
+        padding: 8px 12px; /* Reducir padding en móviles */
+        margin: 0 8px; /* Mantener márgenes */
+    }
+
+    #new-chat-btn, #btn-clear, #send-btn, #voice-toggle-btn {
+        padding: 6px 10px; /* Reducir tamaño en móviles */
+        font-size: 0.9rem; /* Ajustar tamaño de fuente */
     }
 
     .menu-toggle, .menu-toggle-right {
@@ -695,7 +715,6 @@ body {
         padding: 12px;
     }
 }
-
 /* Ajustes para zoom y tamaño original */
 @media screen and (min-width: 1025px) {
     body {
