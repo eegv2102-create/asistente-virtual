@@ -802,20 +802,23 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarNotificacion('Error: Botón de modo no encontrado', 'error');
     }
 
-    if (elements.searchBtn && elements.searchInput) {
+    // Validación de búsqueda sin mostrar error si no están presentes
+    if (elements.searchBtn) {
         elements.searchBtn.addEventListener('click', () => {
             console.log('Botón #search-btn clicado');
             buscarTema();
         });
+    }
+    if (elements.searchInput) {
         elements.searchInput.addEventListener('keypress', e => {
             if (e.key === 'Enter') {
                 console.log('Enter presionado en #search-input');
                 buscarTema();
             }
         });
-    } else {
-        console.error('No se encontraron #search-btn o #search-input');
-        mostrarNotificacion('Error: Botón o campo de búsqueda no encontrado', 'error');
+    }
+    if (!elements.searchBtn && !elements.searchInput) {
+        console.warn('No se encontraron #search-btn ni #search-input, funcionalidad de búsqueda no disponible');
     }
 
     if (elements.menuToggle && elements.menuToggleRight) {
