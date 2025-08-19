@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- CDN principal para marked -->
     <script src="https://cdn.jsdelivr.net/npm/marked@14.1.2/lib/marked.umd.min.js" integrity="sha256-0jPHqYk/qUkL9r2gW3N4yWSN+3K7h8VKB1W6j0N4z1I=" crossorigin="anonymous"></script>
-    <!-- Fallback local si el CDN falla -->
     <script>
         if (typeof marked === 'undefined') {
             document.write('<script src="{{ url_for('static', filename='js/marked.min.js') }}"><\/script>');
@@ -57,6 +56,9 @@
         <main class="main-section">
             <div id="chatbox">
                 <div class="message-container"></div>
+            </div>
+            <div class="avatar-display">
+                <img id="avatar-img" src="{{ url_for('static', filename='img/default-avatar.png') }}" alt="Avatar del Asistente">
             </div>
             <div class="input-group">
                 <div class="input-buttons left">
