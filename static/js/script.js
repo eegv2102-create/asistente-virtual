@@ -132,7 +132,7 @@ const speakText = async (text) => {
         mostrarNotificacion(`Error en TTS: ${error.message}. Intentando voz local.`, 'error');
 
         if ('speechSynthesis' in window) {
-            const voices = speechSynthesis.getVoes();
+            const voices = speechSynthesis.getVoices();
             console.log('Voces disponibles en speechSynthesis:', voices);
             const esVoice = voices.find(v => v.lang.includes('es'));
             if (!esVoice) {
@@ -589,7 +589,7 @@ const mostrarQuizEnChat = (quizData) => {
 
 const sendMessage = () => {
     const input = getElement('#input');
-    const nivelExplicacion = getElement('#nivel-explicacion')?.value || 'basica';
+    const nivelExplicacion = localStorage.getItem('nivelExplicacion') || 'basica';
     if (!input) {
         console.error('Elemento #input no encontrado');
         mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
@@ -726,6 +726,23 @@ const addCopyButtonListeners = () => {
     });
 };
 
+const toggleDropdown = () => {
+    const dropdownMenu = getElement('.dropdown-menu');
+    if (dropdownMenu) {
+        dropdownMenu.classList.toggle('active');
+    }
+};
+
+const selectNivel = (nivel) => {
+    const nivelBtn = getElement('#nivel-btn');
+    if (nivelBtn) {
+        nivelBtn.textContent = nivel === 'basica' ? 'Básica' : nivel === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
+        localStorage.setItem('nivelExplicacion', nivel);
+        toggleDropdown();
+        mostrarNotificacion(`Nivel de explicación: ${nivelBtn.textContent}`, 'success');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         sendBtn: getElement('#send-btn'),
@@ -738,7 +755,8 @@ document.addEventListener('DOMContentLoaded', () => {
         modoBtn: getElement('#modo-btn'),
         menuToggle: getElement('.menu-toggle'),
         menuToggleRight: getElement('.menu-toggle-right'),
-        nivelExplicacion: getElement('#nivel-explicacion')
+        nivelExplicacion: getElement('#nivel-explicacion'),
+        nivelBtn: getElement('#nivel-btn')
     };
 
     if (elements.nivelExplicacion) {
@@ -746,6 +764,25 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.nivelExplicacion.value = savedNivel;
         elements.nivelExplicacion.addEventListener('change', () => {
             localStorage.setItem('nivelExplicacion', elements.nivelExplicacion.value);
+            mostrarNotificacion(`Nivel de explicación: ${elements.nivelExplicacion.options[elements.nivelExplicacion.selectedIndex].text}`, 'success');
+        });
+    }
+
+    if (elements.nivelBtn) {
+        const savedNivel = localStorage.getItem('nivelExplicacion') || 'basica';
+        elements.nivelBtn.textContent = savedNivel === 'basica' ? 'Básica' : savedNivel === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
+        elements.nivelBtn.addEventListener('click', toggleDropdown);
+        getElements('.dropdown-menu button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectNivel(btn.dataset.nivel);
+            });
+        });
+        document.addEventListener('click', (e) => {
+            const dropdownMenu = getElement('.dropdown-menu');
+            if (dropdownMenu && dropdownMenu.classList.contains('active') && 
+                !elements.nivelBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                dropdownMenu.classList.remove('active');
+            }
         });
     }
 

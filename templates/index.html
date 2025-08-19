@@ -22,12 +22,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js" integrity="sha512-1x3pZ1p/vqN2gDKlHHt1XujK2A9FW8eWvryoE4N3+FeR+8m/iF4Q2oPriv2yV8G8A7m7r+0eKFrLFsTKc/Muf3Q==" crossorigin="anonymous"></script>
 </head>
 <body>
-    <h2 class="app-title">🧠 Y.E.L.I.A. 🤖</h2>
+    <div class="title-container">
+        <h2 class="app-title">🧠 Y.E.L.I.A. 🤖</h2>
+        <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false" aria-controls="left-section">
+            <i class="fas fa-bars"></i>
+        </button>
+        <button class="menu-toggle-right" aria-label="Abrir menú de avatares" aria-expanded="false" aria-controls="right-section">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
     <div class="container">
         <aside class="left-section" id="left-section">
-            <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false" aria-controls="left-section">
-                <i class="fas fa-bars"></i>
-            </button>
             <div class="sidebar-content">
                 <div class="sidebar-buttons">
                     <button id="modo-btn" data-tooltip="Modo Oscuro">
@@ -70,6 +75,14 @@
                     <option value="ejemplos">Con Ejemplos de Código</option>
                     <option value="avanzada">Avanzada/Teórica</option>
                 </select>
+                <div class="dropdown-container">
+                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">Básica</button>
+                    <div class="dropdown-menu">
+                        <button data-nivel="basica">Explicación Básica</button>
+                        <button data-nivel="ejemplos">Con Ejemplos de Código</button>
+                        <button data-nivel="avanzada">Avanzada/Teórica</button>
+                    </div>
+                </div>
                 <input type="text" id="input" placeholder="Escribe tu mensaje..." aria-label="Escribir mensaje">
                 <div class="input-buttons right">
                     <button id="voice-toggle-btn" data-tooltip="Voz">
@@ -82,9 +95,6 @@
             </div>
         </main>
         <aside class="right-section" id="right-section">
-            <button class="menu-toggle-right" aria-label="Abrir menú de avatares" aria-expanded="false" aria-controls="right-section">
-                <i class="fas fa-bars"></i>
-            </button>
             <div class="avatar-section">
                 <h3>Selección de Avatar</h3>
                 <p>Funcionalidad de avatares estará disponible pronto con D-ID.</p>
