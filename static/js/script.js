@@ -269,6 +269,7 @@ const cargarAvatares = async () => {
     }
 };
 
+
 const guardarMensaje = (pregunta, respuesta, video_url = null) => {
     let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.id && currentConversation.id !== 0) {
@@ -419,7 +420,7 @@ const cargarAnalytics = async () => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            throw new Error(`Error en /analytics: ${response.status} ${res.statusText}`);
+            throw new Error(`Error en /analytics: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
         analyticsContainer.innerHTML = data.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
@@ -443,7 +444,7 @@ const obtenerRecomendacion = async () => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            throw new Error(`Error en /recommend: ${response.status} ${res.statusText}`);
+            throw new Error(`Error en /recommend: ${response.status} ${response.statusText}`);
         }
         return await response.json();
     } catch (error) {
@@ -461,7 +462,7 @@ const obtenerQuiz = async () => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            throw new Error(`Error en /quiz: ${response.status} ${res.statusText}`);
+            throw new Error(`Error en /quiz: ${response.status} ${response.statusText}`);
         }
         return await response.json();
     } catch (error) {
@@ -503,11 +504,11 @@ const sendMessage = () => {
     fetch('/respuesta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pregunta, avatar: selectedAvatar })
+        body: JSON.stringify({ pregunta, usuario: 'anonimo', avatar_id: selectedAvatar })
     }).then(res => {
         if (!res.ok) {
             return res.json().then(err => {
-                throw new Error(err.error || `Error en /respuesta: ${res.status} ${res.statusText}`);
+                throw new Error(err.error || `Error en /respuesta: ${res.status} ${response.statusText}`);
             });
         }
         return res.json();
@@ -648,14 +649,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (container && chatbox) {
-        fetch('/respuesta', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pregunta: '', usuario: 'anonimo', avatar_id: selectedAvatar })
+        fetch(`/saludo_inicial?avatar_id=${selectedAvatar}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
         }).then(res => {
             if (!res.ok) {
                 return res.json().then(err => {
-                    throw new Error(err.error || `Error en /respuesta: ${res.status} ${res.statusText}`);
+                    throw new Error(err.error || `Error en /saludo_inicial: ${res.status} ${res.statusText}`);
                 });
             }
             return res.json();
@@ -667,10 +667,11 @@ document.addEventListener('DOMContentLoaded', () => {
             scrollToBottom();
             if (window.Prism) Prism.highlightAllUnder(botDiv);
             speakText(data.respuesta);
+            guardarMensaje('Saludo inicial', data.respuesta, data.video_url);
             addCopyButtonListeners();
         }).catch(error => {
             mostrarNotificacion(`Error al cargar mensaje inicial: ${error.message}`, 'error');
-            console.error('Error en fetch inicial /respuesta:', error);
+            console.error('Error en fetch /saludo_inicial:', error);
         });
     }
 

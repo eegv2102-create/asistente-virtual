@@ -80,15 +80,8 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
-def buscar_respuesta_app(pregunta, usuario):
+def buscar_respuesta_app(pregunta):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    if not pregunta:  # Enviar mensaje de saludo inicial si no hay pregunta
-        respuesta = (
-            "¡Hola! Me alegra verte aquí. Soy tu asistente virtual para Programación Avanzada en Ingeniería en Telemática. "
-            "Estoy aquí para ayudarte en cualquier tema que necesites, desde POO hasta patrones de diseño, bases de datos y más. "
-            "¿En qué puedo ayudarte hoy? ¿Deseas saber más?"
-        )
-        return respuesta
     completion = client.chat.completions.create(
         model="llama3-70b-8192",
         messages=[
@@ -98,7 +91,7 @@ def buscar_respuesta_app(pregunta, usuario):
                     "Eres un asistente virtual con avatar inteligente diseñado para apoyar a estudiantes de Ingeniería en Telemática en la asignatura de Programación Avanzada.\n\n"
                     "Tu comportamiento debe ser:\n"
                     "1. Responder de forma clara, completa y actualizada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
-                    "2. Aceptar también preguntas con errores ortográficos o expresiones informales.\n"
+                    "2. Aceptar también preguntas con errores ortográficos o expresiones informales, incluyendo mensajes cortos como 'hola' o 'temas'.\n"
                     "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
                     "4. Al final de cada respuesta, siempre preguntar: \n"
                     "   \"¿Deseas saber más?\"\n"
@@ -127,6 +120,48 @@ def favicon():
 def index():
     return render_template("index.html")
 
+@app.route("/saludo_inicial", methods=["GET"])
+def saludo_inicial():
+    try:
+        usuario = "anonimo"
+        avatar_id = request.args.get("avatar_id", "default")
+        avatar_id = bleach.clean(avatar_id[:50])
+        respuesta_text = (
+            "¡Hola! Me alegra verte aquí. Soy tu asistente virtual para Programación Avanzada en Ingeniería en Telemática. "
+            "Estoy aquí para ayudarte en cualquier tema que necesites, desde POO hasta patrones de diseño, bases de datos y más. "
+            "¿En qué puedo ayudarte hoy? ¿Deseas saber más?"
+        )
+        avatar = None
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            c = conn.cursor()
+            c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
+            avatar = c.fetchone()
+            conn.close()
+        except PsycopgError as e:
+            logging.error(f"Error al consultar tabla avatars: {str(e)}")
+
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            c = conn.cursor()
+            c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)",
+                      (usuario, "Saludo inicial", respuesta_text, avatar[1] if avatar else ""))
+            conn.commit()
+            conn.close()
+        except PsycopgError as e:
+            logging.error(f"Error al guardar en logs: {str(e)}")
+
+        response_data = {
+            "respuesta": respuesta_text,
+            "avatar_url": avatar[0] if avatar else "/static/img/default-avatar.png",
+            "animation_url": avatar[1] if avatar else ""
+        }
+        logging.info(f"Saludo inicial enviado: {response_data}")
+        return jsonify(response_data)
+    except Exception as e:
+        logging.error(f"Error en /saludo_inicial: {str(e)}")
+        return jsonify({"error": f"Error al procesar el saludo inicial: {str(e)}"}), 500
+
 @app.route("/respuesta", methods=["POST"])
 def respuesta():
     try:
@@ -139,7 +174,11 @@ def respuesta():
         pregunta = bleach.clean(data.get("pregunta").strip()[:300])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
 
-        respuesta_text = buscar_respuesta_app(pregunta, usuario)
+        if not pregunta:
+            logging.error("Pregunta vacía recibida")
+            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
+
+        respuesta_text = buscar_respuesta_app(pregunta)
         avatar = None
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
