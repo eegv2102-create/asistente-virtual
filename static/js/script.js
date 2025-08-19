@@ -405,30 +405,30 @@ const eliminarChat = index => {
     actualizarListaChats();
 };
 
-const cargarConversacionActual = () => {
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-    if (currentConversation.id != null && currentConversation.mensajes) {
-        cargarChat(currentConversation.id);
+const cargarAnalytics = async () => {
+    const analyticsContainer = getElement('#analytics');
+    if (!analyticsContainer) {
+        console.error('Elemento #analytics no encontrado');
+        return;
     }
-};
-
-const cargarAnalytics = () => {
-    fetch('/analytics?usuario=anonimo', { cache: 'no-store' })
-        .then(res => {
-            if (!res.ok) throw new Error(`Error en /analytics: ${res.status} ${res.statusText}`);
-            return res.json();
-        })
-        .then(data => {
-            const analyticsContainer = getElement('#analytics');
-            if (!analyticsContainer) {
-                console.error('Elemento #analytics no encontrado');
-                return;
-            }
-            analyticsContainer.innerHTML = data.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
-        }).catch(error => {
-            console.error('Error en fetch /analytics:', error);
-            mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
+    try {
+        const response = await fetch('/analytics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: 'anonimo' }),
+            cache: 'no-store'
         });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error en /analytics: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        analyticsContainer.innerHTML = data.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
+    } catch (error) {
+        console.error('Error en fetch /analytics:', error);
+        analyticsContainer.innerHTML = 'Analytics no disponible';
+        mostrarNotificacion(`Error al cargar analytics: ${error.message}`, 'error');
+    }
 };
 
 const sendMessage = () => {
@@ -459,7 +459,11 @@ const sendMessage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pregunta, avatar: selectedAvatar })
     }).then(res => {
-        if (!res.ok) throw new Error(`Error en /respuesta: ${res.status} ${res.statusText}`);
+        if (!res.ok) {
+            return res.json().then(err => {
+                throw new Error(err.error || `Error en /respuesta: ${res.status} ${res.statusText}`);
+            });
+        }
         return res.json();
     }).then(data => {
         const botDiv = document.createElement('div');
@@ -532,7 +536,11 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuario: 'anonimo', respuesta: opcion, respuesta_correcta: respuestaCorrecta, tema })
     }).then(res => {
-        if (!res.ok) throw new Error(`Error en /responder_quiz: ${res.status} ${res.statusText}`);
+        if (!res.ok) {
+            return res.json().then(err => {
+                throw new Error(err.error || `Error en /responder_quiz: ${res.status} ${res.statusText}`);
+            });
+        }
         return res.json();
     }).then(data => {
         const chatbox = getElement('#chatbox');
@@ -633,29 +641,36 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Configurando listener para #recommend-btn');
         elements.recommendBtn.addEventListener('click', () => {
             console.log('Botón #recommend-btn clicado');
-            fetch('/recommend?usuario=anonimo', { cache: 'no-store' })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Error en /recommend: ${res.status} ${res.statusText}`);
-                    return res.json();
-                })
-                .then(data => {
-                    const chatbox = elements.chatbox;
-                    const container = chatbox?.querySelector('.message-container');
-                    if (!container || !chatbox) return;
-                    const botDiv = document.createElement('div');
-                    botDiv.classList.add('bot');
-                    const recomendacion = `Te recomiendo estudiar: ${data.recomendacion}`;
-                    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(recomendacion) : recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                    container.appendChild(botDiv);
-                    scrollToBottom();
-                    if (window.Prism) Prism.highlightAllUnder(botDiv);
-                    speakText(recomendacion);
-                    guardarMensaje('Recomendación', recomendacion);
-                    addCopyButtonListeners();
-                }).catch(error => {
-                    mostrarNotificacion(`Error al recomendar tema: ${error.message}`, 'error');
-                    console.error('Error en fetch /recommend:', error);
-                });
+            fetch('/recommend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario: 'anonimo', contexto: '' }),
+                cache: 'no-store'
+            }).then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => {
+                        throw new Error(err.error || `Error en /recommend: ${res.status} ${res.statusText}`);
+                    });
+                }
+                return res.json();
+            }).then(data => {
+                const chatbox = elements.chatbox;
+                const container = chatbox?.querySelector('.message-container');
+                if (!container || !chatbox) return;
+                const botDiv = document.createElement('div');
+                botDiv.classList.add('bot');
+                const recomendacion = `Te recomiendo estudiar: ${data.recommendation}`;
+                botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(recomendacion) : recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+                container.appendChild(botDiv);
+                scrollToBottom();
+                if (window.Prism) Prism.highlightAllUnder(botDiv);
+                speakText(recomendacion);
+                guardarMensaje('Recomendación', recomendacion);
+                addCopyButtonListeners();
+            }).catch(error => {
+                mostrarNotificacion(`Error al recomendar tema: ${error.message}`, 'error');
+                console.error('Error en fetch /recommend:', error);
+            });
         });
     } else {
         console.error('No se encontró #recommend-btn');
@@ -681,42 +696,50 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Configurando listener para #quiz-btn');
         elements.quizBtn.addEventListener('click', () => {
             console.log('Botón #quiz-btn clicado');
-            fetch('/quiz?usuario=anonimo', { cache: 'no-store' })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Error en /quiz: ${res.status} ${res.statusText}`);
-                    return res.json();
-                })
-                .then(data => {
-                    const chatbox = elements.chatbox;
-                    const container = chatbox?.querySelector('.message-container');
-                    if (!container || !chatbox) return;
-                    let opcionesHtml = '<div class="quiz-options">';
-                    data.opciones.forEach((opcion, i) => {
-                        opcionesHtml += `<button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${data.respuesta_correcta}" data-tema="${data.tema}">${i + 1}. ${opcion}</button>`;
+            fetch('/quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario: 'anonimo', tema: 'POO' }),
+                cache: 'no-store'
+            }).then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => {
+                        throw new Error(err.error || `Error en /quiz: ${res.status} ${res.statusText}`);
                     });
-                    opcionesHtml += '</div>';
-                    const pregunta = `${data.pregunta}<br>Opciones:<br>${opcionesHtml}`;
-                    const botDiv = document.createElement('div');
-                    botDiv.classList.add('bot');
-                    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta) : pregunta) + `<button class="copy-btn" data-text="${data.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                    container.appendChild(botDiv);
-                    scrollToBottom();
-                    guardarMensaje('Quiz', `${data.pregunta}\nOpciones: ${data.opciones.join(', ')}`);
-                    getElements('.quiz-option').forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const opcion = btn.dataset.opcion;
-                            const respuestaCorrecta = btn.dataset.respuestaCorrecta;
-                            const tema = btn.dataset.tema;
-                            responderQuiz(opcion, respuestaCorrecta, tema);
-                            getElements('.quiz-option').forEach(opt => opt.disabled = true);
-                        });
-                    });
-                    if (window.Prism) Prism.highlightAllUnder(container);
-                    addCopyButtonListeners();
-                }).catch(error => {
-                    mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
-                    console.error('Error en fetch /quiz:', error);
+                }
+                return res.json();
+            }).then(data => {
+                const chatbox = elements.chatbox;
+                const container = chatbox?.querySelector('.message-container');
+                if (!container || !chatbox) return;
+                const quiz = data.quiz[0]; // Mostrar solo la primera pregunta
+                let opcionesHtml = '<div class="quiz-options">';
+                quiz.opciones.forEach((opcion, i) => {
+                    opcionesHtml += `<button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">${i + 1}. ${opcion}</button>`;
                 });
+                opcionesHtml += '</div>';
+                const pregunta = `${quiz.pregunta}<br>Opciones:<br>${opcionesHtml}`;
+                const botDiv = document.createElement('div');
+                botDiv.classList.add('bot');
+                botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta) : pregunta) + `<button class="copy-btn" data-text="${quiz.pregunta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+                container.appendChild(botDiv);
+                scrollToBottom();
+                guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`);
+                getElements('.quiz-option').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const opcion = btn.dataset.opcion;
+                        const respuestaCorrecta = btn.dataset.respuestaCorrecta;
+                        const tema = btn.dataset.tema;
+                        responderQuiz(opcion, respuestaCorrecta, tema);
+                        getElements('.quiz-option').forEach(opt => opt.disabled = true);
+                    });
+                });
+                if (window.Prism) Prism.highlightAllUnder(container);
+                addCopyButtonListeners();
+            }).catch(error => {
+                mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
+                console.error('Error en fetch /quiz:', error);
+            });
         });
     } else {
         console.error('No se encontraron #quiz-btn o #chatbox');
