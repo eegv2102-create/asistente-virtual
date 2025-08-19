@@ -2,80 +2,110 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💻 Asistente con Avatar Inteligente de Programación Avanzada</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked@4.0.12/lib/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
-    <script src="script.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>💻 Tesis</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- CDN principal para marked -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@14.1.2/lib/marked.umd.min.js" integrity="sha256-0jPHqYk/qUkL9r2gW3N4yWSN+3K7h8VKB1W6j0N4z1I=" crossorigin="anonymous"></script>
+    <!-- Fallback local si el CDN falla -->
+    <script>
+        if (typeof marked === 'undefined') {
+            document.write('<script src="{{ url_for('static', filename='js/marked.min.js') }}"><\/script>');
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaQOfCdyW//5h6dVnaA/A01D3hYGqM68+04qSY8o1rN2M3G7D2l2WMcjXyqAGr59eDR2c8L5BsjA==" crossorigin="anonymous"></script>
+    <script>
+        if (typeof Prism === 'undefined') {
+            document.write('<script src="{{ url_for('static', filename='js/prism.min.js') }}"><\/script>');
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js" integrity="sha512-1x3pZ1p/vqN2gDKlHHt1XujK2A9FW8eWvryoE4N3+FeR+8m/iF4Q2oPriv2yV8G8A7m7r+0eKFrLFsTKc/Muf3Q==" crossorigin="anonymous"></script>
 </head>
 <body>
-    <h1 class="app-title">Asistente de Programación Avanzada</h1>
-
+    <h2 class="app-title">💻 Asistente con Avatar Inteligente de Programación Avanzada</h2>
     <div class="container">
-        <div class="left-section">
-            <h3>Opciones</h3>
+        <!-- Left Sidebar -->
+        <aside class="left-section">
+            <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+            </button>
             <div class="sidebar-content">
                 <div class="sidebar-buttons">
-                    <button id="modo-btn" data-tooltip="Cambiar modo oscuro/claro"><i class="fas fa-moon"></i></button>
-                    <button id="voice-btn" data-tooltip="Activar/Desactivar voz"><i class="fas fa-volume-up"></i></button>
-                    <button id="quiz-btn" data-tooltip="Iniciar quiz"><i class="fas fa-question-circle"></i></button>
-                    <button id="recommend-btn" data-tooltip="Recomendar tema"><i class="fas fa-lightbulb"></i></button>
+                    <button id="modo-btn" data-tooltip="Cambiar a modo claro/oscuro">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <button id="voice-btn" data-tooltip="Activar/desactivar voz">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <button id="quiz-btn" data-tooltip="Iniciar quiz">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                    <button id="recommend-btn" data-tooltip="Recomendar tema">
+                        <i class="fas fa-lightbulb"></i>
+                    </button>
                 </div>
+                <h3>Historial de Chats</h3>
                 <div class="chat-history">
-                    <h3>Historial de Chats</h3>
-                    <ul id="chat-list"></ul>
+                    <ul id="chat-list" role="list" aria-label="Lista de conversaciones guardadas"></ul>
                 </div>
             </div>
-        </div>
+        </aside>
 
-        <button class="menu-toggle"><i class="fas fa-bars"></i></button>
-
-        <div class="main-section">
+        <!-- Main Content -->
+        <main class="main-section">
             <div id="chatbox">
                 <div class="message-container"></div>
             </div>
-            <div class="avatar-display">
-                <img id="avatar-img" src="/static/img/default-avatar.png" alt="Avatar del Asistente">
-            </div>
             <div class="input-group">
                 <div class="input-buttons left">
-                    <button id="new-chat-btn" data-tooltip="Nueva conversación"><i class="fas fa-plus"></i></button>
-                    <button id="btn-clear" data-tooltip="Limpiar chat"><i class="fas fa-trash-alt"></i></button>
+                    <button id="new-chat-btn" data-tooltip="Nuevo chat">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button id="btn-clear" data-tooltip="Limpiar chat">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 </div>
-                <input type="text" id="input" placeholder="Escribe tu mensaje...">
+                <input type="text" id="input" placeholder="Escribe tu mensaje..." aria-label="Escribir mensaje">
                 <div class="input-buttons right">
-                    <button id="voice-toggle-btn" data-tooltip="Iniciar reconocimiento de voz"><i class="fas fa-microphone"></i></button>
-                    <button id="send-btn" data-tooltip="Enviar mensaje"><i class="fas fa-paper-plane"></i></button>
+                    <button id="voice-toggle-btn" data-tooltip="Iniciar/Detener reconocimiento de voz">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="send-btn" data-tooltip="Enviar mensaje">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="right-section">
+            <button class="menu-toggle-right" aria-label="Abrir menú de avatares" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="avatar-section">
+                <h3>Selección de Avatar</h3>
+                <p>Funcionalidad de avatares estará disponible pronto con D-ID.</p>
+                <div class="avatar-options"></div>
+            </div>
+        </aside>
+
+        <!-- Notification Card -->
+        <div id="notification-card"></div>
+
+        <!-- Quiz Modal -->
+        <div id="quiz-modal" style="display: none;">
+            <div class="modal-content">
+                <h3 id="quiz-question"></h3>
+                <div id="quiz-options"></div>
+                <div class="modal-buttons">
+                    <button id="quiz-submit">Enviar</button>
+                    <button onclick="document.getElementById('quiz-modal').style.display='none'">Cerrar</button>
                 </div>
             </div>
         </div>
-
-        <button class="menu-toggle-right"><i class="fas fa-bars"></i></button>
-
-        <div class="right-section">
-            <h3>Selección de Avatar</h3>
-            <p>Funcionalidad de avatares estará disponible pronto con D-ID.</p>
-            <div class="avatar-options"></div>
-        </div>
     </div>
-
-    <div id="notification-card"></div>
-
-    <div id="quiz-modal" style="display: none;">
-        <div class="modal-content">
-            <h3>Quiz</h3>
-            <p id="quiz-question"></p>
-            <div id="quiz-options"></div>
-            <div class="modal-buttons">
-                <button id="quiz-submit">Enviar</button>
-                <button onclick="document.getElementById('quiz-modal').style.display='none'">Cerrar</button>
-            </div>
-        </div>
-    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
