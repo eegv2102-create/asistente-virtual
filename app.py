@@ -14,10 +14,17 @@ import httpx
 import bleach
 from gtts import gTTS
 import io
+import retrying
 
 app = Flask(__name__)
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Validar variables de entorno
+if not os.getenv("GROQ_API_KEY"):
+    logging.error("GROQ_API_KEY no configurada")
+if not os.getenv("DATABASE_URL"):
+    logging.error("DATABASE_URL no configurada")
 
 try:
     with open("temas.json", "r", encoding="utf-8") as f:
@@ -37,7 +44,7 @@ except Exception as e:
 
 def init_db():
     try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default')''')
@@ -59,7 +66,7 @@ def init_db():
 
 def cargar_progreso(usuario):
     try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
         c = conn.cursor()
         c.execute("SELECT puntos, temas_aprendidos, avatar_id FROM progreso WHERE usuario = %s", (usuario,))
         row = c.fetchone()
@@ -73,7 +80,7 @@ def cargar_progreso(usuario):
 
 def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
         c = conn.cursor()
         c.execute("INSERT INTO progreso (usuario, puntos, temas_aprendidos, avatar_id) VALUES (%s, %s, %s, %s) "
                   "ON CONFLICT (usuario) DO UPDATE SET puntos = %s, temas_aprendidos = %s, avatar_id = %s",
@@ -83,6 +90,21 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
         logging.info(f"Progreso guardado para usuario {usuario}: puntos={puntos}, temas={temas_aprendidos}")
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
+
+@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
+def call_groq_api(client, messages, model, max_tokens, temperature):
+    try:
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+    except Exception as e:
+        logging.error(f"Error en Groq API: {str(e)}")
+        if '503' in str(e):
+            raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
+        raise
 
 def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -98,7 +120,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     unidad_encontrada = None
     for unidad, subtemas in temas.items():
         for sub_tema_id, sub_tema_data in subtemas.items():
-            # Generar palabras clave dinámicas ya que no hay "palabras_clave" en el JSON
             palabras_clave = [sub_tema_id.lower()] + [w.lower() for w in sub_tema_data.get("ventajas", [])] + sub_tema_data["definición"].lower().split()
             if sub_tema_id.lower() in pregunta.lower() or any(kw in pregunta.lower() for kw in palabras_clave):
                 tema_encontrado = sub_tema_id
@@ -109,7 +130,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
 
     prereq_text = ""
     if tema_encontrado:
-        # Mapear la unidad encontrada a la clave de prerequisitos (quitar el texto después de los dos puntos)
         unidad_key = unidad_encontrada.split(':')[0].strip()
         if unidad_key in prerequisitos and tema_encontrado in prerequisitos[unidad_key]:
             prereq_text = (
@@ -121,7 +141,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
-    # Define el estilo del prompt según el nivel de explicación
     if nivel_explicacion == "basica":
         estilo_prompt = (
             "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
@@ -129,212 +148,107 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         )
     elif nivel_explicacion == "ejemplos":
         estilo_prompt = (
-            "Proporciona una explicación clara con ejemplos prácticos de código en bloques Markdown (\`\`\`python o \`\`\`java). "
-            "Asegúrate de que los ejemplos sean relevantes, relevantes, fáciles de entender y bien comentados para ilustrar el concepto."
+            "Proporciona explicaciones con ejemplos de código prácticos en Java, manteniendo un nivel intermedio. Incluye código comentado y explica paso a paso."
         )
     elif nivel_explicacion == "avanzada":
         estilo_prompt = (
-            "Ofrece una explicación técnica, profunda y teórica, adecuada para estudiantes avanzados de Ingeniería en Telemática. "
-            "Incluye detalles técnicos, referencias a conceptos avanzados y, si es relevante, comparaciones con otras tecnologías o enfoques."
-        )
-    else:
-        estilo_prompt = (
-            "Explica de manera clara y completa, adecuada para estudiantes de Ingeniería en Telemática, ajustando el nivel de detalle según el contexto."
+            "Ofrece una explicación teórica avanzada, con detalles profundos, referencias a estándares y posibles implementaciones complejas en Java."
         )
 
     prompt = (
-        "Eres YELIA, un asistente virtual inteligente especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática.\n\n"
-        "Tu comportamiento debe ser:\n"
-        "1. Responder de forma clara, completa, actualizada y estructurada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
-        "2. Aceptar preguntas con errores ortográficos o expresiones informales, incluyendo mensajes cortos.\n"
-        "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
-        f"4. {estilo_prompt}\n"
-        "5. Al final de cada respuesta, siempre preguntar: \"¿Deseas saber más?\"\n"
-        "6. Incluir ejemplos de código prácticos en bloques Markdown (\`\`\`python o \`\`\`java) cuando sea relevante.\n"
-        "7. Proporcionar definiciones teóricas profundas y estructuradas, como en una IA profesional.\n"
-        f"Contexto: {json.dumps(temas)}\n"
-        f"Prerequisitos: {json.dumps(prerequisitos)}\n"
-        f"Historial: {contexto}\n"
-        f"Pregunta: {pregunta}"
+        f"{estilo_prompt}\n"
+        f"Pregunta del usuario: {pregunta}\n"
+        f"Contexto: {contexto}\n"
+        f"{prereq_text}"
     )
 
-    completion = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": pregunta}
-        ],
-        max_tokens=1000,
-        temperature=0.5
-    )
-    respuesta = completion.choices[0].message.content
-    if tema_encontrado:
-        descripcion = temas[unidad_encontrada][tema_encontrado].get('descripcion', temas[unidad_encontrada][tema_encontrado].get('definición', ''))
-        respuesta = f"**{tema_encontrado}**: {descripcion}\n\n{respuesta}{prereq_text}\n\n¿Deseas saber más?"
-    else:
-        respuesta += f"{prereq_text}\n\n¿Deseas saber más?"
-
-    return respuesta
-
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    try:
+        completion = call_groq_api(
+            client,
+            messages=[
+                {"role": "system", "content": "Eres un tutor experto en Programación Avanzada."},
+                {"role": "user", "content": prompt}
+            ],
+            model="llama3-70b-8192",
+            max_tokens=500,
+            temperature=0.7
+        )
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        logging.error(f"Error en Groq API: {str(e)}")
+        return "Lo siento, el servicio de IA está temporalmente no disponible. Intenta más tarde o verifica https://groqstatus.com/."
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-@app.route("/saludo_inicial", methods=["GET"])
-def saludo_inicial():
-    try:
-        usuario = "anonimo"
-        avatar_id = request.args.get("avatar_id", "default")
-        avatar_id = bleach.clean(avatar_id[:50])
-        respuesta_text = (
-            "¡Hola! Soy YELIA, tu asistente para Programación Avanzada en Ingeniería en Telemática. "
-            "Estoy aquí para ayudarte."
-            "¿Qué quieres aprender hoy?"
-        )
-        avatar = None
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-            c = conn.cursor()
-            c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
-            avatar = c.fetchone()
-            conn.close()
-        except PsycopgError as e:
-            logging.error(f"Error al consultar tabla avatars: {str(e)}")
-
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-            c = conn.cursor()
-            c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)",
-                      (usuario, "Saludo inicial", respuesta_text, avatar[1] if avatar else ""))
-            conn.commit()
-            conn.close()
-        except PsycopgError as e:
-            logging.error(f"Error al guardar en logs: {str(e)}")
-
-        response_data = {
-            "respuesta": respuesta_text,
-            "avatar_url": avatar[0] if avatar else "/static/img/default-avatar.png",
-            "animation_url": avatar[1] if avatar else ""
-        }
-        logging.info(f"Saludo inicial enviado: {response_data}")
-        return jsonify(response_data)
-    except Exception as e:
-        logging.error(f"Error en /saludo_inicial: {str(e)}")
-        return jsonify({"error": f"Error al procesar el saludo inicial: {str(e)}"}), 500
-
-@app.route("/respuesta", methods=["POST"])
-def respuesta():
+@app.route("/ask", methods=["POST"])
+def ask():
     try:
         data = request.get_json()
-        if not data or "pregunta" not in data:
-            logging.error("Solicitud inválida: falta pregunta")
-            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
-
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        pregunta = bleach.clean(data.get("pregunta").strip()[:300])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:20])
+        pregunta = bleach.clean(data.get("pregunta", "")[:300])
         historial = data.get("historial", [])
+        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica"))
 
         if not pregunta:
-            logging.info("Pregunta vacía ignorada")
-            return jsonify({"respuesta": "Por favor, escribe una pregunta para continuar. ¿Deseas saber más?"})
+            logging.error("Pregunta vacía en /ask")
+            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
 
-        respuesta_text = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
-        avatar = None
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-            c = conn.cursor()
-            c.execute("SELECT url, animation_url FROM avatars WHERE avatar_id = %s", (avatar_id,))
-            avatar = c.fetchone()
-            conn.close()
-        except PsycopgError as e:
-            logging.error(f"Error al consultar tabla avatars: {str(e)}")
+        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
+        if "no disponible" in respuesta:
+            return jsonify({"respuesta": respuesta}), 503
 
         try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
             c = conn.cursor()
-            c.execute("INSERT INTO logs (usuario, pregunta, respuesta, video_url) VALUES (%s, %s, %s, %s)",
-                      (usuario, pregunta, respuesta_text, avatar[1] if avatar else ""))
+            c.execute("INSERT INTO logs (usuario, pregunta, respuesta) VALUES (%s, %s, %s)",
+                      (usuario, pregunta, respuesta))
             conn.commit()
             conn.close()
         except PsycopgError as e:
-            logging.error(f"Error al guardar en logs: {str(e)}")
+            logging.error(f"Error al guardar log: {str(e)}")
 
-        response_data = {
-            "respuesta": respuesta_text,
-            "avatar_url": avatar[0] if avatar else "/static/img/default-avatar.png",
-            "animation_url": avatar[1] if avatar else ""
-        }
-        logging.info(f"Respuesta enviada: {response_data}")
-        return jsonify(response_data)
+        logging.info(f"Pregunta de {usuario}: {pregunta} - Respuesta: {respuesta}")
+        return jsonify({"respuesta": respuesta})
     except Exception as e:
-        logging.error(f"Error en /respuesta: {str(e)}")
+        logging.error(f"Error en /ask: {str(e)}")
         return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
 
-@app.route("/progreso", methods=["GET"])
-def progreso():
-    usuario = request.args.get("usuario", "anonimo")
-    progreso = cargar_progreso(usuario)
-    logging.info(f"Progreso devuelto para usuario {usuario}: {progreso}")
-    return jsonify(progreso)
-
-@app.route("/avatars", methods=["GET"])
-def avatars():
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        c = conn.cursor()
-        c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
-        avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
-        conn.close()
-        logging.info(f"Avatares devueltos: {avatars}")
-        return jsonify(avatars)
-    except PsycopgError as e:
-        logging.error(f"Error al consultar avatares: {str(e)}")
-        return jsonify({"error": "Error al cargar avatares"}), 500
-
 @app.route("/quiz", methods=["POST"])
+@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def quiz():
     try:
         data = request.get_json()
-        if not data or "tema" not in data:
-            logging.error("Solicitud inválida: falta tema")
-            return jsonify({"error": "El tema no puede estar vacío"}), 400
-
-        tema = bleach.clean(data.get("tema", "").strip()[:50])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones")[:20])
+        tema = bleach.clean(data.get("tema", "")[:50])
+        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones"))
+
+        if tipo_quiz not in ["opciones", "verdadero_falso"]:
+            return jsonify({"error": "Tipo de quiz inválido"}), 400
 
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
-            "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-            f"Tu tarea es generar un quiz de {tipo_quiz} sobre el tema proporcionado. "
-            f"Si tipo_quiz es 'opciones', genera 3 preguntas de opción múltiple, cada una con 4 opciones y una respuesta correcta. "
-            f"Si tipo_quiz es 'verdadero_falso', genera 3 preguntas de verdadero o falso. "
-            f"El tema es: {tema}. "
-            "Devuelve el resultado en formato JSON con la estructura: "
-            "{\"quiz\": [{\"pregunta\": \"texto\", \"opciones\": [\"op1\", \"op2\", ...], \"respuesta_correcta\": \"op_correcta\", \"tema\": \"tema\", \"nivel\": \"basico|intermedio|avanzado\"}]}"
+            f"Genera un quiz de {tipo_quiz} sobre el tema '{tema}' en Programación Avanzada. "
+            "Devuelve un JSON con: {'quiz': [{'pregunta': str, 'opciones': list[str], 'respuesta_correcta': str, 'tema': str, 'nivel': str}]} "
+            f"Genera 5 preguntas. Para opciones: exactamente 4 opciones, una correcta. Para verdadero_falso: exactamente 2 opciones (Verdadero, Falso)."
         )
 
-        completion = client.chat.completions.create(
-            model="llama3-70b-8192",
+        completion = call_groq_api(
+            client,
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": f"Genera un quiz de {tipo_quiz} sobre {tema}."}
+                {"role": "user", "content": "Genera el quiz."}
             ],
-            max_tokens=1500,
+            model="llama3-70b-8192",
+            max_tokens=1000,
             temperature=0.5
         )
 
-        response_text = completion.choices[0].message.content
         try:
-            quiz_data = json.loads(response_text)
-            if not isinstance(quiz_data.get("quiz"), list) or len(quiz_data["quiz"]) != 3:
-                raise ValueError("Formato de quiz inválido o número incorrecto de preguntas")
+            quiz_data = json.loads(completion.choices[0].message.content.strip())
+            if not isinstance(quiz_data, dict) or "quiz" not in quiz_data or not isinstance(quiz_data["quiz"], list):
+                raise ValueError("Formato de quiz inválido")
             for q in quiz_data["quiz"]:
                 if not all(key in q for key in ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]):
                     raise ValueError("Faltan campos requeridos en una pregunta del quiz")
@@ -396,7 +310,7 @@ def tts():
             logging.error("Texto contiene caracteres no válidos")
             return jsonify({"error": "El texto contiene caracteres no válidos"}), 400
         try:
-            tts = gTTS(text=text, lang='es', tld='com.mx')
+            tts = gTTS(text=text, lang='es', tld='com.mx', timeout=10)
             audio_io = io.BytesIO()
             tts.write_to_fp(audio_io)
             audio_io.seek(0)
@@ -410,6 +324,7 @@ def tts():
         return jsonify({"error": f"Error al procesar la solicitud: {str(e)}"}), 500
 
 @app.route("/recommend", methods=["POST"])
+@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def recommend():
     try:
         data = request.get_json()
@@ -434,12 +349,13 @@ def recommend():
             f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}"
         )
 
-        completion = client.chat.completions.create(
-            model="llama3-70b-8192",
+        completion = call_groq_api(
+            client,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": "Recomienda un tema."}
             ],
+            model="llama3-70b-8192",
             max_tokens=50,
             temperature=0.5
         )
