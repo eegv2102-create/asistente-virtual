@@ -693,11 +693,11 @@ const sendMessage = () => {
         container.removeChild(loadingDiv);
         let respuestaLimpia = data.respuesta;
 
-        // Normalizar saltos de línea y escapar caracteres problemáticos
+        // Normalizar saltos de línea
         respuestaLimpia = respuestaLimpia.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-        // Detectar bloques de código no formateados con una expresión regular más robusta
-        const codeRegex = /(^|\n)(class\s+\w+|def\s+\w+|public\s+\w+\s+\w+\s*$$   [^)]*   $$\s*\{)[\s\S]*?(?=\n\n|$)/g;
+        // Detectar bloques de código no formateados
+        const codeRegex = /(^|\n)(\b(?:class|def|public\s+\w+\s+\w+\s*$$ [^)]* $$\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
         respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, keyword) => {
             if (!match.includes('```')) {
                 const language = keyword.startsWith('def') ? 'python' : 'java';
@@ -711,19 +711,21 @@ const sendMessage = () => {
 
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        const parsedMarkdown = typeof marked !== 'undefined' ? marked.parse(respuestaLimpia, { breaks: true }) : respuestaLimpia;
+        const parsedMarkdown = typeof marked !== 'undefined' ? marked.parse(respuestaLimpia, { breaks: true, gfm: true }) : respuestaLimpia;
         botDiv.innerHTML = parsedMarkdown +
             `<button class="copy-btn" data-text="${respuestaLimpia.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
 
-        // Log para depuración del HTML generado
+        // Log para depuración
         console.log('HTML generado para botDiv:', botDiv.innerHTML);
 
         scrollToBottom();
         if (window.Prism) {
             Prism.highlightAllUnder(botDiv);
+            console.log('Prism.js aplicado al botDiv');
         } else {
             console.error('Prism.js no está cargado');
+            mostrarNotificacion('Error: Prism.js no está cargado', 'error');
         }
         speakText(respuestaLimpia);
         const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
