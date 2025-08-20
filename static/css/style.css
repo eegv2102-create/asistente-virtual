@@ -564,6 +564,8 @@ body.modo-oscuro .token.punctuation {
   padding: 8px;
   cursor: pointer;
   pointer-events: auto;
+  text-align: left;
+  width: 100%; /* Ocupa todo el ancho disponible */
 }
 
 .quiz-option:hover, .quiz-option:focus {
@@ -574,6 +576,11 @@ body.modo-oscuro .token.punctuation {
 .quiz-option.selected {
   background-color: var(--accent);
   color: var(--button-text);
+}
+
+.quiz-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .input-group {
