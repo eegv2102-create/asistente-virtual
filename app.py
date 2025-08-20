@@ -202,65 +202,56 @@ def validate_quiz_format(quiz_data):
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
     
 @app.route("/quiz", methods=["POST"])
+@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def quiz():
     try:
         data = request.get_json()
-        tipo = bleach.clean(data.get("tipo", "opciones")[:20])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        historial = data.get("historial", [])
+        tema = bleach.clean(data.get("tema", "")[:50])
+        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones"))
 
-        progreso = cargar_progreso(usuario)
-        temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
-        temas_disponibles = []
-        for unidad, subtemas in temas.items():
-            temas_disponibles.extend(subtemas.keys())
-        temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
-        tema = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
-
-        contexto = ""
-        if historial:
-            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
+        if tipo_quiz not in ["opciones", "verdadero_falso"]:
+            return jsonify({"error": "Tipo de quiz inválido"}), 400
 
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
-            f"Eres un tutor de Programación Avanzada. Crea una pregunta de quiz sobre el tema '{tema}' "
-            f"para estudiantes de Ingeniería en Telemática. La pregunta debe ser de tipo {tipo} (opciones múltiples o verdadero/falso). "
-            f"Devuelve un objeto JSON con las claves: 'pregunta' (texto de la pregunta), 'opciones' (lista de 4 opciones para tipo 'opciones' o 2 para 'verdadero/falso'), "
-            f"'respuesta_correcta' (texto exacto de la opción correcta), y 'tema' (el tema elegido). "
-            f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
+            f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre el tema '{tema}' en Programación Avanzada. "
+            "Devuelve un JSON con las claves: 'pregunta' (texto de la pregunta), 'opciones' (lista de opciones), "
+            "'respuesta_correcta' (texto exacto de la opción correcta), 'tema' (el tema), 'nivel' (siempre 'basico'). "
+            f"Para tipo 'opciones', incluye exactamente 4 opciones. Para 'verdadero_falso', incluye exactamente 2 opciones (Verdadero, Falso)."
         )
 
         completion = call_groq_api(
             client,
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Genera una pregunta de quiz."}
+                {"role": "user", "content": "Genera la pregunta del quiz."}
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.7
+            temperature=0.5
         )
 
-        quiz_data = json.loads(completion.choices[0].message.content)
-        pregunta = quiz_data.get("pregunta", "")
-        opciones = quiz_data.get("opciones", [])
-        respuesta_correcta = quiz_data.get("respuesta_correcta", "")
-        tema = quiz_data.get("tema", tema)
+        try:
+            quiz_data = json.loads(completion.choices[0].message.content.strip())
+            if not isinstance(quiz_data, dict) or not all(key in quiz_data for key in ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]):
+                raise ValueError("Formato de quiz inválido")
+            if tipo_quiz == "opciones" and len(quiz_data["opciones"]) != 4:
+                raise ValueError("La pregunta de opción múltiple debe tener exactamente 4 opciones")
+            if tipo_quiz == "verdadero_falso" and len(quiz_data["opciones"]) != 2:
+                raise ValueError("La pregunta de verdadero/falso debe tener exactamente 2 opciones")
+        except json.JSONDecodeError:
+            logging.error("Respuesta de Groq no es un JSON válido")
+            return jsonify({"error": "Error al procesar el formato del quiz"}), 500
+        except ValueError as ve:
+            logging.error(f"Error en el formato del quiz: {str(ve)}")
+            return jsonify({"error": f"Error en el formato del quiz: {str(ve)}"}), 500
 
-        if not pregunta or not opciones or not respuesta_correcta:
-            logging.error("Datos incompletos en la respuesta del quiz")
-            return jsonify({"error": "No se pudo generar el quiz"}), 500
-
-        logging.info(f"Quiz generado para usuario {usuario}: {pregunta}")
-        return jsonify({
-            "pregunta": pregunta,
-            "opciones": opciones,
-            "respuesta_correcta": respuesta_correcta,
-            "tema": tema
-        })
+        logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
+        return jsonify(quiz_data)  # Devolver solo una pregunta
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
-        return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500   
+        return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500 
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():

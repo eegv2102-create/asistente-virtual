@@ -477,71 +477,57 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
         const response = await fetch('/quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', tema: 'POO', tipo_quiz: tipoQuiz })
+            body: JSON.stringify({ usuario: 'anonimo', tema: 'POO', tipo_quiz: tipoQuiz }),
+            cache: 'no-store'
         });
-        if (!response.ok) throw new Error('Error en /quiz');
-        const data = await response.json();
-        mostrarQuizEnChat(data);
+        if (!response.ok) {
+            throw new Error(`Error en /quiz: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
     } catch (error) {
-        console.error('Error en quiz:', error);
-        mostrarNotificacion('Error al obtener quiz', 'error');
+        console.warn('Error en fetch /quiz, generando quiz simulado:', error);
+        return {
+            pregunta: tipoQuiz === 'verdadero_falso' ? 'La encapsulación permite ocultar datos.' : '¿Qué es la encapsulación en POO?',
+            opciones: tipoQuiz === 'verdadero_falso' ? ['Verdadero', 'Falso'] : ['Ocultar datos', 'Herencia', 'Polimorfismo', 'Abstracción'],
+            respuesta_correcta: tipoQuiz === 'verdadero_falso' ? 'Verdadero' : 'Ocultar datos',
+            tema: 'POO',
+            nivel: 'basico'
+        };
     }
 };
 
-const mostrarQuizEnChat = (data) => {
+const mostrarQuizEnChat = (quizData) => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!chatbox || !container || !data.pregunta) return;
-
+    if (!container || !chatbox) return;
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    let opcionesHtml = data.opciones.map((opcion, i) => `
-        <button class="quiz-option" data-option="${opcion}" data-correct="${opcion === data.respuesta_correcta}" aria-label="Opción ${i + 1}">${i + 1}. ${opcion}</button>
+    const opcionesHtml = quizData.opciones.map((opcion, i) => `
+        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quizData.respuesta_correcta}" data-tema="${quizData.tema}">
+            ${quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
+        </button>
     `).join('');
     botDiv.innerHTML = `
-        ${typeof marked !== 'undefined' ? marked.parse(data.pregunta, { breaks: true, gfm: true }) : data.pregunta}
-        ${opcionesHtml}
-        <button class="copy-btn" data-text="${data.pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
+        ${typeof marked !== 'undefined' ? marked.parse(quizData.pregunta) : quizData.pregunta}
+        <div class="quiz-options">${opcionesHtml}</div>
+        <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
     container.appendChild(botDiv);
     scrollToBottom();
-
+    if (window.Prism) Prism.highlightAllUnder(botDiv);
+    guardarMensaje('Quiz', `${quizData.pregunta}\nOpciones: ${quizData.opciones.join(', ')}`, null, quizData.tema);
     getElements('.quiz-option').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const respuesta = btn.dataset.option;
-            const respuesta_correcta = data.respuesta_correcta; // Asegúrate de que esto se envíe
-            try {
-                const res = await fetch('/responder_quiz', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        usuario: localStorage.getItem('usuario') || 'anonimo',
-                        respuesta,
-                        tema: data.tema,
-                        respuesta_correcta // Enviar la respuesta correcta
-                    })
-                });
-                const result = await res.json();
-                if (result.error) {
-                    mostrarNotificacion(result.error, 'error');
-                    return;
-                }
-                const feedbackDiv = document.createElement('div');
-                feedbackDiv.classList.add('bot');
-                feedbackDiv.innerHTML = `
-                    ${typeof marked !== 'undefined' ? marked.parse(result.respuesta, { breaks: true, gfm: true }) : result.respuesta}
-                    <button class="copy-btn" data-text="${result.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar retroalimentación"><i class="fas fa-copy"></i></button>
-                `;
-                container.appendChild(feedbackDiv);
-                scrollToBottom();
-                if (window.Prism) Prism.highlightAll();
-                if (vozActiva && userHasInteracted) speakText(result.respuesta);
-            } catch (error) {
-                mostrarNotificacion('Error al responder quiz', 'error');
-                console.error('Error en responder quiz:', error);
-            }
+        btn.addEventListener('click', () => {
+            getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
+            btn.classList.add('selected');
+            const opcion = btn.dataset.opcion;
+            const respuestaCorrecta = btn.dataset.respuesta_correcta;
+            const tema = btn.dataset.tema;
+            responderQuiz(opcion, respuestaCorrecta, tema);
+            getElements('.quiz-option').forEach(opt => opt.disabled = true);
         });
     });
+    speakText(quizData.pregunta);
 };
 
 const responderQuiz = (opcion, respuestaCorrecta, tema) => {
@@ -734,7 +720,6 @@ const toggleRightMenu = () => {
 };
 
 const init = () => {
-    console.log('Inicializando script.js');
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
@@ -746,75 +731,132 @@ const init = () => {
     const clearBtn = getElement('#btn-clear');
     const nivelBtn = getElement('#nivel-btn');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
-    const input = getElement('#input');
-    const nivelExplicacion = getElement('#nivel-explicacion');
 
-    if (menuToggle) menuToggle.addEventListener('click', toggleMenu);
-    if (menuToggleRight) menuToggleRight.addEventListener('click', toggleRightMenu);
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleMenu);
+        menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
+        menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
+    }
+    if (menuToggleRight) {
+        menuToggleRight.addEventListener('click', toggleRightMenu);
+        menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
+        menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
+    }
     if (modoBtn) {
         const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
-        document.body.classList.toggle('modo-oscuro', modoOscuro);
-        modoBtn.innerHTML = `<i class="fas ${modoOscuro ? 'fa-sun' : 'fa-moon'}"></i><span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>`;
+        modoBtn.setAttribute('data-tooltip', modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+        modoBtn.setAttribute('aria-label', modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+        modoBtn.innerHTML = `
+            <i class="fas ${modoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+            <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+        `;
         modoBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-oscuro');
             const isModoOscuro = document.body.classList.contains('modo-oscuro');
             localStorage.setItem('modoOscuro', isModoOscuro);
-            modoBtn.innerHTML = `<i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i><span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>`;
-            mostrarNotificacion(`Modo ${isModoOscuro ? 'claro' : 'oscuro'} activado`, 'success');
+            modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+            modoBtn.setAttribute('aria-label', isModoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+            modoBtn.innerHTML = `
+                <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+                <span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            `;
+            mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
         });
     }
     if (voiceBtn) {
-        voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i><span id="voice-text">${vozActiva ? 'Desactivar Voz' : 'Activar Voz'}</span>`;
+        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+        voiceBtn.innerHTML = `
+            <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+            <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+        `;
         voiceBtn.addEventListener('click', () => {
             vozActiva = !vozActiva;
             localStorage.setItem('vozActiva', vozActiva);
-            voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i><span id="voice-text">${vozActiva ? 'Desactivar Voz' : 'Activar Voz'}</span>`;
+            voiceBtn.innerHTML = `
+                <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+                <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+            `;
+            voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+            voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+            mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
             if (!vozActiva) stopSpeech();
-            mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
-            if (vozActiva && pendingWelcomeMessage) {
-                speakText(pendingWelcomeMessage);
-                pendingWelcomeMessage = null;
+            if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
+        });
+    }
+    if (quizBtn) {
+        quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
+        quizBtn.setAttribute('aria-label', 'Generar un quiz');
+        quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
+    }
+    if (recommendBtn) {
+        recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
+        recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
+        recommendBtn.addEventListener('click', () => obtenerRecomendacion().then(data => {
+            const mensaje = `Recomendación: ${data.recommendation}`;
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('bot');
+            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) + 
+                `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
+            scrollToBottom();
+            speakText(mensaje);
+            guardarMensaje('Recomendación', mensaje);
+            addCopyButtonListeners();
+        }));
+    }
+    if (sendBtn) {
+        sendBtn.setAttribute('data-tooltip', 'Enviar');
+        sendBtn.setAttribute('aria-label', 'Enviar mensaje');
+        sendBtn.addEventListener('click', sendMessage);
+    }
+    if (newChatBtn) {
+        newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
+        newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
+        newChatBtn.addEventListener('click', nuevaConversacion);
+    }
+    if (clearBtn) {
+        clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
+        clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
+        clearBtn.addEventListener('click', limpiarChat);
+    }
+    if (nivelBtn) {
+        nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
+        nivelBtn.setAttribute('aria-label', 'Cambiar nivel de explicación');
+        nivelBtn.addEventListener('click', toggleDropdown);
+    }
+    if (voiceToggleBtn) {
+        voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
+        voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
+        voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
+    }
+    const inputElement = getElement('#input');
+    if (inputElement) {
+        inputElement.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
             }
         });
     }
-    if (quizBtn) quizBtn.addEventListener('click', () => obtenerQuiz('opciones'));
-    if (recommendBtn) recommendBtn.addEventListener('click', obtenerRecomendacion);
-    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-    if (newChatBtn) newChatBtn.addEventListener('click', nuevaConversacion);
-    if (clearBtn) clearBtn.addEventListener('click', limpiarChat);
-    if (voiceToggleBtn) voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
-    if (nivelBtn) {
-        nivelBtn.addEventListener('click', toggleDropdown);
-        const nivel = localStorage.getItem('nivelExplicacion') || 'basica';
-        nivelBtn.textContent = nivel === 'basica' ? 'Básica' : nivel === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
-    }
-    if (input) {
-        input.addEventListener('keypress', e => {
-            if (e.key === 'Enter') sendMessage();
-        });
-    }
-    if (nivelExplicacion) {
-        nivelExplicacion.addEventListener('change', () => {
-            localStorage.setItem('nivelExplicacion', nivelExplicacion.value);
-            mostrarNotificacion(`Nivel de explicación: ${nivelExplicacion.value}`, 'success');
-        });
+    // Mostrar mensaje de bienvenida y mensaje de interacción para audio
+    mostrarMensajeBienvenida();
+    if (vozActiva && !userHasInteracted) {
+        toggleVoiceHint(true);
     }
     document.addEventListener('click', () => {
-        userHasInteracted = true;
-        toggleVoiceHint(false);
-        if (vozActiva && pendingWelcomeMessage) {
-            speakText(pendingWelcomeMessage);
-            pendingWelcomeMessage = null;
+        if (!userHasInteracted) {
+            userHasInteracted = true;
+            toggleVoiceHint(false);
+            console.log('Interacción detectada, audio habilitado');
+            if (pendingWelcomeMessage) {
+                speakText(pendingWelcomeMessage);
+                pendingWelcomeMessage = null;
+            }
         }
-    });
+    }, { once: true });
     cargarAvatares();
     actualizarListaChats();
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-    if (currentConversation.id || currentConversation.id === 0) {
-        cargarChat(currentConversation.id);
-    } else {
-        mostrarMensajeBienvenida();
-    }
 };
 
 document.addEventListener('DOMContentLoaded', init);
