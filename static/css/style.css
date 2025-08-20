@@ -62,12 +62,10 @@ body {
 }
 
 .app-title {
-    position: fixed;
-    top: 0;
     width: 100%;
     background-color: var(--bg-primary);
     z-index: 1004;
-    padding: 8px 10px;
+    padding: 12px 10px;
     box-shadow: 0 2px 4px var(--shadow);
 }
 
@@ -81,7 +79,7 @@ body {
 }
 
 .app-title h1 {
-    font-size: clamp(1.2rem, 3vw, 1.5rem);
+    font-size: clamp(1.5rem, 4vw, 2rem); /* Aumentar tamaño del título */
     text-align: center;
     margin: 0;
     flex: 1;
@@ -93,9 +91,9 @@ body {
     border: 1px solid var(--border);
     color: var(--text-primary);
     cursor: pointer;
-    padding: 6px 10px;
+    padding: 8px 12px; /* Aumentar padding para botones más grandes */
     border-radius: 8px;
-    font-size: 0.9rem;
+    font-size: 1rem; /* Aumentar tamaño de fuente */
     display: flex;
     align-items: center;
     gap: 6px;
@@ -109,14 +107,9 @@ body {
     transform: scale(1.05);
 }
 
-.header-divider {
-    height: 60px;
-    width: 100%;
-}
-
 .voice-hint {
     position: fixed;
-    bottom: 70px; /* Colocar justo encima del input-group en móviles */
+    bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--bg-secondary);
@@ -141,8 +134,8 @@ body {
     justify-content: space-between;
     width: 100%;
     max-width: 1200px;
-    height: calc(100vh - 120px);
-    margin-top: 60px;
+    height: calc(100vh - 80px); /* Ajustar altura para eliminar espacio extra */
+    margin-top: 10px; /* Reducir margin-top */
     background-color: var(--bg-primary);
     border-radius: 8px;
     overflow: hidden;
@@ -315,7 +308,7 @@ body {
     padding: 16px;
     overflow-y: auto;
     background-color: var(--bg-secondary);
-    max-height: calc(100vh - 180px);
+    max-height: calc(100vh - 140px); /* Ajustar altura */
 }
 
 .message-container {
@@ -643,15 +636,15 @@ body {
     .container {
         flex-direction: column;
         height: calc(100vh - 90px);
-        margin-top: 60px;
+        margin-top: 10px; /* Reducir margin-top en móviles */
         margin-left: 0;
         margin-right: 0;
     }
 
     .left-section, .right-section {
         position: fixed;
-        top: 60px;
-        height: calc(100vh - 60px);
+        top: 90px; /* Ajustar para el nuevo tamaño del título */
+        height: calc(100vh - 90px);
         width: 80%;
         max-width: 300px;
         z-index: 1001;
@@ -749,7 +742,7 @@ body {
     }
 
     .app-title h1 {
-        font-size: 1.1rem;
+        font-size: clamp(1.2rem, 3vw, 1.5rem); /* Ajustar tamaño en móviles */
         order: 0;
     }
 
@@ -776,7 +769,7 @@ body {
     }
 
     .voice-hint {
-        bottom: 80px; /* Ajustar para estar encima del input-group */
+        bottom: 80px;
         font-size: 12px;
         padding: 6px 12px;
         max-width: 85%;
@@ -785,6 +778,10 @@ body {
     .sidebar-buttons button {
         font-size: 0.9rem;
         padding: 6px;
+    }
+
+    .app-title {
+        padding: 10px 8px; /* Ajustar padding en móviles */
     }
 }
 

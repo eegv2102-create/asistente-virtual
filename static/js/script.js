@@ -67,6 +67,23 @@ const updateAvatarDisplay = () => {
     setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
 };
 
+// Diccionario de reemplazos para pronunciación
+const pronunciationDict = {
+    'YELIA': 'Yelia',
+    'POO': 'Programación Orientada a Objetos',
+};
+
+// Preprocesar texto para mejorar pronunciación
+const preprocessTextForSpeech = (text) => {
+    let processedText = text;
+    for (const [key, value] of Object.entries(pronunciationDict)) {
+        const regex = new RegExp(`\\b${key}\\b`, 'gi');
+        processedText = processedText.replace(regex, value);
+    }
+    processedText = processedText.replace(/\b(ejemplo:.*?\.)/gi, '');
+    return processedText.trim();
+};
+
 const speakText = async (text) => {
     console.log('Intentando reproducir voz:', { vozActiva, text, userHasInteracted });
     
@@ -96,12 +113,14 @@ const speakText = async (text) => {
         currentAudio = null;
     }
 
+    const processedText = preprocessTextForSpeech(text);
+
     try {
-        console.log('Enviando solicitud al endpoint /tts');
+        console.log('Enviando solicitud al endpoint /tts con texto:', processedText);
         const res = await fetch('/tts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+            body: JSON.stringify({ text: processedText })
         });
 
         if (!res.ok) {
@@ -142,7 +161,7 @@ const speakText = async (text) => {
                 return;
             }
 
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = new SpeechSynthesisUtterance(processedText);
             utterance.lang = 'es-ES';
             utterance.voice = esVoice;
             utterance.onstart = () => console.log('Iniciando reproducción con speechSynthesis');
@@ -612,7 +631,6 @@ const sendMessage = () => {
     input.value = '';
     scrollToBottom();
     
-    // Agregar spinner de carga
     const loadingDiv = document.createElement('div');
     loadingDiv.classList.add('bot', 'loading');
     loadingDiv.textContent = '⌛ Generando respuesta...';
@@ -632,7 +650,6 @@ const sendMessage = () => {
         }
         return res.json();
     }).then(data => {
-        // Remover spinner de carga
         container.removeChild(loadingDiv);
         
         let respuestaLimpia = data.respuesta;
@@ -651,7 +668,6 @@ const sendMessage = () => {
         guardarMensaje(pregunta, respuestaLimpia, data.video_url);
         addCopyButtonListeners();
     }).catch(error => {
-        // Remover spinner en caso de error
         if (loadingDiv && container.contains(loadingDiv)) {
             container.removeChild(loadingDiv);
         }
@@ -671,6 +687,7 @@ const limpiarChat = () => {
     container.innerHTML = '';
     localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
     mostrarNotificacion('Chat limpiado', 'success');
+    mostrarMensajeBienvenida();
 };
 
 const nuevaConversacion = () => {
@@ -691,6 +708,7 @@ const nuevaConversacion = () => {
     if (container) container.innerHTML = '';
     actualizarListaChats();
     mostrarNotificacion('Nueva conversación iniciada', 'success');
+    mostrarMensajeBienvenida();
 };
 
 const responderQuiz = (opcion, respuestaCorrecta, tema) => {
@@ -758,282 +776,102 @@ const selectNivel = (nivel) => {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    const elements = {
-        sendBtn: getElement('#send-btn'),
-        recommendBtn: getElement('#recommend-btn'),
-        quizBtn: getElement('#quiz-btn'),
-        newChatBtn: getElement('#new-chat-btn'),
-        clearBtn: getElement('#btn-clear'),
-        voiceBtn: getElement('#voice-btn'),
-        voiceToggleBtn: getElement('#voice-toggle-btn'),
-        modoBtn: getElement('#modo-btn'),
-        menuToggle: getElement('.menu-toggle'),
-        menuToggleRight: getElement('.menu-toggle-right'),
-        nivelExplicacion: getElement('#nivel-explicacion'),
-        nivelBtn: getElement('#nivel-btn')
-    };
-
-    if (elements.nivelExplicacion) {
-        const savedNivel = localStorage.getItem('nivelExplicacion') || 'basica';
-        elements.nivelExplicacion.value = savedNivel;
-        elements.nivelExplicacion.addEventListener('change', () => {
-            localStorage.setItem('nivelExplicacion', elements.nivelExplicacion.value);
-            mostrarNotificacion(`Nivel de explicación: ${elements.nivelExplicacion.options[elements.nivelExplicacion.selectedIndex].text}`, 'success');
-        });
+const toggleMenu = () => {
+    const leftSection = getElement('.left-section');
+    const rightSection = getElement('.right-section');
+    if (!leftSection) {
+        console.error('Elemento .left-section no encontrado');
+        return;
     }
-
-    if (elements.nivelBtn) {
-        const savedNivel = localStorage.getItem('nivelExplicacion') || 'basica';
-        elements.nivelBtn.textContent = savedNivel === 'basica' ? 'Básica' : savedNivel === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
-        elements.nivelBtn.addEventListener('click', toggleDropdown);
-        getElements('.dropdown-menu button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                selectNivel(btn.dataset.nivel);
-            });
-        });
-        document.addEventListener('click', (e) => {
-            const dropdownMenu = getElement('.dropdown-menu');
-            if (dropdownMenu && dropdownMenu.classList.contains('active') && 
-                !elements.nivelBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
-                dropdownMenu.classList.remove('active');
-            }
-        });
+    leftSection.classList.toggle('active');
+    if (rightSection && rightSection.classList.contains('active')) {
+        rightSection.classList.remove('active');
     }
-
-    const input = getElement('#input');
-    if (input) {
-        input.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                console.log('Enter key pressed in #input');
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-    } else {
-        console.error('Elemento #input no encontrado para el listener de tecla Enter');
-        mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
+    const voiceHint = getElement('#voice-hint');
+    if (voiceHint && leftSection.classList.contains('active')) {
+        voiceHint.classList.add('hidden');
     }
+};
 
+const toggleRightMenu = () => {
+    const rightSection = getElement('.right-section');
+    const leftSection = getElement('.left-section');
+    if (!rightSection) {
+        console.error('Elemento .right-section no encontrado');
+        return;
+    }
+    rightSection.classList.toggle('active');
+    if (leftSection && leftSection.classList.contains('active')) {
+        leftSection.classList.remove('active');
+    }
+    const voiceHint = getElement('#voice-hint');
+    if (voiceHint && rightSection.classList.contains('active')) {
+        voiceHint.classList.add('hidden');
+    }
+};
+
+const handleVoiceHint = () => {
+    const voiceHint = getElement('#voice-hint');
+    if (!voiceHint) {
+        console.error('Elemento #voice-hint no encontrado');
+        return;
+    }
     document.addEventListener('click', () => {
-        if (!userHasInteracted) {
-            userHasInteracted = true;
-            toggleVoiceHint(false);
-            if (vozActiva && pendingWelcomeMessage) {
-                console.log('Reproduciendo mensaje de bienvenida tras primera interacción');
-                speakText(pendingWelcomeMessage);
-                pendingWelcomeMessage = null;
-            }
+        const voiceBtn = getElement('#voice-btn');
+        const leftSection = getElement('.left-section');
+        const rightSection = getElement('.right-section');
+        if (voiceBtn && voiceBtn.textContent.includes('Activar Voz') && 
+            (!leftSection || !leftSection.classList.contains('active')) && 
+            (!rightSection || !rightSection.classList.contains('active'))) {
+            voiceHint.classList.remove('hidden');
+            setTimeout(() => {
+                voiceHint.classList.add('hidden');
+            }, 3000);
         }
     });
+};
 
-    cargarAvatares();
-    actualizarListaChats();
-    cargarAnalytics();
-
-    if ('speechSynthesis' in window) {
-        speechSynthesis.onvoiceschanged = () => {
-            const voices = speechSynthesis.getVoices();
-            console.log('Voces disponibles:', voices);
-        };
-    }
-
-    if (vozActiva) {
-        toggleVoiceHint(!userHasInteracted);
-    }
-
+const mostrarMensajeBienvenida = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (container && chatbox) {
-        fetch(`/saludo_inicial?avatar_id=${selectedAvatar}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        }).then(res => {
-            if (!res.ok) {
-                return res.json().then(err => {
-                    throw new Error(err.error || `Error en /saludo_inicial: ${res.status} ${res.statusText}`);
-                });
-            }
-            return res.json();
-        }).then(data => {
-            const botDiv = document.createElement('div');
-            botDiv.classList.add('bot');
-            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-            container.appendChild(botDiv);
-            scrollToBottom();
-            if (window.Prism) Prism.highlightAllUnder(botDiv);
-            pendingWelcomeMessage = data.respuesta;
-            guardarMensaje('Saludo inicial', data.respuesta, data.video_url);
-            addCopyButtonListeners();
-            if (vozActiva && userHasInteracted) {
-                console.log('Reproduciendo mensaje de bienvenida inicial');
-                speakText(data.respuesta);
-                pendingWelcomeMessage = null;
-            }
-        }).catch(error => {
-            mostrarNotificacion(`Error al cargar mensaje inicial: ${error.message}`, 'error');
-            console.error('Error en fetch /saludo_inicial:', error);
-        });
+    if (!container || !chatbox) {
+        console.error('Elemento #chatbox o .message-container no encontrado');
+        return;
     }
+    const mensajeBienvenida = '¡Bienvenido a YELIA! Estoy aquí para ayudarte con tus dudas sobre programación. 😊 Pregúntame lo que quieras o solicita un quiz.';
+    const botDiv = document.createElement('div');
+    botDiv.classList.add('bot');
+    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensajeBienvenida) : mensajeBienvenida) + 
+        `<button class="copy-btn" data-text="${mensajeBienvenida}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+    container.appendChild(botDiv);
+    scrollToBottom();
+    if (window.Prism) Prism.highlightAllUnder(botDiv);
+    speakText(mensajeBienvenida);
+    addCopyButtonListeners();
+};
 
-    if (elements.sendBtn) {
-        elements.sendBtn.addEventListener('click', () => {
-            console.log('Botón #send-btn clicado');
-            sendMessage();
-        });
+const init = () => {
+    const menuToggle = getElement('.menu-toggle');
+    const menuToggleRight = getElement('.menu-toggle-right');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleMenu);
     } else {
-        mostrarNotificacion('Error: Botón de enviar mensaje no encontrado', 'error');
+        console.error('Elemento .menu-toggle no encontrado');
     }
-
-    if (elements.recommendBtn) {
-        elements.recommendBtn.addEventListener('click', async () => {
-            const data = await obtenerRecomendacion();
-            const chatbox = getElement('#chatbox');
-            const container = chatbox?.querySelector('.message-container');
-            if (!container || !chatbox) return;
-            const botDiv = document.createElement('div');
-            botDiv.classList.add('bot');
-            const recomendacion = `Te recomiendo estudiar: ${data.recommendation}`;
-            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(recomendacion) : recomendacion) + `<button class="copy-btn" data-text="${recomendacion}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-            container.appendChild(botDiv);
-            scrollToBottom();
-            if (window.Prism) Prism.highlightAllUnder(botDiv);
-            speakText(recomendacion);
-            guardarMensaje('Recomendación', recomendacion);
-            addCopyButtonListeners();
-        });
-    }
-
-    if (elements.quizBtn) {
-        elements.quizBtn.addEventListener('click', async () => {
-            const tipoQuiz = Math.random() < 0.5 ? 'opciones' : 'verdadero_falso';
-            const data = await obtenerQuiz(tipoQuiz);
-            mostrarQuizEnChat(data);
-        });
-    }
-
-    if (elements.newChatBtn) {
-        elements.newChatBtn.addEventListener('click', nuevaConversacion);
-    }
-
-    if (elements.clearBtn) {
-        elements.clearBtn.addEventListener('click', limpiarChat);
-    }
-
-    if (elements.voiceBtn) {
-        const voiceText = getElement('#voice-text');
-        voiceText.textContent = vozActiva ? 'Desactivar Voz' : 'Activar Voz';
-        elements.voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
-        elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i> <span id="voice-text">${vozActiva ? 'Desactivar Voz' : 'Activar Voz'}</span>`;
-        elements.voiceBtn.addEventListener('click', () => {
-            console.log('Botón #voice-btn clicado, vozActiva:', vozActiva);
-            vozActiva = !vozActiva;
-            localStorage.setItem('vozActiva', vozActiva);
-            const voiceText = getElement('#voice-text');
-            voiceText.textContent = vozActiva ? 'Desactivar Voz' : 'Activar Voz';
-            elements.voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
-            elements.voiceBtn.innerHTML = `<i class="fas fa-volume-${vozActiva ? 'up' : 'mute'}"></i> <span id="voice-text">${vozActiva ? 'Desactivar Voz' : 'Activar Voz'}</span>`;
-            mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
-            if (!vozActiva) {
-                stopSpeech();
-                toggleVoiceHint(false);
-            } else {
-                toggleVoiceHint(!userHasInteracted);
-                if (pendingWelcomeMessage && userHasInteracted) {
-                    console.log('Reproduciendo mensaje de bienvenida tras activar voz');
-                    speakText(pendingWelcomeMessage);
-                    pendingWelcomeMessage = null;
-                }
-            }
-        });
+    if (menuToggleRight) {
+        menuToggleRight.addEventListener('click', toggleRightMenu);
     } else {
-        mostrarNotificacion('Error: Botón de voz no encontrado', 'error');
+        console.error('Elemento .menu-toggle-right no encontrado');
     }
-
-    if (elements.voiceToggleBtn) {
-        elements.voiceToggleBtn.addEventListener('click', () => {
-            console.log('Botón #voice-toggle-btn clicado');
-            toggleVoiceRecognition();
-        });
+    handleVoiceHint();
+    cargarAvatares();
+    actualizarListaChats();
+    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+    if (!currentConversation.id && currentConversation.id !== 0) {
+        mostrarMensajeBienvenida();
+    } else {
+        cargarChat(currentConversation.id);
     }
+};
 
-    if (elements.modoBtn) {
-        const modoText = getElement('#modo-text');
-        modoText.textContent = document.body.classList.contains('modo-oscuro') ? 'Modo Claro' : 'Modo Oscuro';
-        elements.modoBtn.setAttribute('data-tooltip', document.body.classList.contains('modo-oscuro') ? 'Modo Claro' : 'Modo Oscuro');
-        elements.modoBtn.addEventListener('click', () => {
-            document.body.classList.toggle('modo-oscuro');
-            const modo = document.body.classList.contains('modo-oscuro') ? 'Oscuro' : 'Claro';
-            const modoText = getElement('#modo-text');
-            modoText.textContent = modo === 'Claro' ? 'Modo Oscuro' : 'Modo Claro';
-            elements.modoBtn.setAttribute('data-tooltip', modo === 'Claro' ? 'Modo Oscuro' : 'Modo Claro');
-            localStorage.setItem('theme', modo.toLowerCase());
-            mostrarNotificacion(`Modo ${modo} activado`, 'success');
-        });
-    }
-
-    if (elements.menuToggle && elements.menuToggleRight) {
-        const toggleLeftMenu = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const leftSection = getElement('.left-section');
-            const rightSection = getElement('.right-section');
-            if (leftSection) {
-                leftSection.classList.toggle('active');
-                elements.menuToggle.innerHTML = `<i class="fas fa-${leftSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                elements.menuToggle.setAttribute('aria-expanded', leftSection.classList.contains('active'));
-                if (rightSection && rightSection.classList.contains('active') && window.innerWidth <= 768) {
-                    rightSection.classList.remove('active');
-                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
-                    elements.menuToggleRight.setAttribute('aria-expanded', 'false');
-                }
-            }
-        };
-
-        const toggleRightMenu = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const rightSection = getElement('.right-section');
-            const leftSection = getElement('.left-section');
-            if (rightSection) {
-                rightSection.classList.toggle('active');
-                elements.menuToggleRight.innerHTML = `<i class="fas fa-${rightSection.classList.contains('active') ? 'times' : 'bars'}"></i>`;
-                elements.menuToggleRight.setAttribute('aria-expanded', rightSection.classList.contains('active'));
-                if (leftSection && leftSection.classList.contains('active') && window.innerWidth <= 768) {
-                    leftSection.classList.remove('active');
-                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
-                    elements.menuToggle.setAttribute('aria-expanded', 'false');
-                }
-            }
-        };
-
-        elements.menuToggle.addEventListener('click', toggleLeftMenu);
-        elements.menuToggle.addEventListener('touchstart', toggleLeftMenu, { passive: false });
-        elements.menuToggleRight.addEventListener('click', toggleRightMenu);
-        elements.menuToggleRight.addEventListener('touchstart', toggleRightMenu, { passive: false });
-
-        const closeMenusOnOutsideInteraction = (e) => {
-            const leftSection = getElement('.left-section');
-            const rightSection = getElement('.right-section');
-            if (window.innerWidth <= 768) {
-                if (leftSection && leftSection.classList.contains('active') &&
-                    !leftSection.contains(e.target) &&
-                    !elements.menuToggle.contains(e.target)) {
-                    leftSection.classList.remove('active');
-                    elements.menuToggle.innerHTML = `<i class="fas fa-bars"></i>`;
-                    elements.menuToggle.setAttribute('aria-expanded', 'false');
-                }
-                if (rightSection && rightSection.classList.contains('active') &&
-                    !rightSection.contains(e.target) &&
-                    !elements.menuToggleRight.contains(e.target)) {
-                    rightSection.classList.remove('active');
-                    elements.menuToggleRight.innerHTML = `<i class="fas fa-bars"></i>`;
-                    elements.menuToggleRight.setAttribute('aria-expanded', 'false');
-                }
-            }
-        };
-
-        document.addEventListener('click', closeMenusOnOutsideInteraction);
-        document.addEventListener('touchstart', closeMenusOnOutsideInteraction, { passive: false });
-    }
-});
+document.addEventListener('DOMContentLoaded', init);
