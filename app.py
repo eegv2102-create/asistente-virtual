@@ -254,12 +254,11 @@ def quiz():
         tema = tema if tema in temas_disponibles else random.choice(temas_disponibles)
 
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-        # Añadir timestamp para forzar variación en las preguntas
         prompt = (
             f"Eres un tutor de Programación Avanzada. Genera un quiz de tipo {tipo_quiz} sobre el tema '{tema}'. "
             f"El nivel de explicación debe ser {nivel_explicacion}. "
             f"Genera una pregunta única (no repitas preguntas anteriores). "
-            "Devuelve un JSON con: pregunta (string), opciones (array de strings), respuesta_correcta (string, debe coincidir exactamente con una opción), tema (string)."
+            "Devuelve un JSON con: pregunta (string), opciones (array de strings), respuesta_correcta (string, debe coincidir exactamente con una opción), tema (string), tipo_quiz (string)."
             f"Contexto: usuario ha aprendido {','.join(temas_aprendidos)}. Timestamp: {int(time.time())}"
         )
 
@@ -271,10 +270,11 @@ def quiz():
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.9  # Aumentar temperatura para más variación
+            temperature=0.9
         )
 
         quiz_data = json.loads(completion.choices[0].message.content)
+        quiz_data['tipo_quiz'] = tipo_quiz  # Asegurar que tipo_quiz esté en la respuesta
         try:
             validate_quiz_format(quiz_data)
         except ValueError as ve:
@@ -283,12 +283,15 @@ def quiz():
 
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
         return jsonify(quiz_data)
+    except json.JSONDecodeError as je:
+        logging.error(f"Error al decodificar JSON de Groq: {str(je)}")
+        return jsonify({"error": "Error al procesar la respuesta de la API"}), 500
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
     
 def validate_quiz_format(quiz_data):
-    required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema"]
+    required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "tipo_quiz"]
     for key in required_keys:
         if key not in quiz_data:
             raise ValueError(f"Falta la clave {key} en el quiz")
@@ -296,7 +299,6 @@ def validate_quiz_format(quiz_data):
         raise ValueError("El quiz debe tener al menos 2 opciones")
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
-    
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():

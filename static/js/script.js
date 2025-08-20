@@ -510,29 +510,26 @@ const obtenerRecomendacion = async () => {
     }
 };
 
-const obtenerQuiz = async (tipoQuiz = 'opciones') => {
+const obtenerQuiz = async (tipo) => {
     try {
-        const response = await fetch('/quiz', {
+        const usuario = localStorage.getItem('usuario') || 'anonimo';
+        const nivel = localStorage.getItem('nivelExplicacion') || 'basica';
+        const res = await fetch('/quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', tema: 'POO', tipo_quiz: tipoQuiz }),
-            cache: 'no-store'
+            body: JSON.stringify({ usuario, tipo, nivel })
         });
-        if (!response.ok) {
-            throw new Error(`Error en /quiz: ${response.status} ${response.statusText}`);
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || `Error en /quiz: ${res.status} ${res.statusText}`);
         }
-        return await response.json();
+        const data = await res.json();
+        console.log('Respuesta del endpoint /quiz:', data); // Para depuración
+        return data;
     } catch (error) {
-        console.warn('Error en fetch /quiz, generando quiz simulado:', error);
-        return {
-            quiz: [{
-                pregunta: tipoQuiz === 'verdadero_falso' ? 'La encapsulación permite ocultar datos.' : '¿Qué es la encapsulación en POO?',
-                opciones: tipoQuiz === 'verdadero_falso' ? ['Verdadero', 'Falso'] : ['Ocultar datos', 'Herencia', 'Polimorfismo', 'Abstracción'],
-                respuesta_correcta: tipoQuiz === 'verdadero_falso' ? 'Verdadero' : 'Ocultar datos',
-                tema: 'POO',
-                nivel: 'basico'
-            }]
-        };
+        console.error('Error al obtener quiz:', error);
+        mostrarNotificacion(`Error al generar el quiz: ${error.message}`, 'error');
+        return { error: error.message };
     }
 };
 
@@ -543,7 +540,11 @@ const mostrarQuizEnChat = (quizData) => {
     }
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) return;
+    if (!container || !chatbox) {
+        console.error('No se encontró #chatbox o .message-container');
+        mostrarNotificacion('Error: No se encontró el contenedor del chat', 'error');
+        return;
+    }
 
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
@@ -596,7 +597,6 @@ const mostrarQuizEnChat = (quizData) => {
                 `;
                 container.appendChild(responseDiv);
                 scrollToBottom();
-                // Asegurar que los emojis no se lean en el audio
                 const textoParaVoz = data.respuesta.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
                 speakText(textoParaVoz);
             } catch (error) {
@@ -995,10 +995,16 @@ const init = () => {
         });
     }
     if (quizBtn) {
-        quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
-        quizBtn.setAttribute('aria-label', 'Generar un quiz');
-        quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
-    }
+    quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
+    quizBtn.setAttribute('aria-label', 'Generar un quiz');
+    quizBtn.addEventListener('click', () => {
+        console.log('Botón de quiz clickeado');
+        obtenerQuiz('opciones').then(mostrarQuizEnChat).catch(error => {
+            console.error('Error al procesar quiz:', error);
+            mostrarNotificacion('Error al generar el quiz', 'error');
+        });
+    });
+}
     if (recommendBtn) {
         recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
         recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
