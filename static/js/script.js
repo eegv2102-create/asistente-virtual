@@ -1,4 +1,3 @@
-
 let vozActiva = localStorage.getItem('vozActiva') === 'true' || false;
 let isListening = false;
 let recognition = null;
@@ -87,24 +86,16 @@ const speakText = async (text) => {
         return;
     }
 
-    // Limpieza avanzada para TTS: Remover Markdown, código y ajustar acrónimos
     let textoParaVoz = text;
-    
-    // Remover bloques de código completamente (no leer ejemplos)
-    textoParaVoz = textoParaVoz.replace(/```[\s\S]*?```/g, '');  // Bloques grandes
-    textoParaVoz = textoParaVoz.replace(/`[^`]+`/g, '');  // Código inline
-    
-    // Remover Markdown simple para evitar leer símbolos
-    textoParaVoz = textoParaVoz.replace(/\*\*([^*]+)\*\*/g, '$1');  // Negrita **
-    textoParaVoz = textoParaVoz.replace(/\*([^*]+)\*/g, '$1');  // Cursiva *
-    textoParaVoz = textoParaVoz.replace(/#+\s*/g, '');  // Encabezados #
-    textoParaVoz = textoParaVoz.replace(/-\s*/g, '');  // Listas -
-    textoParaVoz = textoParaVoz.replace(/\n+/g, ' ');  // Convertir saltos de línea en espacios para flujo natural
-    
-    // Ajustar acrónimos para pronunciación natural (ej: YELIA como "Yelia")
-    textoParaVoz = textoParaVoz.replace(/\bYELIA\b/g, 'Yelia');  // Leer como palabra
-    
-    textoParaVoz = textoParaVoz.trim();  // Limpiar espacios extras
+    textoParaVoz = textoParaVoz.replace(/```[\s\S]*?```/g, '');
+    textoParaVoz = textoParaVoz.replace(/`[^`]+`/g, '');
+    textoParaVoz = textoParaVoz.replace(/\*\*([^*]+)\*\*/g, '$1');
+    textoParaVoz = textoParaVoz.replace(/\*([^*]+)\*/g, '$1');
+    textoParaVoz = textoParaVoz.replace(/#+\s*/g, '');
+    textoParaVoz = textoParaVoz.replace(/-\s*/g, '');
+    textoParaVoz = textoParaVoz.replace(/\n+/g, ' ');
+    textoParaVoz = textoParaVoz.replace(/\bYELIA\b/g, 'Yelia');
+    textoParaVoz = textoParaVoz.trim();
 
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
@@ -588,7 +579,7 @@ const mostrarQuizEnChat = (quizData) => {
 
 const sendMessage = () => {
     const input = getElement('#input');
-    const nivelExplicacion = localStorage.getItem('nivelExplicacion') || 'basica';
+    const nivelExplicacion = getElement('#nivel-explicacion').value || localStorage.getItem('nivelExplicacion') || 'basica';
     if (!input) {
         console.error('Elemento #input no encontrado');
         mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
@@ -769,11 +760,23 @@ const toggleDropdown = () => {
 
 const selectNivel = (nivel) => {
     const nivelBtn = getElement('#nivel-btn');
-    if (nivelBtn) {
+    const nivelSelect = getElement('#nivel-explicacion');
+    if (nivelBtn && nivelSelect) {
         nivelBtn.textContent = nivel === 'basica' ? 'Básica' : nivel === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
+        nivelSelect.value = nivel;
         localStorage.setItem('nivelExplicacion', nivel);
         toggleDropdown();
         mostrarNotificacion(`Nivel de explicación: ${nivelBtn.textContent}`, 'success');
+    }
+};
+
+const sincronizarNivelSelect = () => {
+    const nivelSelect = getElement('#nivel-explicacion');
+    const nivelBtn = getElement('#nivel-btn');
+    if (nivelSelect && nivelBtn) {
+        const nivelGuardado = localStorage.getItem('nivelExplicacion') || 'basica';
+        nivelSelect.value = nivelGuardado;
+        nivelBtn.textContent = nivelGuardado === 'basica' ? 'Básica' : nivelGuardado === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
     }
 };
 
@@ -864,6 +867,7 @@ const init = () => {
     const clearBtn = getElement('#btn-clear');
     const nivelBtn = getElement('#nivel-btn');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
+    const nivelSelect = getElement('#nivel-explicacion');
 
     if (menuToggle) {
         menuToggle.addEventListener('click', toggleMenu);
@@ -961,6 +965,12 @@ const init = () => {
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
     }
+    if (nivelSelect) {
+        nivelSelect.addEventListener('change', () => {
+            const nivel = nivelSelect.value;
+            selectNivel(nivel);
+        });
+    }
     const inputElement = getElement('#input');
     if (inputElement) {
         inputElement.addEventListener('keydown', (event) => {
@@ -984,6 +994,7 @@ const init = () => {
     }, { once: true });
     cargarAvatares();
     actualizarListaChats();
+    sincronizarNivelSelect();
     mostrarMensajeBienvenida();
 };
 

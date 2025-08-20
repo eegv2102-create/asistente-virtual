@@ -117,6 +117,12 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     if pregunta.lower().strip() in respuestas_simples:
         return respuestas_simples[pregunta.lower().strip()]
 
+    # Validar nivel_explicacion
+    niveles_validos = ["basica", "ejemplos", "avanzada"]
+    if nivel_explicacion not in niveles_validos:
+        logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}. Usando 'basica' por defecto.")
+        nivel_explicacion = "basica"
+
     tema_encontrado = None
     unidad_encontrada = None
     for unidad, subtemas in temas.items():
@@ -129,76 +135,87 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         if tema_encontrado:
             break
 
+    # Limitar historial a las últimas 3 interacciones para evitar confusión
     contexto = ""
     if historial:
-        contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
+        contexto = "\nHistorial reciente (referencia, no repitas contenido):\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-3:]])
 
+    # Prompts mejorados para cada nivel
     if nivel_explicacion == "basica":
         estilo_prompt = (
-            "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
-            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerrequisitos ni preguntas adicionales. "
-            "Usa un lenguaje simple, evita tecnicismos complejos y enfócate en conceptos básicos."
+            "Eres un tutor de Programación Avanzada. Explica el concepto preguntado de manera sencilla y clara, como si le hablaras a un principiante sin conocimientos previos. "
+            "Proporciona **solo la definición** del concepto en no más de 100 palabras, usando un lenguaje simple y evitando tecnicismos complejos. "
+            "**No incluyas ejemplos, ventajas, desventajas, prerrequisitos, preguntas adicionales ni encabezados como 'Ejemplo:' o 'Ventajas:'.** "
+            "Si el concepto no está claro, pide al usuario que lo especifique."
         )
         secciones_no_deseadas = [
-            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
-            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-            r'Prerrequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?',
+            r'(?:Ejemplo|Ejemplo de código|Example|Code example):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Ventajas|Advantages|Beneficios):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Desventajas|Disadvantages):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Prerrequisitos|Prerrequisitos recomendados|Prerequisites):[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?|Quieres continuar\?|Anything else\?',
             r'\n\s*\n\s*'
         ]
     elif nivel_explicacion == "ejemplos":
         estilo_prompt = (
-            "Proporciona la definición del concepto preguntado, seguida de un ejemplo de código claro y conciso que ilustre el concepto. "
-            "Usa un lenguaje claro y de nivel intermedio, adecuado para alguien con conocimientos básicos de programación. "
-            "No incluyas ventajas, prerrequisitos ni preguntas adicionales. "
-            "Asegúrate de que el ejemplo de código esté bien comentado y sea relevante al concepto."
+            "Eres un tutor de Programación Avanzada. Proporciona la definición del concepto preguntado en no más de 100 palabras, seguida de **un ejemplo de código claro y conciso** en un lenguaje relevante al concepto (por ejemplo, Python, Java, o C++). "
+            "El ejemplo debe estar comentado y ser fácil de entender para alguien con conocimientos básicos de programación. "
+            "**No incluyas ventajas, desventajas, prerrequisitos, preguntas adicionales ni encabezados como 'Ventajas:' o 'Prerrequisitos:'.** "
+            "Formato: <Definición>\n\n**Ejemplo de código**:\n```lenguaje\n<código>\n```"
         )
         secciones_no_deseadas = [
-            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-            r'Prerrequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?',
+            r'(?:Ventajas|Advantages|Beneficios):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Desventajas|Disadvantages):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Prerrequisitos|Prerrequisitos recomendados|Prerequisites):[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?|Quieres continuar\?|Anything else\?',
             r'\n\s*\n\s*'
         ]
     elif nivel_explicacion == "avanzada":
         estilo_prompt = (
-            "Proporciona una explicación teórica avanzada del concepto preguntado, incluyendo detalles profundos y referencias a estándares si aplica. "
-            "Usa un lenguaje técnico, pero claro, dirigido a alguien con experiencia en Programación Avanzada. "
-            "Proporciona solo la definición teórica, sin ejemplos, ventajas, prerrequisitos ni preguntas adicionales."
+            "Eres un tutor de Programación Avanzada. Proporciona una explicación teórica avanzada del concepto preguntado en no más de 150 palabras, dirigida a alguien con experiencia en programación. "
+            "Incluye detalles técnicos profundos, referencias a estándares o especificaciones si aplica, y usa un lenguaje técnico pero claro. "
+            "**No incluyas ejemplos, ventajas, desventajas, prerrequisitos, preguntas adicionales ni encabezados como 'Ejemplo:' o 'Ventajas:'.** "
+            "Si el concepto no está claro, pide al usuario que lo especifique."
         )
         secciones_no_deseadas = [
-            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
-            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-            r'Prerrequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?',
+            r'(?:Ejemplo|Ejemplo de código|Example|Code example):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Ventajas|Advantages|Beneficios):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Desventajas|Disadvantages):[\s\S]*?(?=(?:^##|\Z))',
+            r'(?:Prerrequisitos|Prerrequisitos recomendados|Prerequisites):[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?|Quieres continuar\?|Anything else\?',
             r'\n\s*\n\s*'
         ]
 
     prompt = (
         f"{estilo_prompt}\n"
         f"Pregunta del usuario: {pregunta}\n"
-        f"Contexto: {contexto}"
+        f"Contexto: {contexto}\n"
+        f"Tema relacionado (si aplica): {tema_encontrado or 'No identificado'}"
     )
 
     try:
         completion = call_groq_api(
             client,
             messages=[
-                {"role": "system", "content": "Eres un tutor experto en Programación Avanzada."},
+                {"role": "system", "content": "Eres un tutor experto en Programación Avanzada. Sigue estrictamente las instrucciones del prompt."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama3-70b-8192",
+            model="llama3-70b-8192",  # Cambiar a "mixtral-8x7b-32768" si el problema persiste
             max_tokens=500,
-            temperature=0.7
+            temperature=0.5  # Reducido para mayor precisión
         )
         respuesta = completion.choices[0].message.content.strip()
-        # Limpieza adicional para eliminar secciones no deseadas según el nivel
+        # Limpieza adicional para eliminar secciones no deseadas
         for regex in secciones_no_deseadas:
-            respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE).strip()
+            respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE | re.IGNORECASE).strip()
+        # Asegurar formato para ejemplos
+        if nivel_explicacion == "ejemplos" and "```" not in respuesta:
+            respuesta += "\n\n**Ejemplo de código**:\n```python\n# Ejemplo no proporcionado por el modelo. Contacta al soporte para más detalles.\n```"
         return respuesta
     except Exception as e:
         logging.error(f"Error en Groq API: {str(e)}")
         return "Lo siento, el servicio de IA está temporalmente no disponible. Intenta más tarde o verifica https://groqstatus.com/."
-    
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -210,7 +227,7 @@ def ask():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta", "")[:300])
         historial = data.get("historial", [])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica"))
+        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:20])
 
         if not pregunta:
             logging.error("Pregunta vacía en /ask")
@@ -230,7 +247,7 @@ def ask():
         except PsycopgError as e:
             logging.error(f"Error al guardar log: {str(e)}")
 
-        logging.info(f"Pregunta de {usuario}: {pregunta} - Respuesta: {respuesta}")
+        logging.info(f"Pregunta de {usuario}: {pregunta} - Nivel: {nivel_explicacion} - Respuesta: {respuesta}")
         return jsonify({"respuesta": respuesta})
     except Exception as e:
         logging.error(f"Error en /ask: {str(e)}")
