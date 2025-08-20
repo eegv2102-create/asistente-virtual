@@ -694,29 +694,37 @@ body {
 
     .menu-toggle {
         order: -2;
+        margin-right: 6px;
     }
 
     .menu-toggle-right {
-        order: -1;
+        order: 2;
+        margin-left: 6px;
     }
 
     #modo-btn {
-        order: -3;
+        order: -1;
+        margin-right: 4px;
     }
 
     #voice-btn {
         order: 1;
+        margin-left: 4px;
     }
 
     .app-title h1 {
         font-size: clamp(1.2rem, 3vw, 1.5rem);
         order: 0;
+        flex: 1;
+        text-align: center;
     }
 
     .title-container {
-        flex-wrap: wrap;
-        gap: 6px;
-        justify-content: center;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px;
+        padding: 0 8px;
     }
 
     .user, .bot {
