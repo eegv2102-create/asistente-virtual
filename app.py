@@ -95,17 +95,27 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         return respuestas_simples[pregunta.lower().strip()]
 
     tema_encontrado = None
-    for tema_id, tema_data in temas.items():
-        if tema_id in pregunta.lower() or any(kw.lower() in pregunta.lower() for kw in tema_data["palabras_clave"]):
-            tema_encontrado = tema_id
+    unidad_encontrada = None
+    for unidad, subtemas in temas.items():
+        for sub_tema_id, sub_tema_data in subtemas.items():
+            # Generar palabras clave dinámicas ya que no hay "palabras_clave" en el JSON
+            palabras_clave = [sub_tema_id.lower()] + [w.lower() for w in sub_tema_data.get("ventajas", [])] + sub_tema_data["definición"].lower().split()
+            if sub_tema_id.lower() in pregunta.lower() or any(kw in pregunta.lower() for kw in palabras_clave):
+                tema_encontrado = sub_tema_id
+                unidad_encontrada = unidad
+                break
+        if tema_encontrado:
             break
 
     prereq_text = ""
-    if tema_encontrado and tema_encontrado in prerequisitos:
-        prereq_text = (
-            "\n\n**Prerequisitos recomendados**: Antes de profundizar en este tema, te sugiero repasar:\n" +
-            "\n".join([f"- {temas[p]['descripcion']}" for p in prerequisitos[tema_encontrado] if p in temas])
-        )
+    if tema_encontrado:
+        # Mapear la unidad encontrada a la clave de prerequisitos (quitar el texto después de los dos puntos)
+        unidad_key = unidad_encontrada.split(':')[0].strip()
+        if unidad_key in prerequisitos and tema_encontrado in prerequisitos[unidad_key]:
+            prereq_text = (
+                "\n\n**Prerequisitos recomendados**: Antes de profundizar en este tema, te sugiero repasar:\n" +
+                "\n".join([f"- {p}" for p in prerequisitos[unidad_key][tema_encontrado]])
+            )
 
     contexto = ""
     if historial:
@@ -119,8 +129,8 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         )
     elif nivel_explicacion == "ejemplos":
         estilo_prompt = (
-            "Proporciona una explicación clara con ejemplos prácticos de código en bloques Markdown (```python o ```java). "
-            "Asegúrate de que los ejemplos sean relevantes, fáciles de entender y bien comentados para ilustrar el concepto."
+            "Proporciona una explicación clara con ejemplos prácticos de código en bloques Markdown (\`\`\`python o \`\`\`java). "
+            "Asegúrate de que los ejemplos sean relevantes, relevantes, fáciles de entender y bien comentados para ilustrar el concepto."
         )
     elif nivel_explicacion == "avanzada":
         estilo_prompt = (
@@ -140,7 +150,7 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
         f"4. {estilo_prompt}\n"
         "5. Al final de cada respuesta, siempre preguntar: \"¿Deseas saber más?\"\n"
-        "6. Incluir ejemplos de código prácticos en bloques Markdown (```python o ```java) cuando sea relevante, con explicaciones detalladas.\n"
+        "6. Incluir ejemplos de código prácticos en bloques Markdown (\`\`\`python o \`\`\`java) cuando sea relevante.\n"
         "7. Proporcionar definiciones teóricas profundas y estructuradas, como en una IA profesional.\n"
         f"Contexto: {json.dumps(temas)}\n"
         f"Prerequisitos: {json.dumps(prerequisitos)}\n"
@@ -159,7 +169,8 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     )
     respuesta = completion.choices[0].message.content
     if tema_encontrado:
-        respuesta = f"**{tema_encontrado}**: {temas[tema_encontrado]['descripcion']}\n\n{respuesta}{prereq_text}\n\n¿Deseas saber más?"
+        descripcion = temas[unidad_encontrada][tema_encontrado].get('descripcion', temas[unidad_encontrada][tema_encontrado].get('definición', ''))
+        respuesta = f"**{tema_encontrado}**: {descripcion}\n\n{respuesta}{prereq_text}\n\n¿Deseas saber más?"
     else:
         respuesta += f"{prereq_text}\n\n¿Deseas saber más?"
 
@@ -407,7 +418,9 @@ def recommend():
 
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
-        temas_disponibles = list(temas.keys())
+        temas_disponibles = []
+        for unidad, subtemas in temas.items():
+            temas_disponibles.extend(subtemas.keys())
 
         temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
         contexto = "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
