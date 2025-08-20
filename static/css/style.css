@@ -158,12 +158,16 @@ body {
     overflow-y: auto;
 }
 
-.left-section {
-    border-right: none;
-}
-
 .right-section {
     border-left: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Alinea el contenido al inicio */
+    align-items: center; /* Centra los avatares horizontalmente */
+}
+
+.left-section {
+    border-right: none;
 }
 
 .left-section h3, .right-section h3 {
@@ -172,6 +176,8 @@ body {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+    width: 100%; /* Asegura que el encabezado ocupe todo el ancho */
+    text-align: center; /* Centra el texto del encabezado */
 }
 
 .sidebar-content {
@@ -533,7 +539,7 @@ body {
 
 #notification-card {
     position: fixed;
-    bottom: 100px;  /* Aumenta esto para dar espacio a los botones inferiores */
+    bottom: 100px;
     right: 20px;
     background-color: var(--bg-secondary);
     color: var(--text-primary);
@@ -541,8 +547,10 @@ body {
     border-radius: 8px;
     box-shadow: 0 4px 8px var(--shadow);
     max-width: 300px;
+    max-height: 200px;
+    overflow-y: auto;
     display: none;
-    z-index: 1002;  /* Asegura que esté por encima de otros elementos, pero no tape botones si ajustas bottom */
+    z-index: 1002;
 }
 
 #notification-card.active {
@@ -581,23 +589,30 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%; /* Ocupa todo el ancho del contenedor */
+    align-items: center; /* Centra los avatares horizontalmente */
+    flex: 1; /* Permite que crezca para llenar el espacio disponible */
+    justify-content: flex-start; /* Alinea los avatares al inicio */
 }
 
 .avatar-options img {
-    width: 50px;
-    height: 50px;
-    border-radius: 8px;
+    width: 60px; /* Aumentado para mayor protagonismo */
+    height: 60px;
+    border-radius: 12px; /* Bordes más suaves */
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, border 0.2s ease;
     pointer-events: auto;
+    border: 2px solid transparent; /* Borde por defecto transparente */
 }
 
 .avatar-options img:hover, .avatar-options img:focus {
-    transform: scale(1.1);
+    transform: scale(1.15); /* Aumentado para mejor efecto visual */
+    border: 2px solid var(--accent); /* Borde al pasar el ratón */
 }
 
 .avatar-options img.selected {
     border: 2px solid var(--accent);
+    transform: scale(1.1); /* Ligeramente más grande cuando está seleccionado */
 }
 
 @media (max-width: 768px) {
@@ -625,6 +640,7 @@ body {
     .right-section {
         transform: translateX(100%);
         right: 0;
+        align-items: center; /* Centra el contenido en móviles */
     }
 
     .left-section.active, .right-section.active {
@@ -759,6 +775,16 @@ body {
     .app-title {
         padding: 10px 8px;
     }
+
+    .avatar-options {
+        width: 100%; /* Ocupa todo el ancho en móviles */
+        align-items: center; /* Centra los avatares */
+    }
+
+    .avatar-options img {
+        width: 50px; /* Tamaño más pequeño en móviles */
+        height: 50px;
+    }
 }
 
 @media (min-width: 769px) {
@@ -803,12 +829,9 @@ body.modo-oscuro .bot code {
     background: color-mix(in srgb, var(--message-bot-bg), #fff 10%);
     color: #f0f0f0;
 }
+
 @media (max-width: 768px) {
     #notification-card {
-        bottom: 120px;  /* Más espacio en móvil, donde los botones están fijos abajo */
+        bottom: 120px; /* Más espacio en móvil */
     }
-}
-#notification-card {
-    max-height: 200px;
-    overflow-y: auto;
 }
