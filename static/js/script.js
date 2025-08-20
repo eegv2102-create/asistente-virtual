@@ -1012,7 +1012,6 @@ const init = () => {
     }, { once: true });
     cargarAvatares();
     actualizarListaChats();
-    cargarAnalytics();
     mostrarMensajeBienvenida();
 };
 
