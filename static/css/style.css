@@ -940,3 +940,11 @@ body.modo-oscuro .bot code {
   50% { opacity: 1; }
   100% { opacity: 0.7; }
 }
+
+.bot ul {
+    padding-left: 20px;
+    margin: 10px 0;
+}
+.bot li {
+    margin-bottom: 5px;
+}

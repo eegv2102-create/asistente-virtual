@@ -589,11 +589,13 @@ const sendMessage = () => {
         console.log('Respuesta del backend:', data.respuesta);
         let respuestaLimpia = data.respuesta.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         // Detectar bloques de código no formateados
-        const codeRegex = /(^|\n)(\b(?:class|def|public\s+\w+\s+\w+\s*\([^)]*\)\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
-        respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, keyword) => {
+        const codeRegex = /(^|\n)(\s*(?:clase\s+)?\b(?:class|def|public\s+\w+\s+\w+\s*$$ [^)]* $$\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
+        respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, code) => {
             if (!match.includes('```')) {
-                const language = keyword.startsWith('def') ? 'python' : 'java';
-                return `${prefix}\`\`\`${language}\n${match.trim()}\n\`\`\``;
+                const language = code.includes('def ') ? 'python' : 'java';
+                // Eliminar "clase" si está presente
+                const cleanCode = code.replace(/^\s*clase\s+/i, '').trim();
+                return `${prefix}\`\`\`${language}\n${cleanCode}\n\`\`\``;
             }
             return match;
         });
@@ -719,6 +721,7 @@ const toggleMenu = () => {
         voiceHint.classList.add('hidden');
     }
 };
+
 
 const toggleRightMenu = () => {
     const rightSection = getElement('.right-section');

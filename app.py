@@ -135,7 +135,7 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
 
     # Obtener el ejemplo de código desde temas.json si existe
     ejemplo_codigo = None
-    lenguaje = "java"  # Por defecto, ya que los ejemplos en temas.json son en Java
+    lenguaje = "java"  # Por defecto
     if tema_encontrado and unidad_encontrada:
         ejemplo_codigo = temas[unidad_encontrada][tema_encontrado].get("ejemplo", "")
         if "def " in ejemplo_codigo or ("class " in ejemplo_codigo and "public " not in ejemplo_codigo):
@@ -211,8 +211,14 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
                 respuesta += f"\n\n**Ejemplo**:\n```{lenguaje}\n{ejemplo_codigo}\n```"
 
         # Detectar bloques de código no formateados
-        code_pattern = r'(?<!```)(\b(?:class|def|public\s+\w+\s+\w+\s*$$   [^)]*   $$\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$|```))'
-        respuesta = re.sub(code_pattern, lambda m: f"```{lenguaje}\n{m.group(1).strip()}\n```", respuesta, flags=re.MULTILINE)
+        code_pattern = r'(?m)^(\s*(?:class|def|public\s+\w+\s+\w+\s*\([^)]*\)\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))'
+        def format_code(match):
+            code = match.group(1).strip()
+            # Excluir texto descriptivo como "clase" antes del código
+            if code.startswith("clase"):
+                code = code[len("clase"):].strip()
+            return f"```java\n{code}\n```"
+        respuesta = re.sub(code_pattern, format_code, respuesta)
 
         # Limpieza adicional
         for regex in secciones_no_deseadas:
@@ -225,7 +231,7 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     except Exception as e:
         logging.error(f"Error en Groq API: {str(e)}")
         return "Lo siento, el servicio de IA está temporalmente no disponible. Intenta más tarde o verifica https://groqstatus.com/."
-                  
+                      
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -250,23 +256,36 @@ p.saludar();
     respuesta_formateada = f"```java\n{respuesta}\n```"
     return jsonify({'respuesta': respuesta_formateada, 'video_url': None})
 
+def validate_quiz_format(quiz_data):
+    required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "tipo_quiz"]
+    for key in required_keys:
+        if key not in quiz_data:
+            raise ValueError(f"Falta la clave {key} en el quiz")
+    if not isinstance(quiz_data["opciones"], list) or len(quiz_data["opciones"]) < 2:
+        raise ValueError("El quiz debe tener al menos 2 opciones")
+    if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
+        raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
+    
 @app.route("/quiz", methods=["POST"])
 def quiz():
     try:
         data = request.get_json()
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        tipo_quiz = bleach.clean(data.get("tipo", "opciones")[:20])
+        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones")[:20])  # Corregido "tipo" a "tipo_quiz"
         tema = bleach.clean(data.get("tema", "")[:50])
         nivel_explicacion = bleach.clean(data.get("nivel", "basica")[:20])
 
+        # Cargar progreso del usuario
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
 
+        # Obtener temas disponibles
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
-        tema = tema if tema in temas_disponibles else random.choice(temas_disponibles)
+        tema = tema if tema in temas_disponibles else random.choice(temas_disponibles) if temas_disponibles else "POO"
 
+        # Configurar cliente Groq
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
             f"Eres un tutor de Programación Avanzada. Genera un quiz de tipo {tipo_quiz} sobre el tema '{tema}'. "
@@ -283,6 +302,7 @@ def quiz():
             f"Contexto: usuario ha aprendido {','.join(temas_aprendidos)}. Timestamp: {int(time.time())}"
         )
 
+        # Llamar a Groq API
         completion = call_groq_api(
             client,
             messages=[
@@ -294,14 +314,15 @@ def quiz():
             temperature=0.9
         )
 
-        # Loggear la respuesta cruda de Groq para depuración
-        logging.info(f"Respuesta cruda de Groq: {completion.choices[0].message.content}")
+        # Loggear la respuesta cruda de Groq
+        logging.info(f"Respuesta cruda de Groq para quiz: {completion.choices[0].message.content}")
 
+        # Procesar la respuesta
         try:
             quiz_data = json.loads(completion.choices[0].message.content)
         except json.JSONDecodeError as je:
             logging.error(f"Error al decodificar JSON de Groq: {str(je)}")
-            # Fallback: generar un quiz simple si Groq falla
+            # Fallback: generar un quiz simple
             quiz_data = {
                 "pregunta": f"¿Qué es {tema}?",
                 "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
@@ -311,28 +332,44 @@ def quiz():
             }
             logging.warning(f"Usando quiz de fallback para tema {tema}")
 
-        quiz_data['tipo_quiz'] = tipo_quiz  # Asegurar que tipo_quiz esté en la respuesta
+        # Asegurar que tipo_quiz esté en la respuesta
+        quiz_data['tipo_quiz'] = tipo_quiz
+
+        # Validar formato del quiz
         try:
             validate_quiz_format(quiz_data)
         except ValueError as ve:
             logging.error(f"Error en el formato del quiz: {str(ve)}")
-            return jsonify({"error": f"Error en el formato del quiz: {str(ve)}"}), 500
+            # Fallback si la validación falla
+            quiz_data = {
+                "pregunta": f"¿Qué es {tema}?",
+                "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+                "respuesta_correcta": "Opción A",
+                "tema": tema,
+                "tipo_quiz": tipo_quiz
+            }
+            logging.warning(f"Usando quiz de fallback por error de validación: {str(ve)}")
+
+        # Guardar en base de datos
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO logs (usuario, pregunta, respuesta, video_url, timestamp) VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)",
+                (usuario, quiz_data["pregunta"], json.dumps(quiz_data["opciones"]), None)
+            )
+            conn.commit()
+            conn.close()
+            logging.info(f"Quiz guardado en logs para usuario {usuario}: {quiz_data['pregunta']}")
+        except PsycopgError as e:
+            logging.error(f"Error al guardar quiz en logs: {str(e)}")
 
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
-        return jsonify(quiz_data)
+        return jsonify({"quiz": [quiz_data]})
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
     
-def validate_quiz_format(quiz_data):
-    required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "tipo_quiz"]
-    for key in required_keys:
-        if key not in quiz_data:
-            raise ValueError(f"Falta la clave {key} en el quiz")
-    if not isinstance(quiz_data["opciones"], list) or len(quiz_data["opciones"]) < 2:
-        raise ValueError("El quiz debe tener al menos 2 opciones")
-    if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
-        raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
@@ -398,25 +435,27 @@ def recommend():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         historial = data.get("historial", [])
 
+        # Cargar progreso del usuario
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
 
+        # Seleccionar temas no aprendidos
         temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
         if not temas_no_aprendidos:
             temas_no_aprendidos = temas_disponibles  # Si no hay temas no aprendidos, usar todos
 
-        contexto = "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
-
+        # Configurar cliente Groq
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
             "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-            "Tu tarea es recomendar un tema de Programación Avanzada basado en el historial de interacciones y los temas ya aprendidos. "
-            "Elige un tema de los disponibles que no haya sido aprendido, considerando el contexto del historial. "
-            "Si no hay temas no aprendidos, elige un tema relevante para reforzar. "
-            "Devuelve solo el nombre del tema recomendado (por ejemplo, 'Patrones de diseño') sin explicaciones adicionales."
+            "Tu tarea es recomendar hasta 3 temas de Programación Avanzada basados en el historial de interacciones y los temas ya aprendidos. "
+            "Elige temas de los disponibles que no hayan sido aprendidos, considerando el contexto del historial. "
+            "Si no hay temas no aprendidos, elige temas relevantes para reforzar. "
+            "Devuelve un objeto JSON con una clave 'recommendations' que contenga una lista de nombres de temas (por ejemplo, ['Polimorfismo', 'Patrones de diseño']). "
+            "NO incluyas explicaciones adicionales fuera del JSON."
             f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}\nTimestamp: {int(time.time())}"
         )
 
@@ -424,22 +463,33 @@ def recommend():
             client,
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Recomienda un tema."}
+                {"role": "user", "content": "Recomienda temas."}
             ],
             model="llama3-70b-8192",
-            max_tokens=50,
+            max_tokens=100,
             temperature=0.7
         )
 
-        recomendacion = completion.choices[0].message.content.strip()
-        if not recomendacion or recomendacion not in temas_disponibles:
-            recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
+        # Procesar la respuesta
+        try:
+            recomendacion_data = json.loads(completion.choices[0].message.content)
+            recomendaciones = recomendacion_data.get("recommendations", [])
+        except json.JSONDecodeError as je:
+            logging.error(f"Error al decodificar JSON de Groq en /recommend: {str(je)}")
+            recomendaciones = random.sample(temas_no_aprendidos, min(3, len(temas_no_aprendidos))) if temas_no_aprendidos else random.sample(temas_disponibles, min(3, len(temas_disponibles)))
+            logging.warning(f"Usando recomendaciones de fallback: {recomendaciones}")
 
-        logging.info(f"Recomendación para usuario {usuario}: {recomendacion}")
-        return jsonify({"recommendation": recomendacion})
+        # Formatear como lista Markdown con prefijo
+        recomendacion_texto = "Te recomiendo estudiar:\n" + "\n".join(f"- {tema}" for tema in recomendaciones[:3])
+        logging.info(f"Recomendación para usuario {usuario}: {recomendacion_texto}")
+        return jsonify({"recommendation": recomendacion_texto})
     except Exception as e:
         logging.error(f"Error en /recommend: {str(e)}")
-        return jsonify({"error": f"Error al generar la recomendación: {str(e)}"}), 500
+        # Fallback en caso de error
+        recomendaciones = random.sample(temas_no_aprendidos, min(3, len(temas_no_aprendidos))) if temas_no_aprendidos else random.sample(temas_disponibles, min(3, len(temas_disponibles)))
+        recomendacion_texto = "Te recomiendo estudiar:\n" + "\n".join(f"- {tema}" for tema in recomendaciones)
+        logging.warning(f"Usando recomendaciones de fallback por error: {recomendacion_texto}")
+        return jsonify({"recommendation": recomendacion_texto})
 
 if __name__ == "__main__":
     init_db()
