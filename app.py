@@ -21,6 +21,10 @@ app = Flask(__name__)
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
 # Validar variables de entorno
 if not os.getenv("GROQ_API_KEY"):
     logging.error("GROQ_API_KEY no configurada")
@@ -186,9 +190,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
         return "Lo siento, no pude procesar tu pregunta. Intenta de nuevo."
 
-    # Asegurarse de envolver el código en triple backticks
-    respuesta_formateada = f"```java\n{respuesta}\n```"
-    return jsonify({'respuesta': respuesta_formateada, 'video_url': None})
 
 def validate_quiz_format(quiz_data):
     required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "tipo_quiz"]
