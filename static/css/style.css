@@ -232,14 +232,19 @@ body {
 .chat-history {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden; /* Evitar barra de desplazamiento horizontal */
     border: 1px solid var(--border);
     border-radius: 8px;
     background-color: var(--bg-primary);
+    width: 100%; /* Asegurar que no exceda el contenedor */
+    box-sizing: border-box; /* Incluir padding en el ancho */
 }
 
 #chat-list {
     list-style: none;
     padding: 8px;
+    margin: 0;
+    width: 100%; /* Asegurar que la lista no exceda el contenedor */
 }
 
 #chat-list::-webkit-scrollbar,
@@ -274,6 +279,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    overflow: hidden; /* Evitar desbordamiento dentro de los elementos li */
 }
 
 #chat-list li:hover, #chat-list li:focus {
@@ -287,9 +293,18 @@ body {
     color: var(--button-text);
 }
 
-.chat-actions {
+#chat-list li .chat-name {
+    flex: 1;
+    white-space: nowrap; /* Evitar que el texto se divida en varias líneas */
+    overflow: hidden; /* Ocultar texto que excede */
+    text-overflow: ellipsis; /* Mostrar puntos suspensivos para texto largo */
+    max-width: calc(100% - 80px); /* Limitar ancho para dejar espacio a los botones */
+}
+
+#chat-list li .chat-actions {
     display: flex;
     gap: 8px;
+    flex-shrink: 0; /* Evitar que los botones se compriman */
 }
 
 .chat-actions .rename-btn, .chat-actions .delete-btn {
@@ -343,7 +358,7 @@ body {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s ease, visibility 0.2s ease;
-    z-index: 1006;
+    z-index: 1006; /* Asegurar que el tooltip esté encima de todo */
     box-shadow: 0 2px 4px var(--shadow);
     margin-right: 8px; /* Espacio entre el tooltip y el botón */
 }
@@ -363,7 +378,7 @@ body {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s ease, visibility 0.2s ease;
-    z-index: 1006;
+    z-index: 1006; /* Asegurar que el tooltip esté encima de todo */
     box-shadow: 0 2px 4px var(--shadow);
     margin-left: 8px; /* Espacio entre el tooltip y el botón */
 }
