@@ -488,39 +488,60 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
     }
 };
 
-const mostrarQuizEnChat = (quizData) => {
+const mostrarQuizEnChat = (data) => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!container) return;
-    const quiz = quizData.quiz[0];
+    if (!chatbox || !container || !data.pregunta) return;
+
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    const opcionesHtml = quiz.opciones.map((opcion, i) => `
-        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">
-            ${quiz.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
-        </button>
+    let opcionesHtml = data.opciones.map((opcion, i) => `
+        <button class="quiz-option" data-option="${opcion}" data-correct="${opcion === data.respuesta_correcta}" aria-label="Opción ${i + 1}">${i + 1}. ${opcion}</button>
     `).join('');
     botDiv.innerHTML = `
-        ${typeof marked !== 'undefined' ? marked.parse(quiz.pregunta, { breaks: true, gfm: true }) : quiz.pregunta}
-        <div class="quiz-options">${opcionesHtml}</div>
-        <button class="copy-btn" data-text="${quiz.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
+        ${typeof marked !== 'undefined' ? marked.parse(data.pregunta, { breaks: true, gfm: true }) : data.pregunta}
+        ${opcionesHtml}
+        <button class="copy-btn" data-text="${data.pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
     container.appendChild(botDiv);
     scrollToBottom();
-    if (window.Prism) Prism.highlightAll();
-    guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`, null, quiz.tema);
+
     getElements('.quiz-option').forEach(btn => {
-        btn.addEventListener('click', () => {
-            getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
-            btn.classList.add('selected');
-            const opcion = btn.dataset.opcion;
-            const respuestaCorrecta = btn.dataset.respuesta_correcta;
-            const tema = btn.dataset.tema;
-            responderQuiz(opcion, respuestaCorrecta, tema);
-            getElements('.quiz-option').forEach(opt => opt.disabled = true);
+        btn.addEventListener('click', async () => {
+            const respuesta = btn.dataset.option;
+            const respuesta_correcta = data.respuesta_correcta; // Asegúrate de que esto se envíe
+            try {
+                const res = await fetch('/responder_quiz', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuario: localStorage.getItem('usuario') || 'anonimo',
+                        respuesta,
+                        tema: data.tema,
+                        respuesta_correcta // Enviar la respuesta correcta
+                    })
+                });
+                const result = await res.json();
+                if (result.error) {
+                    mostrarNotificacion(result.error, 'error');
+                    return;
+                }
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.classList.add('bot');
+                feedbackDiv.innerHTML = `
+                    ${typeof marked !== 'undefined' ? marked.parse(result.respuesta, { breaks: true, gfm: true }) : result.respuesta}
+                    <button class="copy-btn" data-text="${result.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar retroalimentación"><i class="fas fa-copy"></i></button>
+                `;
+                container.appendChild(feedbackDiv);
+                scrollToBottom();
+                if (window.Prism) Prism.highlightAll();
+                if (vozActiva && userHasInteracted) speakText(result.respuesta);
+            } catch (error) {
+                mostrarNotificacion('Error al responder quiz', 'error');
+                console.error('Error en responder quiz:', error);
+            }
         });
     });
-    speakText(quiz.pregunta);
 };
 
 const responderQuiz = (opcion, respuestaCorrecta, tema) => {

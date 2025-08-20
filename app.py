@@ -48,7 +48,7 @@ def init_db():
         conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
-                     (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default')''')
+                     (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
@@ -204,149 +204,88 @@ def validate_quiz_format(quiz_data):
 def quiz():
     try:
         data = request.get_json()
+        tipo = bleach.clean(data.get("tipo", "opciones")[:20])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones")[:20])  # Corregido "tipo" a "tipo_quiz"
-        tema = bleach.clean(data.get("tema", "Introducción a la POO")[:50])  # Valor por defecto válido
-        nivel_explicacion = bleach.clean(data.get("nivel", "basica")[:20])
+        historial = data.get("historial", [])
 
-        # Cargar progreso del usuario
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
-
-        # Obtener temas disponibles
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
-        
-        # Validar tema
-        if not temas_disponibles:
-            logging.error("No se encontraron temas disponibles en temas.json")
-            quiz_data = {
-                "pregunta": "¿Qué es la Programación Orientada a Objetos?",
-                "opciones": ["Un paradigma basado en objetos", "Un lenguaje de programación", "Un tipo de base de datos", "Un framework"],
-                "respuesta_correcta": "Un paradigma basado en objetos",
-                "tema": "Introducción a la POO",
-                "tipo_quiz": tipo_quiz
-            }
-            logging.warning(f"Usando quiz de fallback por temas vacíos: {quiz_data}")
-            return jsonify({"quiz": [quiz_data]})
+        temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
+        tema = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
 
-        tema = tema if tema in temas_disponibles else random.choice(temas_disponibles)
+        contexto = ""
+        if historial:
+            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
-        # Configurar cliente Groq
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
-            f"Eres un tutor de Programación Avanzada. Genera un quiz de tipo {tipo_quiz} sobre el tema '{tema}'. "
-            f"El nivel de explicación debe ser {nivel_explicacion}. "
-            f"Genera una pregunta única (no repitas preguntas anteriores). "
-            "Devuelve SOLO un objeto JSON con las claves: pregunta (string), opciones (array de strings), respuesta_correcta (string, debe coincidir exactamente con una opción), tema (string), tipo_quiz (string). "
-            "NO incluyas texto adicional fuera del JSON. "
-            "Ejemplo: "
-            "{\"pregunta\": \"¿Qué es un bucle for en Python?\", "
-            "\"opciones\": [\"Itera sobre una secuencia\", \"Define una función\", \"Crea una clase\", \"Ejecuta una condición\"], "
-            "\"respuesta_correcta\": \"Itera sobre una secuencia\", "
-            "\"tema\": \"Bucles\", "
-            "\"tipo_quiz\": \"opciones\"}"
-            f"Contexto: usuario ha aprendido {','.join(temas_aprendidos)}. Timestamp: {int(time.time())}"
+            f"Eres un tutor de Programación Avanzada. Crea una pregunta de quiz sobre el tema '{tema}' "
+            f"para estudiantes de Ingeniería en Telemática. La pregunta debe ser de tipo {tipo} (opciones múltiples o verdadero/falso). "
+            f"Devuelve un objeto JSON con las claves: 'pregunta' (texto de la pregunta), 'opciones' (lista de 4 opciones para tipo 'opciones' o 2 para 'verdadero/falso'), "
+            f"'respuesta_correcta' (texto exacto de la opción correcta), y 'tema' (el tema elegido). "
+            f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
         )
 
-        # Llamar a Groq API
         completion = call_groq_api(
             client,
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Genera un quiz."}
+                {"role": "user", "content": "Genera una pregunta de quiz."}
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.9
+            temperature=0.7
         )
 
-        # Loggear la respuesta cruda de Groq
-        logging.info(f"Respuesta cruda de Groq para quiz: {completion.choices[0].message.content}")
+        quiz_data = json.loads(completion.choices[0].message.content)
+        pregunta = quiz_data.get("pregunta", "")
+        opciones = quiz_data.get("opciones", [])
+        respuesta_correcta = quiz_data.get("respuesta_correcta", "")
+        tema = quiz_data.get("tema", tema)
 
-        # Procesar la respuesta
-        try:
-            quiz_data = json.loads(completion.choices[0].message.content)
-        except json.JSONDecodeError as je:
-            logging.error(f"Error al decodificar JSON de Groq: {str(je)}")
-            quiz_data = {
-                "pregunta": f"¿Qué es {tema}?",
-                "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
-                "respuesta_correcta": "Opción A",
-                "tema": tema,
-                "tipo_quiz": tipo_quiz
-            }
-            logging.warning(f"Usando quiz de fallback por JSON inválido: {quiz_data}")
+        if not pregunta or not opciones or not respuesta_correcta:
+            logging.error("Datos incompletos en la respuesta del quiz")
+            return jsonify({"error": "No se pudo generar el quiz"}), 500
 
-        # Asegurar que tipo_quiz esté en la respuesta
-        quiz_data['tipo_quiz'] = tipo_quiz
-
-        # Validar formato del quiz
-        try:
-            validate_quiz_format(quiz_data)
-        except ValueError as ve:
-            logging.error(f"Error en el formato del quiz: {str(ve)}")
-            quiz_data = {
-                "pregunta": f"¿Qué es {tema}?",
-                "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
-                "respuesta_correcta": "Opción A",
-                "tema": tema,
-                "tipo_quiz": tipo_quiz
-            }
-            logging.warning(f"Usando quiz de fallback por error de validación: {quiz_data}")
-
-        # Guardar en base de datos
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
-            c = conn.cursor()
-            c.execute(
-                "INSERT INTO logs (usuario, pregunta, respuesta, video_url, timestamp) VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)",
-                (usuario, quiz_data["pregunta"], json.dumps(quiz_data["opciones"]), None)
-            )
-            conn.commit()
-            conn.close()
-            logging.info(f"Quiz guardado en logs para usuario {usuario}: {quiz_data['pregunta']}")
-        except PsycopgError as e:
-            logging.error(f"Error al guardar quiz en logs: {str(e)}")
-
-        logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
-        return jsonify({"quiz": [quiz_data]})
+        logging.info(f"Quiz generado para usuario {usuario}: {pregunta}")
+        return jsonify({
+            "pregunta": pregunta,
+            "opciones": opciones,
+            "respuesta_correcta": respuesta_correcta,
+            "tema": tema
+        })
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
-        quiz_data = {
-            "pregunta": "¿Qué es la Programación Orientada a Objetos?",
-            "opciones": ["Un paradigma basado en objetos", "Un lenguaje de programación", "Un tipo de base de datos", "Un framework"],
-            "respuesta_correcta": "Un paradigma basado en objetos",
-            "tema": "Introducción a la POO",
-            "tipo_quiz": tipo_quiz
-        }
-        logging.warning(f"Usando quiz de fallback por error general: {quiz_data}")
-        return jsonify({"quiz": [quiz_data]})    
+        return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500   
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
     try:
         data = request.get_json()
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        respuesta = bleach.clean(data.get("respuesta", "")[:300]).strip().lower()
-        respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300]).strip().lower()
-        tema = bleach.clean(data.get("tema", "")[:50])
+        respuesta = bleach.clean(data.get("respuesta", "")[:100])
+        tema = bleach.clean(data.get("tema", "")[:100])
+        respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:100])  # Asegúrate de que el frontend envíe esto
+
+        if not respuesta or not tema or not respuesta_correcta:
+            logging.error("Faltan datos en /responder_quiz")
+            return jsonify({"error": "Faltan datos en la solicitud"}), 400
 
         progreso = cargar_progreso(usuario)
         puntos = progreso["puntos"]
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
 
-        es_correcta = respuesta == respuesta_correcta
+        es_correcta = respuesta.lower() == respuesta_correcta.lower()
         if es_correcta:
             puntos += 10
             if tema and tema not in temas_aprendidos:
                 temas_aprendidos.append(tema)
             mensaje = f"✅ ¡Correcto! Has ganado 10 puntos. Tema: {tema}. ¿Deseas saber más?"
         else:
-            # Línea corregida para manejar el valor None
-            respuesta_display = data.get('respuesta_correcta') or "No disponible"
-            mensaje = f"❌ Incorrecto. La respuesta correcta era: {respuesta_display}. ¿Deseas saber más?"
+            mensaje = f"❌ Incorrecto. La respuesta correcta era: {respuesta_correcta}. ¿Deseas saber más?"
 
         guardar_progreso(usuario, puntos, ",".join(temas_aprendidos))
         logging.info(f"Quiz respondido por {usuario}: {mensaje}")
@@ -400,6 +339,23 @@ def recommend():
         if not temas_no_aprendidos:
             temas_no_aprendidos = temas_disponibles  # Si no hay temas no aprendidos, usar todos
 
+        # Cargar historial de recomendaciones recientes desde la base de datos
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
+            c = conn.cursor()
+            c.execute("SELECT temas_recomendados FROM progreso WHERE usuario = %s", (usuario,))
+            row = c.fetchone()
+            temas_recomendados = row[0].split(",") if row and row[0] else []
+            conn.close()
+        except PsycopgError as e:
+            logging.error(f"Error al cargar temas recomendados: {str(e)}")
+            temas_recomendados = []
+
+        # Filtrar temas no recomendados recientemente
+        temas_disponibles_para_recomendar = [t for t in temas_no_aprendidos if t not in temas_recomendados[-3:]]  # Evitar los últimos 3 recomendados
+        if not temas_disponibles_para_recomendar:
+            temas_disponibles_para_recomendar = temas_no_aprendidos  # Si no hay temas nuevos, permitir repetición
+
         # Definir contexto a partir del historial
         contexto = ""
         if historial:
@@ -409,11 +365,11 @@ def recommend():
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
             "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-            "Tu tarea es recomendar hasta 3 temas de Programación Avanzada basados en el historial de interacciones y los temas ya aprendidos. "
-            "Elige temas de los disponibles que no hayan sido aprendidos, considerando el contexto del historial y los prerequisitos. "
-            "Devuelve un objeto JSON con una clave 'recommendations' que contenga una lista de nombres de temas (por ejemplo, ['Polimorfismo', 'Patrones de diseño']). "
+            "Tu tarea es recomendar UN SOLO tema de Programación Avanzada basado en el historial de interacciones y los temas ya aprendidos. "
+            "Elige un tema de los disponibles que no haya sido aprendido, considerando el contexto del historial y los prerequisitos. "
+            "Devuelve un objeto JSON con una clave 'recommendation' que contenga el nombre de UN SOLO tema (por ejemplo, {'recommendation': 'Polimorfismo'}). "
             "NO incluyas explicaciones adicionales fuera del JSON."
-            f"\nContexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}\nTimestamp: {int(time.time())}"
+            f"\nContexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_disponibles_para_recomendar)}\nTimestamp: {int(time.time())}"
             f"\nPrerequisitos: {json.dumps(prerequisitos)}"
         )
 
@@ -421,44 +377,55 @@ def recommend():
             client,
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Recomienda temas."}
+                {"role": "user", "content": "Recomienda un tema."}
             ],
             model="llama3-70b-8192",
-            max_tokens=100,
+            max_tokens=50,  # Reducido para respuesta más precisa
             temperature=0.7
         )
 
         # Procesar la respuesta
         try:
             recomendacion_data = json.loads(completion.choices[0].message.content)
-            recomendaciones = recomendacion_data.get("recommendations", [])
+            recomendacion = recomendacion_data.get("recommendation", "")
         except json.JSONDecodeError as je:
             logging.error(f"Error al decodificar JSON de Groq en /recommend: {str(je)}")
-            recomendaciones = random.sample(temas_no_aprendidos, min(3, len(temas_no_aprendidos))) if temas_no_aprendidos else random.sample(temas_disponibles, min(3, len(temas_disponibles)))
-            logging.warning(f"Usando recomendaciones de fallback: {recomendaciones}")
+            recomendacion = random.choice(temas_disponibles_para_recomendar) if temas_disponibles_para_recomendar else random.choice(temas_disponibles)
+            logging.warning(f"Usando recomendación de fallback: {recomendacion}")
 
-        # Filtrar recomendaciones según prerequisitos
-        recomendaciones_validas = []
-        for tema in recomendaciones:
-            if tema in temas_disponibles:
-                prereqs = prerequisitos.get(tema, []) if tema in prerequisitos else []
-                if all(prereq in temas_aprendidos for prereq in prereqs):
-                    recomendaciones_validas.append(tema)
-        if not recomendaciones_validas:
-            recomendaciones_validas = random.sample(temas_no_aprendidos, min(3, len(temas_no_aprendidos))) if temas_no_aprendidos else random.sample(temas_disponibles, min(3, len(temas_disponibles)))
+        # Verificar prerequisitos
+        if recomendacion in temas_disponibles:
+            unidad = next(u for u, s in temas.items() if recomendacion in s)
+            prereqs = prerequisitos.get(unidad, {}).get(recomendacion, [])
+            if not all(prereq in temas_aprendidos for prereq in prereqs):
+                # Si no cumple prerequisitos, elegir otro tema
+                temas_validos = [t for t in temas_disponibles_para_recomendar if all(p in temas_aprendidos for p in prerequisitos.get(next(u for u, s in temas.items() if t in s), {}).get(t, []))]
+                recomendacion = random.choice(temas_validos) if temas_validos else random.choice(temas_disponibles_para_recomendar)
 
-        # Formatear como lista Markdown con prefijo
-        recomendacion_texto = "Te recomiendo estudiar:\n" + "\n".join(f"- {tema}" for tema in recomendaciones_validas[:3])
+        # Actualizar historial de recomendaciones
+        temas_recomendados.append(recomendacion)
+        if len(temas_recomendados) > 5:  # Limitar historial a 5 temas
+            temas_recomendados = temas_recomendados[-5:]
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
+            c = conn.cursor()
+            c.execute("UPDATE progreso SET temas_recomendados = %s WHERE usuario = %s", (",".join(temas_recomendados), usuario))
+            conn.commit()
+            conn.close()
+        except PsycopgError as e:
+            logging.error(f"Error al guardar temas recomendados: {str(e)}")
+
+        # Formatear como texto plano
+        recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         logging.info(f"Recomendación para usuario {usuario}: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
     except Exception as e:
         logging.error(f"Error en /recommend: {str(e)}")
         # Fallback en caso de error
-        recomendaciones = random.sample(temas_no_aprendidos, min(3, len(temas_no_aprendidos))) if temas_no_aprendidos else random.sample(temas_disponibles, min(3, len(temas_disponibles)))
-        recomendacion_texto = "Te recomiendo estudiar:\n" + "\n".join(f"- {tema}" for tema in recomendaciones)
-        logging.warning(f"Usando recomendaciones de fallback por error: {recomendacion_texto}")
+        recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
+        recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
+        logging.warning(f"Usando recomendación de fallback por error: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
-    
     
 if __name__ == "__main__":
     init_db()
