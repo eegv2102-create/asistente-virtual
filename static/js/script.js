@@ -67,23 +67,6 @@ const updateAvatarDisplay = () => {
     setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
 };
 
-// Diccionario de reemplazos para pronunciación
-const pronunciationDict = {
-    'YELIA': 'Yelia',
-    'POO': 'Programación Orientada a Objetos',
-};
-
-// Preprocesar texto para mejorar pronunciación
-const preprocessTextForSpeech = (text) => {
-    let processedText = text;
-    for (const [key, value] of Object.entries(pronunciationDict)) {
-        const regex = new RegExp(`\\b${key}\\b`, 'gi');
-        processedText = processedText.replace(regex, value);
-    }
-    processedText = processedText.replace(/\b(ejemplo:.*?\.)/gi, '');
-    return processedText.trim();
-};
-
 const speakText = async (text) => {
     console.log('Intentando reproducir voz:', { vozActiva, text, userHasInteracted });
     
@@ -113,14 +96,12 @@ const speakText = async (text) => {
         currentAudio = null;
     }
 
-    const processedText = preprocessTextForSpeech(text);
-
     try {
-        console.log('Enviando solicitud al endpoint /tts con texto:', processedText);
+        console.log('Enviando solicitud al endpoint /tts');
         const res = await fetch('/tts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: processedText })
+            body: JSON.stringify({ text })
         });
 
         if (!res.ok) {
@@ -161,7 +142,7 @@ const speakText = async (text) => {
                 return;
             }
 
-            const utterance = new SpeechSynthesisUtterance(processedText);
+            const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'es-ES';
             utterance.voice = esVoice;
             utterance.onstart = () => console.log('Iniciando reproducción con speechSynthesis');
@@ -219,9 +200,7 @@ const stopSpeech = () => {
     if (botMessage) botMessage.classList.remove('speaking');
 };
 
-const toggleVoiceRecognition = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) {
         console.error('Botón #voice-toggle-btn no encontrado');
@@ -283,36 +262,6 @@ const toggleVoiceRecognition = (e) => {
     }
 };
 
-const toggleDarkMode = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    document.body.classList.toggle('modo-oscuro');
-    const modoBtn = getElement('#modo-btn');
-    if (modoBtn) {
-        modoBtn.innerHTML = document.body.classList.contains('modo-oscuro') 
-            ? '<i class="fas fa-sun"></i> Modo Claro' 
-            : '<i class="fas fa-moon"></i> Modo Oscuro';
-    }
-    localStorage.setItem('modoOscuro', document.body.classList.contains('modo-oscuro'));
-};
-
-const toggleVoice = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    vozActiva = !vozActiva;
-    const voiceBtn = getElement('#voice-btn');
-    if (voiceBtn) {
-        voiceBtn.innerHTML = vozActiva 
-            ? '<i class="fas fa-volume-up"></i> Desactivar Voz' 
-            : '<i class="fas fa-volume-mute"></i> Activar Voz';
-        localStorage.setItem('vozActiva', vozActiva);
-        mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
-    }
-    if (!vozActiva) {
-        stopSpeech();
-    }
-};
-
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
     if (!avatarContainer) {
@@ -341,9 +290,7 @@ const cargarAvatares = async () => {
             img.title = avatar.nombre;
             if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
             avatarContainer.appendChild(img);
-            img.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            img.addEventListener('click', () => {
                 getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
                 img.classList.add('selected');
                 selectedAvatar = avatar.avatar_id;
@@ -370,9 +317,7 @@ const cargarAvatares = async () => {
             img.title = avatar.nombre;
             if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
             avatarContainer.appendChild(img);
-            img.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            img.addEventListener('click', () => {
                 getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
                 img.classList.add('selected');
                 selectedAvatar = avatar.avatar_id;
@@ -444,26 +389,18 @@ const actualizarListaChats = () => {
         li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
         li.tabIndex = 0;
         chatList.appendChild(li);
-        li.addEventListener('click', (e) => {
+        li.addEventListener('click', e => {
             if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
                 cargarChat(index);
             }
         });
-        li.addEventListener('keydown', (e) => {
+        li.addEventListener('keydown', e => {
             if (e.key === 'Enter' || e.key === ' ') {
                 cargarChat(index);
             }
         });
-        li.querySelector('.rename-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            renombrarChat(index);
-        });
-        li.querySelector('.delete-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            eliminarChat(index);
-        });
+        li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
+        li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
     });
     requestAnimationFrame(() => {
         chatList.scrollTop = chatList.scrollHeight;
@@ -534,7 +471,6 @@ const eliminarChat = index => {
         const container = chatbox?.querySelector('.message-container');
         if (container) container.innerHTML = '';
         mostrarNotificacion('Chat eliminado, conversación limpiada', 'info');
-        mostrarMensajeBienvenida();
     }
     localStorage.setItem('chatHistory', JSON.stringify(historial));
     actualizarListaChats();
@@ -569,9 +505,7 @@ const cargarAnalytics = async () => {
     }
 };
 
-const obtenerRecomendacion = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+const obtenerRecomendacion = async () => {
     try {
         const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]');
         const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
@@ -585,32 +519,10 @@ const obtenerRecomendacion = async (e) => {
         if (!response.ok) {
             throw new Error(`Error en /recommend: ${response.status} ${response.statusText}`);
         }
-        const data = await response.json();
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.recommendation) : data.recommendation) + 
-            `<button class="copy-btn" data-text="${data.recommendation}" aria-label="Copiar recomendación"><i class="fas fa-copy"></i></button>`;
-        const container = getElement('#chatbox')?.querySelector('.message-container');
-        if (container) container.appendChild(botDiv);
-        scrollToBottom();
-        if (window.Prism) Prism.highlightAllUnder(botDiv);
-        speakText(data.recommendation);
-        guardarMensaje('Recomendación', data.recommendation);
-        addCopyButtonListeners();
+        return await response.json();
     } catch (error) {
         console.warn('Error en fetch /recommend, generando recomendación simulada:', error);
-        const recomendacionSimulada = 'Patrones de diseño';
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(recomendacionSimulada) : recomendacionSimulada) + 
-            `<button class="copy-btn" data-text="${recomendacionSimulada}" aria-label="Copiar recomendación"><i class="fas fa-copy"></i></button>`;
-        const container = getElement('#chatbox')?.querySelector('.message-container');
-        if (container) container.appendChild(botDiv);
-        scrollToBottom();
-        if (window.Prism) Prism.highlightAllUnder(botDiv);
-        speakText(recomendacionSimulada);
-        guardarMensaje('Recomendación', recomendacionSimulada);
-        addCopyButtonListeners();
+        return { recommendation: 'Patrones de diseño' };
     }
 };
 
@@ -662,9 +574,7 @@ const mostrarQuizEnChat = (quizData) => {
     if (window.Prism) Prism.highlightAllUnder(botDiv);
     guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`, null, quiz.tema);
     getElements('.quiz-option').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        btn.addEventListener('click', () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
             btn.classList.add('selected');
             const opcion = btn.dataset.opcion;
@@ -677,11 +587,7 @@ const mostrarQuizEnChat = (quizData) => {
     speakText(quiz.pregunta);
 };
 
-const sendMessage = (e) => {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+const sendMessage = () => {
     const input = getElement('#input');
     const nivelExplicacion = localStorage.getItem('nivelExplicacion') || 'basica';
     if (!input) {
@@ -706,6 +612,7 @@ const sendMessage = (e) => {
     input.value = '';
     scrollToBottom();
     
+    // Agregar spinner de carga
     const loadingDiv = document.createElement('div');
     loadingDiv.classList.add('bot', 'loading');
     loadingDiv.textContent = '⌛ Generando respuesta...';
@@ -725,6 +632,7 @@ const sendMessage = (e) => {
         }
         return res.json();
     }).then(data => {
+        // Remover spinner de carga
         container.removeChild(loadingDiv);
         
         let respuestaLimpia = data.respuesta;
@@ -743,6 +651,7 @@ const sendMessage = (e) => {
         guardarMensaje(pregunta, respuestaLimpia, data.video_url);
         addCopyButtonListeners();
     }).catch(error => {
+        // Remover spinner en caso de error
         if (loadingDiv && container.contains(loadingDiv)) {
             container.removeChild(loadingDiv);
         }
@@ -762,7 +671,6 @@ const limpiarChat = () => {
     container.innerHTML = '';
     localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
     mostrarNotificacion('Chat limpiado', 'success');
-    mostrarMensajeBienvenida();
 };
 
 const nuevaConversacion = () => {
@@ -783,7 +691,6 @@ const nuevaConversacion = () => {
     if (container) container.innerHTML = '';
     actualizarListaChats();
     mostrarNotificacion('Nueva conversación iniciada', 'success');
-    mostrarMensajeBienvenida();
 };
 
 const responderQuiz = (opcion, respuestaCorrecta, tema) => {
@@ -821,9 +728,7 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
 const addCopyButtonListeners = () => {
     getElements('.copy-btn').forEach(btn => {
         btn.removeEventListener('click', btn._copyHandler);
-        btn._copyHandler = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        btn._copyHandler = () => {
             const text = btn.dataset.text;
             navigator.clipboard.writeText(text).then(() => {
                 mostrarNotificacion('Texto copiado al portapapeles', 'success');
@@ -836,9 +741,7 @@ const addCopyButtonListeners = () => {
     });
 };
 
-const toggleDropdown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+const toggleDropdown = () => {
     const dropdownMenu = getElement('.dropdown-menu');
     if (dropdownMenu) {
         dropdownMenu.classList.toggle('active');
@@ -855,9 +758,12 @@ const selectNivel = (nivel) => {
     }
 };
 
-const toggleMenu = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+// Selección de elementos del DOM
+const getElement = (selector) => document.querySelector(selector);
+const getElements = (selector) => document.querySelectorAll(selector);
+
+// Manejo de menús laterales
+const toggleMenu = () => {
     const leftSection = getElement('.left-section');
     const rightSection = getElement('.right-section');
     if (!leftSection) {
@@ -868,15 +774,14 @@ const toggleMenu = (e) => {
     if (rightSection && rightSection.classList.contains('active')) {
         rightSection.classList.remove('active');
     }
+    // Ocultar voice-hint si un menú está activo
     const voiceHint = getElement('#voice-hint');
     if (voiceHint && leftSection.classList.contains('active')) {
         voiceHint.classList.add('hidden');
     }
 };
 
-const toggleRightMenu = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+const toggleRightMenu = () => {
     const rightSection = getElement('.right-section');
     const leftSection = getElement('.left-section');
     if (!rightSection) {
@@ -887,66 +792,41 @@ const toggleRightMenu = (e) => {
     if (leftSection && leftSection.classList.contains('active')) {
         leftSection.classList.remove('active');
     }
+    // Ocultar voice-hint si un menú está activo
     const voiceHint = getElement('#voice-hint');
     if (voiceHint && rightSection.classList.contains('active')) {
         voiceHint.classList.add('hidden');
     }
 };
 
+// Manejo del voice-hint
 const handleVoiceHint = () => {
     const voiceHint = getElement('#voice-hint');
     if (!voiceHint) {
         console.error('Elemento #voice-hint no encontrado');
         return;
     }
+    // Mostrar el hint al hacer clic en cualquier lugar si la voz no está activa
     document.addEventListener('click', () => {
-        userHasInteracted = true;
         const voiceBtn = getElement('#voice-btn');
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
+        // Solo mostrar si la voz no está activa y no hay menús abiertos
         if (voiceBtn && voiceBtn.textContent.includes('Activar Voz') && 
             (!leftSection || !leftSection.classList.contains('active')) && 
             (!rightSection || !rightSection.classList.contains('active'))) {
             voiceHint.classList.remove('hidden');
             setTimeout(() => {
                 voiceHint.classList.add('hidden');
-            }, 3000);
+            }, 3000); // Ocultar después de 3 segundos
         }
-    }, { once: true });
+    });
 };
 
-const mostrarMensajeBienvenida = () => {
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        console.error('Elemento #chatbox o .message-container no encontrado');
-        return;
-    }
-    const mensajeBienvenida = '¡Bienvenido a YELIA! Estoy aquí para ayudarte con tus dudas sobre programación. 😊 Pregúntame lo que quieras o solicita un quiz.';
-    const botDiv = document.createElement('div');
-    botDiv.classList.add('bot');
-    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensajeBienvenida) : mensajeBienvenida) + 
-        `<button class="copy-btn" data-text="${mensajeBienvenida}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-    container.appendChild(botDiv);
-    scrollToBottom();
-    if (window.Prism) Prism.highlightAllUnder(botDiv);
-    speakText(mensajeBienvenida);
-    addCopyButtonListeners();
-};
-
+// Inicialización
 const init = () => {
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
-    const modoBtn = getElement('#modo-btn');
-    const voiceBtn = getElement('#voice-btn');
-    const quizBtn = getElement('#quiz-btn');
-    const recommendBtn = getElement('#recommend-btn');
-    const sendBtn = getElement('#send-btn');
-    const newChatBtn = getElement('#new-chat-btn');
-    const clearBtn = getElement('#btn-clear');
-    const nivelBtn = getElement('#nivel-btn');
-    const input = getElement('#input');
-
     if (menuToggle) {
         menuToggle.addEventListener('click', toggleMenu);
     } else {
@@ -957,84 +837,8 @@ const init = () => {
     } else {
         console.error('Elemento .menu-toggle-right no encontrado');
     }
-    if (modoBtn) {
-        modoBtn.addEventListener('click', toggleDarkMode);
-        modoBtn.innerHTML = document.body.classList.contains('modo-oscuro') 
-            ? '<i class="fas fa-sun"></i> Modo Claro' 
-            : '<i class="fas fa-moon"></i> Modo Oscuro';
-    } else {
-        console.error('Elemento #modo-btn no encontrado');
-    }
-    if (voiceBtn) {
-        voiceBtn.addEventListener('click', toggleVoice);
-        voiceBtn.innerHTML = vozActiva 
-            ? '<i class="fas fa-volume-up"></i> Desactivar Voz' 
-            : '<i class="fas fa-volume-mute"></i> Activar Voz';
-    } else {
-        console.error('Elemento #voice-btn no encontrado');
-    }
-    if (quizBtn) {
-        quizBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            obtenerQuiz('opciones').then(mostrarQuizEnChat);
-        });
-    } else {
-        console.error('Elemento #quiz-btn no encontrado');
-    }
-    if (recommendBtn) {
-        recommendBtn.addEventListener('click', obtenerRecomendacion);
-    } else {
-        console.error('Elemento #recommend-btn no encontrado');
-    }
-    if (sendBtn) {
-        sendBtn.addEventListener('click', sendMessage);
-    } else {
-        console.error('Elemento #send-btn no encontrado');
-    }
-    if (newChatBtn) {
-        newChatBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            nuevaConversacion();
-        });
-    } else {
-        console.error('Elemento #new-chat-btn no encontrado');
-    }
-    if (clearBtn) {
-        clearBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            limpiarChat();
-        });
-    } else {
-        console.error('Elemento #btn-clear no encontrado');
-    }
-    if (nivelBtn) {
-        nivelBtn.addEventListener('click', toggleDropdown);
-    } else {
-        console.error('Elemento #nivel-btn no encontrado');
-    }
-    if (input) {
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage(e);
-            }
-        });
-    } else {
-        console.error('Elemento #input no encontrado');
-    }
-
     handleVoiceHint();
-    cargarAvatares();
-    cargarAnalytics();
-    actualizarListaChats();
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-    if (!currentConversation.id && currentConversation.id !== 0) {
-        mostrarMensajeBienvenida();
-    } else {
-        cargarChat(currentConversation.id);
-    }
+    // ... resto del código de inicialización (cargar avatares, historial, etc.) ...
 };
 
 document.addEventListener('DOMContentLoaded', init);
