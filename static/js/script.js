@@ -433,8 +433,7 @@ const cargarChat = index => {
         console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
-    container.innerHTML = ''; // Limpiar el contenedor antes de cargar
-
+    container.innerHTML = '';
     chat.mensajes.forEach(msg => {
         const userDiv = document.createElement('div');
         userDiv.classList.add('user');
@@ -443,24 +442,20 @@ const cargarChat = index => {
 
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        // Aquí se asegura que la respuesta sea tratada como HTML si contiene etiquetas, o como Markdown si es texto
         if (msg.respuesta.includes('<button class="quiz-option"')) {
-            // Es un mensaje de quiz, se usa innerHTML directamente
             botDiv.innerHTML = msg.respuesta;
         } else {
-            // Es un mensaje normal, se usa marked.parse
             botDiv.innerHTML = `${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}
-                <button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            <button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         }
         container.appendChild(botDiv);
     });
-
     scrollToBottom();
-    if (window.Prism) Prism.highlightAll();
-    addCopyButtonListeners();
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
+    if (window.Prism) Prism.highlightAll();
+    addCopyButtonListeners();
 };
 
 const renombrarChat = index => {
@@ -548,7 +543,6 @@ const obtenerQuiz = async (tipo) => {
         return { error: error.message };
     }
 };
-
 const mostrarQuizEnChat = (quizData) => {
     if (quizData.error) {
         mostrarNotificacion(quizData.error, 'error');
@@ -565,15 +559,15 @@ const mostrarQuizEnChat = (quizData) => {
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
     
-    // Crea la pregunta del quiz como un párrafo para mejor semántica
-    const quizQuestion = document.createElement('p');
-    quizQuestion.innerHTML = `**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}`;
-    botDiv.appendChild(quizQuestion);
+    // Contenedor de la pregunta
+    const quizQuestionDiv = document.createElement('div');
+    quizQuestionDiv.innerHTML = typeof marked !== 'undefined' ? marked.parse(`**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}`) : `**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}`;
+    botDiv.appendChild(quizQuestionDiv);
 
-    // Crea el contenedor de las opciones
+    // Contenedor de las opciones
     const opcionesContainer = document.createElement('div');
     opcionesContainer.classList.add('quiz-options');
-
+    
     quizData.opciones.forEach((opcion, i) => {
         const button = document.createElement('button');
         button.classList.add('quiz-option');
@@ -586,6 +580,7 @@ const mostrarQuizEnChat = (quizData) => {
 
     botDiv.appendChild(opcionesContainer);
 
+    // Botón de copiar
     const copyBtn = document.createElement('button');
     copyBtn.classList.add('copy-btn');
     copyBtn.setAttribute('data-text', quizData.pregunta);
@@ -599,7 +594,7 @@ const mostrarQuizEnChat = (quizData) => {
     guardarMensaje('Quiz', `${quizData.pregunta}\nOpciones: ${quizData.opciones.join(', ')}`, null, quizData.tema);
     speakText(`Quiz sobre ${quizData.tema}: ${quizData.pregunta}`);
 
-    // Aquí se añade el listener para los nuevos botones
+    // Listener para los botones del quiz
     getElements('.quiz-option').forEach(btn => {
         btn.addEventListener('click', async () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
@@ -627,15 +622,14 @@ const mostrarQuizEnChat = (quizData) => {
                 }
                 const responseDiv = document.createElement('div');
                 responseDiv.classList.add('bot');
-                responseDiv.innerHTML = `
-                    ${typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta}
-                    <button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
-                `;
+                const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';
+                responseDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + 
+                    `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                 container.appendChild(responseDiv);
                 scrollToBottom();
+                if (window.Prism) Prism.highlightAllUnder(responseDiv);
                 const textoParaVoz = data.respuesta.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
                 speakText(textoParaVoz);
-                addCopyButtonListeners();
             } catch (error) {
                 console.error('Error al responder quiz:', error);
                 mostrarNotificacion('Error al responder el quiz', 'error');
@@ -935,13 +929,13 @@ const closeMenusOnClickOutside = () => {
 
         if (!isClickInsideLeft && leftSection.classList.contains('active')) {
             leftSection.classList.remove('active');
-            menuToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Restaurar ícono original
+            menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
             menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
             menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
         }
         if (!isClickInsideRight && rightSection.classList.contains('active')) {
             rightSection.classList.remove('active');
-            menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>'; // Restaurar ícono original
+            menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>';
             menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
             menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
         }
@@ -965,13 +959,13 @@ const init = () => {
     const rightSection = getElement('.right-section');
 
     if (menuToggle && leftSection) {
-        menuToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Ícono inicial
+        menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
         menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
         menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
         menuToggle.addEventListener('click', () => {
             const isActive = leftSection.classList.toggle('active');
-            rightSection.classList.remove('active'); // Cerrar el otro menú
-            menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>'; // Restaurar ícono del menú derecho
+            rightSection.classList.remove('active');
+            menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>';
             menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
             menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
             menuToggle.innerHTML = `<i class="fas ${isActive ? 'fa-times' : 'fa-bars'}"></i>`;
@@ -980,13 +974,13 @@ const init = () => {
         });
     }
     if (menuToggleRight && rightSection) {
-        menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>'; // Ícono inicial
+        menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>';
         menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
         menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
         menuToggleRight.addEventListener('click', () => {
             const isActive = rightSection.classList.toggle('active');
-            leftSection.classList.remove('active'); // Cerrar el otro menú
-            menuToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Restaurar ícono del menú izquierdo
+            leftSection.classList.remove('active');
+            menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
             menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
             menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
             menuToggleRight.innerHTML = `<i class="fas ${isActive ? 'fa-times' : 'fa-info-circle'}"></i>`;
