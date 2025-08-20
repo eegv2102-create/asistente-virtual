@@ -1,82 +1,67 @@
 {
-  "programacion avanzada": {
-    "descripcion": "La programación avanzada combina conceptos como POO, UML, MVC, patrones de diseño, y acceso a datos para desarrollar software robusto en Telemática. Ejemplo en Java para concurrencia: \\n```java\\npublic class Hilo extends Thread {\\n    public void run() {\\n        System.out.println(\\\"Procesando datos en hilo \\\" + Thread.currentThread().getName());\\n    }\\n    public static void main(String[] args) {\\n        new Hilo().start();\\n    }\\n}\\nEn Telemática, se usa para crear sistemas escalables, como aplicaciones web con Spring o sistemas distribuidos con bases de datos relacionales.",
-    "palabras_clave": ["POO", "UML", "MVC", "concurrencia", "bases de datos"]
+  "Unidad 1: Fundamentos de la Programación Orientada a Objetos": {
+    "Introducción a la POO": {
+      "definición": "La Programación Orientada a Objetos (POO) es un paradigma que organiza el software en torno a objetos que combinan estado (atributos) y comportamiento (métodos).",
+      "ventajas": ["Reutilización de código", "Mantenimiento más sencillo", "Escalabilidad", "Facilita el modelado del mundo real"],
+      "ejemplo": "class Persona {\n  String nombre;\n  void saludar() {\n    System.out.println(\"Hola, soy \" + nombre);\n  }\n}\n\nPersona p = new Persona();\np.nombre = \"Ana\";\np.saludar();"
+    },
+    "Clases y Objetos": {
+      "definición": "Las clases son plantillas que definen atributos y métodos. Los objetos son instancias de esas clases.",
+      "ejemplo": "class Coche {\n  String marca;\n  int velocidad;\n}\n\nCoche c = new Coche();\nc.marca = \"Toyota\";\nc.velocidad = 120;"
+    },
+    "Encapsulamiento": {
+      "definición": "Oculta los detalles internos de un objeto, permitiendo el acceso solo a través de métodos públicos.",
+      "ejemplo": "class Persona {\n  private int edad;\n\n  public void setEdad(int e){ this.edad = e; }\n  public int getEdad(){ return edad; }\n}"
+    }
   },
-  "poo": {
-    "descripcion": "La Programación Orientada a Objetos (POO) organiza el código en clases y objetos, promoviendo reutilización y modularidad. Ejemplo en Python: \\n```python
-    "palabras_clave": ["clases", "objetos", "herencia", "polimorfismo", "encapsulamiento"]
+  "Unidad 2: Herencia, Polimorfismo y UML": {
+    "Herencia": {
+      "definición": "Permite crear nuevas clases a partir de otras existentes, reutilizando atributos y métodos.",
+      "ejemplo": "class Persona {\n  String nombre;\n}\n\nclass Estudiante extends Persona {\n  String carrera;\n}"
+    },
+    "Polimorfismo": {
+      "definición": "Capacidad de un método o clase de comportarse de diferentes formas (sobrecarga y sobreescritura).",
+      "ejemplo": "class Calculadora {\n  int sumar(int a, int b){ return a+b; }\n  double sumar(double a, double b){ return a+b; }\n}"
+    },
+    "Clases Abstractas e Interfaces": {
+      "definición": "Las clases abstractas son plantillas incompletas que deben ser heredadas. Las interfaces definen un contrato que las clases implementan.",
+      "ejemplo": "abstract class Figura {\n  abstract double area();\n}\n\nclass Circulo extends Figura {\n  double radio;\n  Circulo(double r){ this.radio=r; }\n  double area(){ return Math.PI*radio*radio; }\n}\n\ninterface Animal {\n  void sonido();\n}\n\nclass Perro implements Animal {\n  public void sonido(){ System.out.println(\"Guau\"); }\n}"
+    },
+    "Lenguaje de Modelado Unificado (UML)": {
+      "definición": "Es un lenguaje estándar de modelado para visualizar, especificar, construir y documentar sistemas de software.",
+      "ejemplo": "Diagramas comunes: \n- Diagrama de Clases: representa clases y relaciones.\n- Diagrama de Casos de Uso: muestra la interacción entre actores y el sistema.\n- Diagrama de Secuencia: describe la interacción entre objetos a lo largo del tiempo."
+    }
   },
-  "clases y objetos": {
-    "descripcion": "Una clase es una plantilla que define atributos y métodos; un objeto es una instancia de esa clase. Ejemplo en Java: \\n```java\\npublic class Persona {\\n    private String nombre;\\n    public Persona(String nombre) {\\n        this.nombre = nombre;\\n    }\\n    public String saludar() {\\n        return \\\"Hola, soy \\\" + nombre;\\n    }\\n}\\nPersona juan = new Persona(\\\"Juan\\\");\\nSystem.out.println(juan.saludar()); // Salida: Hola, soy Juan\\n```\\nEn Telemática, objetos modelan entidades en sistemas concurrentes, como nodos en redes.",
-    "palabras_clave": ["clase", "objeto", "atributos", "métodos"]
+  "Unidad 3: UML y Patrón MVC": {
+    "Diagramas UML": {
+      "definición": "Los diagramas UML permiten representar gráficamente la estructura y comportamiento de un sistema.",
+      "ejemplo": "- Diagrama de Clases: muestra clases, atributos, métodos y relaciones.\n- Diagrama de Casos de Uso: actores y funcionalidades.\n- Diagrama de Secuencia: interacción temporal de objetos.\n- Diagrama de Actividad: flujo de procesos."
+    },
+    "Patrones de Diseño en POO": {
+      "definición": "Son soluciones reutilizables a problemas comunes en el diseño de software.",
+      "ejemplo": "Patrón Singleton: asegura que solo exista una instancia de una clase.\nclass Singleton {\n  private static Singleton instancia;\n  private Singleton(){}\n  public static Singleton getInstancia(){\n    if(instancia == null) instancia = new Singleton();\n    return instancia;\n  }\n}"
+    },
+    "Patrón MVC": {
+      "definición": "Divide una aplicación en tres componentes: Modelo (datos), Vista (interfaz), Controlador (lógica).",
+      "ejemplo": "// Modelo\nclass Usuario {\n  String nombre;\n}\n\n// Vista\nclass VistaUsuario {\n  void mostrar(String nombre){\n    System.out.println(\"Usuario: \"+nombre);\n  }\n}\n\n// Controlador\nclass ControladorUsuario {\n  private Usuario modelo;\n  private VistaUsuario vista;\n  ControladorUsuario(Usuario m, VistaUsuario v){ this.modelo=m; this.vista=v; }\n  void actualizarVista(){ vista.mostrar(modelo.nombre); }\n}"
+    }
   },
-  "encapsulamiento": {
-    "descripcion": "El encapsulamiento oculta datos internos de un objeto, controlando el acceso mediante modificadores y getters/setters. Ejemplo en Java: \\n```java\\npublic class CuentaBancaria {\\n    private double saldo;\\n    public double getSaldo() {\\n        return saldo;\\n    }\\n    public void setSaldo(double saldo) {\\n        if (saldo >= 0) this.saldo = saldo;\\n    }\\n}\\n```\\nEn Telemática, asegura seguridad en sistemas distribuidos, como conexiones a bases de datos protegidas.",
-    "palabras_clave": ["getters", "setters", "private", "seguridad"]
-  },
-  "herencia": {
-    "descripcion": "La herencia permite que una clase hija herede atributos y métodos de una clase padre, promoviendo reutilización. Ejemplo en Java: \\n```java\\npublic class Animal {\\n    public void comer() {\\n        System.out.println(\\\"Comiendo\\\");\\n    }\\n}\\npublic class Perro extends Animal {\\n    public void ladrar() {\\n        System.out.println(\\\"Guau\\\");\\n    }\\n}\\n```\\nEn Telemática, se usa con polimorfismo para modelar jerarquías en sistemas de red o aplicaciones web.",
-    "palabras_clave": ["clase padre", "clase hija", "reutilización"]
-  },
-  "polimorfismo": {
-    "descripcion": "El polimorfismo permite que un método actúe diferente según el objeto, mediante sobrecarga o sobrescritura. Ejemplo en Java: \\n```java\\npublic class Animal {\\n    public String sonido() {\\n        return \\\"Sonido genérico\\\";\\n    }\\n}\\npublic class Gato extends Animal {\\n    @Override\\n    public String sonido() {\\n        return \\\"Miau\\\";\\n    }\\n}\\nAnimal gato = new Gato();\\nSystem.out.println(gato.sonido()); // Salida: Miau\\n```\\nEn Telemática, se aplica en sistemas concurrentes para manejar eventos en tiempo real.",
-    "palabras_clave": ["sobrecarga", "sobrescritura", "subtipo"]
-  },
-  "clases abstractas": {
-    "descripcion": "Las clases abstractas son plantillas que no se instancian, definiendo métodos que las subclases implementan. Ejemplo en Java: \\n```java\\npublic abstract class Vehiculo {\\n    public abstract void mover();\\n}\\npublic class Moto extends Vehiculo {\\n    @Override\\n    public void mover() {\\n        System.out.println(\\\"Moto en movimiento\\\");\\n    }\\n}\\n```\\nEn Telemática, se usan en patrones de diseño para sistemas modulares.",
-    "palabras_clave": ["abstract", "subclases", "polimorfismo"]
-  },
-  "interfaces": {
-    "descripcion": "Las interfaces definen contratos de comportamiento que las clases implementan. Ejemplo en Java: \\n```java\\npublic interface Nadador {\\n    void nadar();\\n}\\npublic class Delfin implements Nadador {\\n    public void nadar() {\\n        System.out.println(\\\"Delfín nadando\\\");\\n    }\\n}\\n```\\nEn Telemática, aseguran consistencia en frameworks MVC o acceso a bases de datos.",
-    "palabras_clave": ["contrato", "implementación", "múltiples herencias"]
-  },
-  "uml": {
-    "descripcion": "UML es un lenguaje visual para modelar software, usando diagramas como clases, secuencias y casos de uso. Ejemplo: un diagrama de clases define atributos, métodos y relaciones entre entidades. En Telemática, documenta sistemas distribuidos, como aplicaciones de mensajería o redes, integrando POO y MVC.",
-    "palabras_clave": ["diagramas", "clases", "secuencias", "casos de uso"]
-  },
-  "patrones de diseño": {
-    "descripcion": "Los patrones de diseño son soluciones reutilizables a problemas comunes, agrupados en creacionales (Singleton), estructurales (Adapter) y comportamentales (Observer). Ejemplo de Singleton en Java: \\n```java\\npublic class Logger {\\n    private static Logger instance;\\n    private Logger() {}\\n    public static Logger getInstance() {\\n        if (instance == null) instance = new Logger();\\n        return instance;\\n    }\\n}\\n```\\nEn Telemática, se aplican en MVC y sistemas distribuidos para escalabilidad.",
-    "palabras_clave": ["creacionales", "estructurales", "comportamentales", "Singleton", "Observer"]
-  },
-  "singleton": {
-    "descripcion": "El patrón Singleton asegura una única instancia de una clase. Ejemplo en Python: \\n```python\\nclass Singleton:\\n    _instance = None\\n    def __new__(cls):\\n        if cls._instance is None:\\n            cls._instance = super().__new__(cls)\\n        return cls._instance\\nsingleton1 = Singleton()\\nsingleton2 = Singleton()\\nprint(singleton1 is singleton2) # Salida: True\\n```\\nEn Telemática, gestiona recursos compartidos, como conexiones a bases de datos.",
-    "palabras_clave": ["única instancia", "recurso compartido"]
-  },
-  "factory": {
-    "descripcion": "El patrón Factory crea objetos sin especificar su clase concreta. Ejemplo en Python: \\n```python\\nclass Animal:\\n    def hablar(self): pass\\nclass Perro(Animal):\\n    def hablar(self):\\n        return \\\"Guau\\\"\\nclass Gato(Animal):\\n    def hablar(self):\\n        return \\\"Miau\\\"\\nclass AnimalFactory:\\n    def crear_animal(self, tipo):\\n        if tipo == \\\"perro\\\": return Perro()\\n        if tipo == \\\"gato\\\": return Gato()\\n```\\nEn Telemática, facilita la creación dinámica de objetos en aplicaciones modulares.",
-    "palabras_clave": ["creación", "objetos", "modularidad"]
-  },
-  "observer": {
-    "descripcion": "El patrón Observer permite que un objeto notifique a otros sobre cambios en su estado. Ejemplo en Java: \\n```java\\npublic interface Observador {\\n    void actualizar(String mensaje);\\n}\\npublic class Sujeto {\\n    private List<Observador> observadores = new ArrayList<>();\\n    public void agregar(Observador o) {\\n        observadores.add(o);\\n    }\\n    public void notificar(String mensaje) {\\n        for (Observador o : observadores) o.actualizar(mensaje);\\n    }\\n}\\n```\\nEn Telemática, se usa para notificaciones en tiempo real en sistemas reactivos.",
-    "palabras_clave": ["notificación", "eventos", "reactivo"]
-  },
-  "mvc": {
-    "descripcion": "El patrón MVC separa datos (Modelo), interfaz (Vista) y lógica (Controlador). Ejemplo en Python con Flask: \\n```python\\n# Modelo\\nclass Usuario:\\n    def __init__(self, nombre):\\n        self.nombre = nombre\\n# Controlador\\n@app.route('/usuario/<nombre>')\\ndef mostrar_usuario(nombre):\\n    usuario = Usuario(nombre)\\n    return render_template('usuario.html', usuario=usuario)\\n# Vista: usuario.html\\n```\\nEn Telemática, se usa en aplicaciones web distribuidas, integrando POO y bases de datos.",
-    "palabras_clave": ["modelo", "vista", "controlador", "web"]
-  },
-  "archivos": {
-    "descripcion": "El manejo de archivos permite leer/escribir datos usando POO. Ejemplo en Python: \\n```python\\nclass FileHandler:\\n    def leer(self, archivo):\\n        with open(archivo, 'r') as f:\\n            return f.read()\\n    def escribir(self, archivo, datos):\\n        with open(archivo, 'w') as f:\\n            f.write(datos)\\n```\\nEn Telemática, se usa en sistemas distribuidos para gestionar logs o configuraciones.",
-    "palabras_clave": ["lectura", "escritura", "concurrencia"]
-  },
-  "bases de datos": {
-    "descripcion": "Las bases de datos relacionales almacenan datos estructurados, usando SQL y ORM. Ejemplo con SQLAlchemy en Python: \\n```python\\nfrom sqlalchemy import create_engine, Column, Integer, String\\nfrom sqlalchemy.ext.declarative import declarative_base\\nBase = declarative_base()\\nclass Usuario(Base):\\n    __tablename__ = 'usuarios'\\n    id = Column(Integer, primary_key=True)\\n    nombre = Column(String)\\n```\\nEn Telemática, se integran con MVC para aplicaciones escalables, como sistemas de gestión.",
-    "palabras_clave": ["relacionales", "ORM", "SQL", "escalabilidad"]
-  },
-  "pruebas": {
-    "descripcion": "Las pruebas verifican el correcto funcionamiento del software. Ejemplo con Pytest en Python: \\n```python\\ndef test_suma():\\n    assert 1 + 1 == 2\\n```\\nEn Telemática, se usan pruebas unitarias y de rendimiento en sistemas distribuidos.",
-    "palabras_clave": ["unitarias", "integración", "rendimiento"]
-  },
-  "comandos sql ddl": {
-    "descripcion": "Los comandos DDL (CREATE, ALTER) definen estructuras de bases de datos. Ejemplo: \\n```sql\\nCREATE TABLE usuarios (\\n    id SERIAL PRIMARY KEY,\\n    nombre VARCHAR(50)\\n);\\n```\\nEn Telemática, se integran con ORM para mapear clases a tablas en aplicaciones escalables.",
-    "palabras_clave": ["CREATE", "ALTER", "esquema"]
-  },
-  "comandos sql mdl": {
-    "descripcion": "Los comandos MDL (INSERT, UPDATE, DELETE) manipulan datos. Ejemplo: \\n```sql\\nINSERT INTO usuarios (nombre) VALUES ('Juan');\\nUPDATE usuarios SET nombre = 'Ana' WHERE id = 1;\\n```\\nEn Telemática, se usan en transacciones seguras para sistemas distribuidos.",
-    "palabras_clave": ["INSERT", "UPDATE", "DELETE", "transacciones"]
-  },
-  "base de datos": {
-    "descripcion": "Los sistemas de bases de datos gestionan datos estructurados, como PostgreSQL. Ejemplo: diseño de esquemas con normalización. En Telemática, se integran con POO y ORM para aplicaciones escalables, como sistemas de gestión de redes.",
-    "palabras_clave": ["normalización", "esquema", "relacional"]
+  "Unidad 4: Acceso a Archivos y Base de Datos": {
+    "Acceso a Archivos": {
+      "definición": "Permite leer y escribir información persistente desde archivos en el sistema.",
+      "ejemplo": "import java.io.*;\nclass LeerArchivo {\n  public static void main(String[] args) throws IOException {\n    BufferedReader br = new BufferedReader(new FileReader(\"archivo.txt\"));\n    String linea;\n    while((linea=br.readLine())!=null){\n      System.out.println(linea);\n    }\n    br.close();\n  }\n}"
+    },
+    "Bases de Datos y ORM": {
+      "definición": "El acceso a bases de datos en Java se hace con JDBC o frameworks ORM como Hibernate.",
+      "ejemplo": "import java.sql.*;\nclass ConexionBD {\n  public static void main(String[] args) throws Exception {\n    Connection con = DriverManager.getConnection(\"jdbc:mysql://localhost:3306/miBD\", \"root\", \"\");\n    Statement stmt = con.createStatement();\n    ResultSet rs = stmt.executeQuery(\"SELECT * FROM usuarios\");\n    while(rs.next()){\n      System.out.println(rs.getString(\"nombre\"));\n    }\n    con.close();\n  }\n}"
+    },
+    "Integración POO + MVC + BD": {
+      "definición": "Permite combinar la lógica orientada a objetos con la arquitectura MVC y el acceso a datos.",
+      "ejemplo": "MVC con base de datos: el Modelo representa la entidad y conexión, el Controlador gestiona las operaciones CRUD, la Vista muestra resultados."
+    },
+    "Pruebas y Buenas Prácticas": {
+      "definición": "Se recomienda aplicar pruebas unitarias, integración continua y patrones de diseño para garantizar calidad del software.",
+      "ejemplo": "Uso de JUnit:\nimport org.junit.*;\nclass TestSuma {\n  @Test\n  public void testSumar(){\n    Calculadora c = new Calculadora();\n    assertEquals(5, c.sumar(2,3));\n  }\n}"
+    }
   }
 }

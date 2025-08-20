@@ -112,7 +112,7 @@ def buscar_respuesta_app(pregunta, historial=None):
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
     prompt = (
-        "Eres Y.E.L.I.A., un asistente virtual inteligente especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática.\n\n"
+        "Eres YELIA, un asistente virtual inteligente especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática.\n\n"
         "Tu comportamiento debe ser:\n"
         "1. Responder de forma clara, completa, actualizada y estructurada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
         "2. Aceptar preguntas con errores ortográficos o expresiones informales, incluyendo mensajes cortos.\n"
@@ -158,9 +158,9 @@ def saludo_inicial():
         avatar_id = request.args.get("avatar_id", "default")
         avatar_id = bleach.clean(avatar_id[:50])
         respuesta_text = (
-            "¡Hola! Soy Y.E.L.I.A., tu asistente para Programación Avanzada en Ingeniería en Telemática. "
-            "Estoy aquí para ayudarte con temas como POO, patrones de diseño, bases de datos y más. "
-            "¿Qué quieres aprender hoy? ¿Deseas saber más?"
+            "¡Hola! Soy YELIA, tu asistente para Programación Avanzada en Ingeniería en Telemática. "
+            "Estoy aquí para ayudarte."
+            "¿Qué quieres aprender hoy?"
         )
         avatar = None
         try:

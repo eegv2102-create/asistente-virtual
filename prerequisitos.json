@@ -1,17 +1,24 @@
 {
-  "herencia": ["poo", "clases y objetos"],
-  "polimorfismo": ["poo", "clases y objetos", "herencia"],
-  "singleton": ["poo", "clases y objetos"],
-  "factory": ["poo", "clases y objetos"],
-  "observer": ["poo", "clases y objetos"],
-  "clases abstractas": ["poo", "clases y objetos", "herencia"],
-  "interfaces": ["poo", "clases y objetos", "herencia", "polimorfismo"],
-  "uml": ["poo", "clases y objetos"],
-  "patrones de diseno": ["poo", "clases y objetos", "herencia", "polimorfismo"],
-  "mvc": ["poo", "clases y objetos", "uml", "interfaces"],
-  "archivos": ["poo", "clases y objetos"],
-  "bases de datos": ["base de datos", "comandos sql ddl"],
-  "pruebas": ["poo", "clases y objetos"],
-  "comandos sql ddl": ["base de datos"],
-  "comandos sql mdl": ["base de datos", "comandos sql ddl"]
+  "Unidad 1": {
+    "Introducción a la POO": ["Conocer programación estructurada", "Manejo básico de variables y funciones en Java"],
+    "Clases y Objetos": ["Conocer estructuras de datos simples", "Declaración de funciones y métodos"],
+    "Encapsulamiento": ["Concepto de acceso a variables", "Manejo de modificadores de acceso en Java"]
+  },
+  "Unidad 2": {
+    "Herencia": ["Comprender clases y objetos", "Conocer encapsulamiento"],
+    "Polimorfismo": ["Entender herencia", "Manejo de sobrecarga de métodos"],
+    "Clases Abstractas e Interfaces": ["Conocer herencia y polimorfismo"],
+    "UML": ["Conceptos básicos de POO"]
+  },
+  "Unidad 3": {
+    "Diagramas UML": ["Conocer POO", "Entender relaciones entre clases"],
+    "Patrones de Diseño en POO": ["Conocer clases abstractas e interfaces"],
+    "Patrón MVC": ["Entender diagramas UML", "Concepto de capas en aplicaciones"]
+  },
+  "Unidad 4": {
+    "Acceso a Archivos": ["Conocer manejo de excepciones", "Concepto de flujo de datos"],
+    "Bases de Datos y ORM": ["Conocer SQL básico", "Comprender POO en Java"],
+    "Integración POO + MVC + BD": ["Manejo de bases de datos", "Conocer patrón MVC"],
+    "Pruebas y Buenas Prácticas": ["Conocer fundamentos de testing", "Uso básico de JUnit"]
+  }
 }
