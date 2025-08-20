@@ -1,4 +1,4 @@
-// script.js
+
 let vozActiva = localStorage.getItem('vozActiva') === 'true' || false;
 let isListening = false;
 let recognition = null;
