@@ -693,23 +693,38 @@ const sendMessage = () => {
         container.removeChild(loadingDiv);
         let respuestaLimpia = data.respuesta;
 
-        // Detectar bloques de código no formateados y envolverlos (respaldo)
-        const codeRegex = /(^|\n)(class|def)\s+\w+[\s\S]*?(?=\n\n|$)/g;
+        // Normalizar saltos de línea y escapar caracteres problemáticos
+        respuestaLimpia = respuestaLimpia.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+        // Detectar bloques de código no formateados con una expresión regular más robusta
+        const codeRegex = /(^|\n)(class\s+\w+|def\s+\w+|public\s+\w+\s+\w+\s*$$   [^)]*   $$\s*\{)[\s\S]*?(?=\n\n|$)/g;
         respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, keyword) => {
             if (!match.includes('```')) {
-                const language = keyword === 'def' ? 'python' : 'java';
+                const language = keyword.startsWith('def') ? 'python' : 'java';
                 return `${prefix}\`\`\`${language}\n${match.trim()}\n\`\`\``;
             }
             return match;
         });
 
+        // Log para depuración
+        console.log('Respuesta cruda del backend:', respuestaLimpia);
+
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia) : respuestaLimpia) +
-            `<button class="copy-btn" data-text="${respuestaLimpia}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        const parsedMarkdown = typeof marked !== 'undefined' ? marked.parse(respuestaLimpia, { breaks: true }) : respuestaLimpia;
+        botDiv.innerHTML = parsedMarkdown +
+            `<button class="copy-btn" data-text="${respuestaLimpia.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
+
+        // Log para depuración del HTML generado
+        console.log('HTML generado para botDiv:', botDiv.innerHTML);
+
         scrollToBottom();
-        if (window.Prism) Prism.highlightAllUnder(botDiv);
+        if (window.Prism) {
+            Prism.highlightAllUnder(botDiv);
+        } else {
+            console.error('Prism.js no está cargado');
+        }
         speakText(respuestaLimpia);
         const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
         const mensajeIndex = currentConversation.mensajes.findIndex(m => m.pregunta === pregunta && m.respuesta === 'Esperando respuesta...');
