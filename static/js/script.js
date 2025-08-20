@@ -1,3 +1,4 @@
+// script.js
 let vozActiva = localStorage.getItem('vozActiva') === 'true' || false;
 let isListening = false;
 let recognition = null;
@@ -72,36 +73,20 @@ const updateAvatarDisplay = () => {
 
 const speakText = async (text) => {
     console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted });
-    
     if (!vozActiva || !text) {
         console.warn('Audio desactivado o texto vacío, no se reproduce audio', { vozActiva, text });
         mostrarNotificacion('Audio desactivado o texto vacío', 'error');
         return;
     }
-
     if (!userHasInteracted) {
         console.warn('No se puede reproducir audio: el usuario no ha interactuado con la página');
         toggleVoiceHint(true);
         pendingWelcomeMessage = text;
         return;
     }
-
-    let textoParaVoz = text;
-    // Limpiar emojis, markdown y caracteres especiales
-    textoParaVoz = textoParaVoz.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
-    textoParaVoz = textoParaVoz.replace(/```[\s\S]*?```/g, '');
-    textoParaVoz = textoParaVoz.replace(/`[^`]+`/g, '');
-    textoParaVoz = textoParaVoz.replace(/\*\*([^*]+)\*\*/g, '$1');
-    textoParaVoz = textoParaVoz.replace(/\*([^*]+)\*/g, '$1');
-    textoParaVoz = textoParaVoz.replace(/#+\s*/g, '');
-    textoParaVoz = textoParaVoz.replace(/-\s*/g, '');
-    textoParaVoz = textoParaVoz.replace(/\n+/g, ' ');
-    textoParaVoz = textoParaVoz.replace(/\bYELIA\b/g, 'Yelia');
-    textoParaVoz = textoParaVoz.trim();
-
+    let textoParaVoz = text.replace(/```[\s\S]*?```/g, '').replace(/`[^`]+`/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/#+\s*/g, '').replace(/-\s*/g, '').replace(/\n+/g, ' ').replace(/\bYELIA\b/g, 'Yelia').trim();
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
-
     if (currentAudio) {
         if (currentAudio instanceof Audio) {
             currentAudio.pause();
@@ -111,7 +96,6 @@ const speakText = async (text) => {
         }
         currentAudio = null;
     }
-
     try {
         console.log('Enviando solicitud al endpoint /tts');
         const res = await fetch('/tts', {
@@ -119,12 +103,10 @@ const speakText = async (text) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: textoParaVoz })
         });
-
         if (!res.ok) {
             const err = await res.json();
             throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
         }
-
         const blob = await res.blob();
         console.log('Blob recibido del endpoint /tts:', blob);
         currentAudio = new Audio(URL.createObjectURL(blob));
@@ -146,31 +128,37 @@ const speakText = async (text) => {
     } catch (error) {
         console.error('Fallo en /tts, intentando speechSynthesis:', error);
         mostrarNotificacion(`Error en TTS: ${error.message}. Intentando audio local.`, 'error');
-
         if ('speechSynthesis' in window) {
             const voices = speechSynthesis.getVoices();
             console.log('Voces disponibles en speechSynthesis:', voices);
             const esVoice = voices.find(v => v.lang.includes('es'));
             if (!esVoice) {
-                console.warn('No se encontró voz en español');
-                mostrarNotificacion('No se encontró voz en español', 'error');
+                console.warn('No se encontró voz en español (es-ES) para speechSynthesis');
+                mostrarNotificacion('No se encontró voz en español en este navegador', 'error');
                 if (botMessage) botMessage.classList.remove('speaking');
                 return;
             }
             const utterance = new SpeechSynthesisUtterance(textoParaVoz);
+            utterance.lang = 'es-ES';
             utterance.voice = esVoice;
-            utterance.lang = 'es-MX';
-            utterance.rate = 1;
+            utterance.pitch = 1;
+            utterance.rate = 0.9;
+            utterance.onstart = () => console.log('Iniciando reproducción con speechSynthesis');
             utterance.onend = () => {
-                console.log('Audio local finalizado');
+                console.log('Reproducción de speechSynthesis finalizada');
                 if (botMessage) botMessage.classList.remove('speaking');
                 currentAudio = null;
             };
-            currentAudio = utterance;
+            utterance.onerror = (event) => {
+                console.error('Error en speechSynthesis:', event.error);
+                mostrarNotificacion('Error en audio local: ' + event.error, 'error');
+                if (botMessage) botMessage.classList.remove('speaking');
+            };
             speechSynthesis.speak(utterance);
+            currentAudio = utterance;
         } else {
-            console.warn('SpeechSynthesis no soportado');
-            mostrarNotificacion('El navegador no soporta síntesis de voz', 'error');
+            console.warn('speechSynthesis no soportado en este navegador');
+            mostrarNotificacion('Audio local no soportado en este navegador', 'error');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
@@ -341,7 +329,6 @@ const guardarMensaje = (pregunta, respuesta, video_url = null, tema = null) => {
     const regex = /(\?Deseas saber más\?)(?:\s*\1)+/g;
     const respuestaLimpia = respuesta.replace(regex, '$1').trim();
     console.log('Guardando mensaje con respuesta limpia:', respuestaLimpia);
-
     let currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{"id": null, "mensajes": []}');
     if (!currentConversation.id && currentConversation.id !== 0) {
         const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
@@ -433,28 +420,23 @@ const cargarChat = index => {
         console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
-    container.innerHTML = '';
-    chat.mensajes.forEach(msg => {
-        const userDiv = document.createElement('div');
-        userDiv.classList.add('user');
-        userDiv.textContent = msg.pregunta;
-        container.appendChild(userDiv);
-
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        if (msg.respuesta.includes('<button class="quiz-option"')) {
-            botDiv.innerHTML = msg.respuesta;
-        } else {
-            botDiv.innerHTML = `${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}
-            <button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        }
-        container.appendChild(botDiv);
-    });
+    container.innerHTML = chat.mensajes.map(msg => `
+        <div class="user">${msg.pregunta}</div>
+        <div class="bot">${typeof marked !== 'undefined' ? marked.parse(msg.respuesta, { breaks: true, gfm: true }) : msg.respuesta}
+            <button class="copy-btn" data-text="${msg.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+        </div>
+    `).join('');
     scrollToBottom();
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
-    if (window.Prism) Prism.highlightAll();
+    if (window.Prism) {
+        console.log('Aplicando Prism.js al cargar chat');
+        Prism.highlightAll();
+    } else {
+        console.error('Prism.js no está cargado');
+        mostrarNotificacion('Error: Prism.js no está cargado', 'error');
+    }
     addCopyButtonListeners();
 };
 
@@ -521,121 +503,68 @@ const obtenerRecomendacion = async () => {
     }
 };
 
-const obtenerQuiz = async (tipo) => {
+const obtenerQuiz = async (tipoQuiz = 'opciones') => {
     try {
-        const usuario = localStorage.getItem('usuario') || 'anonimo';
-        const nivel = localStorage.getItem('nivelExplicacion') || 'basica';
-        const res = await fetch('/quiz', {
+        const response = await fetch('/quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario, tipo, nivel })
+            body: JSON.stringify({ usuario: 'anonimo', tema: 'POO', tipo_quiz: tipoQuiz }),
+            cache: 'no-store'
         });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || `Error en /quiz: ${res.status} ${res.statusText}`);
+        if (!response.ok) {
+            throw new Error(`Error en /quiz: ${response.status} ${response.statusText}`);
         }
-        const data = await res.json();
-        console.log('Respuesta del endpoint /quiz:', data);
-        return data;
+        return await response.json();
     } catch (error) {
-        console.error('Error al obtener quiz:', error);
-        mostrarNotificacion(`Error al generar el quiz: ${error.message}`, 'error');
-        return { error: error.message };
+        console.warn('Error en fetch /quiz, generando quiz simulado:', error);
+        return {
+            quiz: [{
+                pregunta: tipoQuiz === 'verdadero_falso' ? 'La encapsulación permite ocultar datos.' : '¿Qué es la encapsulación en POO?',
+                opciones: tipoQuiz === 'verdadero_falso' ? ['Verdadero', 'Falso'] : ['Ocultar datos', 'Herencia', 'Polimorfismo', 'Abstracción'],
+                respuesta_correcta: tipoQuiz === 'verdadero_falso' ? 'Verdadero' : 'Ocultar datos',
+                tema: 'POO',
+                nivel: 'basico'
+            }]
+        };
     }
 };
+
 const mostrarQuizEnChat = (quizData) => {
-    if (quizData.error) {
-        mostrarNotificacion(quizData.error, 'error');
-        return;
-    }
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        console.error('No se encontró #chatbox o .message-container');
-        mostrarNotificacion('Error: No se encontró el contenedor del chat', 'error');
-        return;
-    }
-
+    if (!container || !chatbox) return;
+    const quiz = quizData.quiz[0];
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    
-    // Contenedor de la pregunta
-    const quizQuestionDiv = document.createElement('div');
-    quizQuestionDiv.innerHTML = typeof marked !== 'undefined' ? marked.parse(`**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}`) : `**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}`;
-    botDiv.appendChild(quizQuestionDiv);
-
-    // Contenedor de las opciones
-    const opcionesContainer = document.createElement('div');
-    opcionesContainer.classList.add('quiz-options');
-    
-    quizData.opciones.forEach((opcion, i) => {
-        const button = document.createElement('button');
-        button.classList.add('quiz-option');
-        button.setAttribute('data-opcion', opcion);
-        button.setAttribute('data-respuesta-correcta', quizData.respuesta_correcta);
-        button.setAttribute('data-tema', quizData.tema);
-        button.textContent = quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`;
-        opcionesContainer.appendChild(button);
-    });
-
-    botDiv.appendChild(opcionesContainer);
-
-    // Botón de copiar
-    const copyBtn = document.createElement('button');
-    copyBtn.classList.add('copy-btn');
-    copyBtn.setAttribute('data-text', quizData.pregunta);
-    copyBtn.setAttribute('aria-label', 'Copiar pregunta');
-    copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-    botDiv.appendChild(copyBtn);
-
+    const opcionesHtml = quiz.opciones.map((opcion, i) => `
+        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">
+            ${quiz.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
+        </button>
+    `).join('');
+    botDiv.innerHTML = `
+        ${typeof marked !== 'undefined' ? marked.parse(quiz.pregunta, { breaks: true, gfm: true }) : quiz.pregunta}
+        <div class="quiz-options">${opcionesHtml}</div>
+        <button class="copy-btn" data-text="${quiz.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
+    `;
     container.appendChild(botDiv);
     scrollToBottom();
-    if (window.Prism) Prism.highlightAllUnder(botDiv);
-    guardarMensaje('Quiz', `${quizData.pregunta}\nOpciones: ${quizData.opciones.join(', ')}`, null, quizData.tema);
-    speakText(`Quiz sobre ${quizData.tema}: ${quizData.pregunta}`);
-
-    // Listener para los botones del quiz
+    if (window.Prism) {
+        console.log('Aplicando Prism.js al mostrar quiz');
+        Prism.highlightAllUnder(botDiv);
+    }
+    guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`, null, quiz.tema);
     getElements('.quiz-option').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
             btn.classList.add('selected');
             const opcion = btn.dataset.opcion;
             const respuestaCorrecta = btn.dataset.respuesta_correcta;
             const tema = btn.dataset.tema;
+            responderQuiz(opcion, respuestaCorrecta, tema);
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
-
-            try {
-                const res = await fetch('/responder_quiz', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        usuario: localStorage.getItem('usuario') || 'anonimo',
-                        respuesta: opcion,
-                        respuesta_correcta: respuestaCorrecta,
-                        tema: tema
-                    })
-                });
-                const data = await res.json();
-                if (data.error) {
-                    mostrarNotificacion(data.error, 'error');
-                    return;
-                }
-                const responseDiv = document.createElement('div');
-                responseDiv.classList.add('bot');
-                const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';
-                responseDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + 
-                    `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                container.appendChild(responseDiv);
-                scrollToBottom();
-                if (window.Prism) Prism.highlightAllUnder(responseDiv);
-                const textoParaVoz = data.respuesta.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
-                speakText(textoParaVoz);
-            } catch (error) {
-                console.error('Error al responder quiz:', error);
-                mostrarNotificacion('Error al responder el quiz', 'error');
-            }
         });
     });
+    speakText(quiz.pregunta);
 };
 
 const sendMessage = () => {
@@ -692,37 +621,18 @@ const sendMessage = () => {
     }).then(data => {
         container.removeChild(loadingDiv);
         let respuestaLimpia = data.respuesta;
-
-        // Normalizar saltos de línea
-        respuestaLimpia = respuestaLimpia.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-        // Detectar bloques de código no formateados
-        const codeRegex = /(^|\n)(\b(?:class|def|public\s+\w+\s+\w+\s*$$ [^)]* $$\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
-        respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, keyword) => {
-            if (!match.includes('```')) {
-                const language = keyword.startsWith('def') ? 'python' : 'java';
-                return `${prefix}\`\`\`${language}\n${match.trim()}\n\`\`\``;
-            }
-            return match;
-        });
-
-        // Log para depuración
         console.log('Respuesta cruda del backend:', respuestaLimpia);
-
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         const parsedMarkdown = typeof marked !== 'undefined' ? marked.parse(respuestaLimpia, { breaks: true, gfm: true }) : respuestaLimpia;
         botDiv.innerHTML = parsedMarkdown +
             `<button class="copy-btn" data-text="${respuestaLimpia.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
-
-        // Log para depuración
         console.log('HTML generado para botDiv:', botDiv.innerHTML);
-
         scrollToBottom();
         if (window.Prism) {
+            console.log('Aplicando Prism.js al botDiv');
             Prism.highlightAllUnder(botDiv);
-            console.log('Prism.js aplicado al botDiv');
         } else {
             console.error('Prism.js no está cargado');
             mostrarNotificacion('Error: Prism.js no está cargado', 'error');
@@ -810,11 +720,14 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';
-        botDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + 
-            `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        botDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(data.respuesta, { breaks: true, gfm: true }) : data.respuesta) + 
+            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
-        if (window.Prism) Prism.highlightAllUnder(botDiv);
+        if (window.Prism) {
+            console.log('Aplicando Prism.js al responder quiz');
+            Prism.highlightAllUnder(botDiv);
+        }
         speakText(data.respuesta);
         guardarMensaje(`Respuesta al quiz sobre ${tema}`, data.respuesta);
         addCopyButtonListeners();
@@ -849,23 +762,11 @@ const toggleDropdown = () => {
 
 const selectNivel = (nivel) => {
     const nivelBtn = getElement('#nivel-btn');
-    const nivelSelect = getElement('#nivel-explicacion');
-    if (nivelBtn && nivelSelect) {
+    if (nivelBtn) {
         nivelBtn.textContent = nivel === 'basica' ? 'Básica' : nivel === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
-        nivelSelect.value = nivel;
         localStorage.setItem('nivelExplicacion', nivel);
         toggleDropdown();
         mostrarNotificacion(`Nivel de explicación: ${nivelBtn.textContent}`, 'success');
-    }
-};
-
-const sincronizarNivelSelect = () => {
-    const nivelSelect = getElement('#nivel-explicacion');
-    const nivelBtn = getElement('#nivel-btn');
-    if (nivelSelect && nivelBtn) {
-        const nivelGuardado = localStorage.getItem('nivelExplicacion') || 'basica';
-        nivelSelect.value = nivelGuardado;
-        nivelBtn.textContent = nivelGuardado === 'basica' ? 'Básica' : nivelGuardado === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
     }
 };
 
@@ -879,11 +780,14 @@ const mostrarMensajeBienvenida = () => {
     const mensaje = '¡Hola! Soy YELIA, tu asistente para Programación Avanzada en Ingeniería en Telemática. Estoy aquí para ayudarte. ¿Qué quieres aprender hoy?';
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) + 
-        `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) + 
+        `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(botDiv);
     scrollToBottom();
-    if (window.Prism) Prism.highlightAllUnder(botDiv);
+    if (window.Prism) {
+        console.log('Aplicando Prism.js al mensaje de bienvenida');
+        Prism.highlightAllUnder(botDiv);
+    }
     addCopyButtonListeners();
     speakText(mensaje);
     guardarMensaje('Bienvenida', mensaje);
@@ -940,32 +844,6 @@ const handleVoiceHint = () => {
             setTimeout(() => {
                 voiceHint.classList.add('hidden');
             }, 3000);
-        }
-    });
-};
-
-const closeMenusOnClickOutside = () => {
-    const leftSection = getElement('.left-section');
-    const rightSection = getElement('.right-section');
-    const menuToggle = getElement('.menu-toggle');
-    const menuToggleRight = getElement('.menu-toggle-right');
-
-    document.addEventListener('click', (event) => {
-        if (!leftSection || !rightSection || !menuToggle || !menuToggleRight) return;
-        const isClickInsideLeft = leftSection.contains(event.target) || menuToggle.contains(event.target);
-        const isClickInsideRight = rightSection.contains(event.target) || menuToggleRight.contains(event.target);
-
-        if (!isClickInsideLeft && leftSection.classList.contains('active')) {
-            leftSection.classList.remove('active');
-            menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
-            menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
-            menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
-        }
-        if (!isClickInsideRight && rightSection.classList.contains('active')) {
-            rightSection.classList.remove('active');
-            menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>';
-            menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
-            menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
         }
     });
 };
