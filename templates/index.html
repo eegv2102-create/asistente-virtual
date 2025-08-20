@@ -2,117 +2,125 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>💻 Tesis</title>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/marked@14.1.2/lib/marked.umd.min.js" integrity="sha256-0jPHqYk/qUkL9r2gW3N4yWSN+3K7h8VKB1W6j0N4z1I=" crossorigin="anonymous"></script>
-    <script>
-        if (typeof marked === 'undefined') {
-            document.write('<script src="{{ url_for('static', filename='js/marked.min.js') }}"><\/script>');
-        }
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaQOfCdyW//5h6dVnaA/A01D3hYGqM68+04qSY8o1rN2M3G7D2l2WMcjXyqAGr59eDR2c8L5BsjA==" crossorigin="anonymous"></script>
-    <script>
-        if (typeof Prism === 'undefined') {
-            document.write('<script src="{{ url_for('static', filename='js/prism.min.js') }}"><\/script>');
-        }
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js" integrity="sha512-1x3pZ1p/vqN2gDKlHHt1XujK2A9FW8eWvryoE4N3+FeR+8m/iF4Q2oPriv2yV8G8A7m7r+0eKFrLFsTKc/Muf3Q==" crossorigin="anonymous"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 YELIA 🤖</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
 </head>
 <body>
-    <div class="title-container">
-        <h2 class="app-title">🧠 YELIA 🤖</h2>
-        <button class="menu-toggle" aria-label="Abrir menú lateral" aria-expanded="false" aria-controls="left-section">
-            <i class="fas fa-bars"></i>
-        </button>
-        <button class="menu-toggle-right" aria-label="Abrir menú de avatares" aria-expanded="false" aria-controls="right-section">
-            <i class="fas fa-bars"></i>
-        </button>
-    </div>
+    <header class="app-title">
+        <div class="title-container">
+            <h1>🧠 YELIA 🤖</h1>
+            <div class="header-buttons">
+                <button id="modo-btn" data-tooltip="Modo Oscuro" aria-label="Cambiar modo">
+                    <i class="fas fa-moon"></i>
+                    <span id="modo-text">Modo Oscuro</span>
+                </button>
+                <button id="voice-btn" data-tooltip="Activar Voz" aria-label="Activar/Desactivar voz">
+                    <i class="fas fa-volume-up"></i>
+                    <span id="voice-text">Activar Voz</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="voice-hint" class="voice-hint hidden">Haz clic en cualquier lugar para habilitar la voz</div>
+
     <div class="container">
-        <aside class="left-section" id="left-section">
+        <aside class="left-section">
             <div class="sidebar-content">
                 <div class="sidebar-buttons">
-                    <button id="modo-btn" data-tooltip="Modo Oscuro">
-                        <i class="fas fa-moon"></i> <span id="modo-text">Modo Oscuro</span>
+                    <button id="quiz-btn" data-tooltip="Iniciar Quiz" aria-label="Iniciar Quiz">
+                        <i class="fas fa-question-circle"></i>
+                        <span>Iniciar Quiz</span>
                     </button>
-                    <button id="voice-btn" data-tooltip="Activar Voz">
-                        <i class="fas fa-volume-up"></i> <span id="voice-text">Activar Voz</span>
-                    </button>
-                    <button id="quiz-btn" data-tooltip="Iniciar Quiz">
-                        <i class="fas fa-question-circle"></i> Iniciar Quiz
-                    </button>
-                    <button id="recommend-btn" data-tooltip="Recomendar Tema">
-                        <i class="fas fa-lightbulb"></i> Recomendar Tema
+                    <button id="recommend-btn" data-tooltip="Recomendar Tema" aria-label="Recomendar Tema">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Recomendar Tema</span>
                     </button>
                 </div>
+
                 <h3>Historial de Chats</h3>
                 <div class="chat-history">
-                    <ul id="chat-list" role="list" aria-label="Lista de conversaciones guardadas"></ul>
+                    <ul id="chat-list">
+                        <!-- Lista de chats se carga dinámicamente -->
+                    </ul>
                 </div>
             </div>
         </aside>
-        <main class="main-section">
-            <div id="voice-hint" class="voice-hint" style="display: none;" aria-live="polite">
-                Haz clic en cualquier lugar para habilitar la voz
-            </div>
+
+        <section class="main-section">
             <div id="chatbox">
                 <div class="message-container"></div>
             </div>
+
             <div class="input-group">
                 <div class="input-buttons left">
-                    <button id="new-chat-btn" data-tooltip="Nuevo Chat">
+                    <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
                         <i class="fas fa-plus"></i>
                     </button>
-                    <button id="btn-clear" data-tooltip="Limpiar Chat">
+                    <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
+
                 <select id="nivel-explicacion" aria-label="Nivel de explicación">
                     <option value="basica">Explicación Básica</option>
                     <option value="ejemplos">Con Ejemplos de Código</option>
                     <option value="avanzada">Avanzada/Teórica</option>
                 </select>
+
                 <div class="dropdown-container">
-                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">Básica</button>
+                    <button id="nivel-btn" data-tooltip="Nivel de Explicación" aria-label="Seleccionar Nivel de Explicación">Básica</button>
                     <div class="dropdown-menu">
                         <button data-nivel="basica">Explicación Básica</button>
                         <button data-nivel="ejemplos">Con Ejemplos de Código</button>
                         <button data-nivel="avanzada">Avanzada/Teórica</button>
                     </div>
                 </div>
-                <input type="text" id="input" placeholder="Escribe tu mensaje..." aria-label="Escribir mensaje">
+
+                <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
+
                 <div class="input-buttons right">
-                    <button id="voice-toggle-btn" data-tooltip="Voz">
-                        <i class="fas fa-microphone"></i>
-                    </button>
-                    <button id="send-btn" data-tooltip="Enviar">
+                    <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
                         <i class="fas fa-paper-plane"></i>
                     </button>
+                    <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
+                        <i class="fas fa-microphone"></i>
+                    </button>
                 </div>
             </div>
-        </main>
-        <aside class="right-section" id="right-section">
-            <div class="avatar-section">
-                <h3>Selección de Avatar</h3>
-                <p>Funcionalidad de avatares estará disponible pronto con D-ID.</p>
-                <div class="avatar-options"></div>
+        </section>
+
+        <aside class="right-section">
+            <h3>Selección de Avatar</h3>
+            <div class="avatar-options">
+                <!-- Avatares se cargan dinámicamente -->
+            </div>
+
+            <h3>Analytics</h3>
+            <div id="analytics">
+                Funcionalidad de analytics estará disponible pronto.
             </div>
         </aside>
-        <div id="notification-card"></div>
-        <div id="quiz-modal" style="display: none;">
-            <div class="modal-content">
-                <h3 id="quiz-question"></h3>
-                <div id="quiz-options"></div>
-                <div class="modal-buttons">
-                    <button id="quiz-submit">Enviar</button>
-                    <button onclick="document.getElementById('quiz-modal').style.display='none'">Cerrar</button>
-                </div>
-            </div>
-        </div>
     </div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i></button>
+    <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i></button>
+
+    <div id="notification-card">
+        <p>Notificación</p>
+        <button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación">Cerrar</button>
+    </div>
+
+    <script src="/static/js/script.js"></script>
 </body>
 </html>

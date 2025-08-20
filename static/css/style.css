@@ -853,3 +853,48 @@ body {
         display: block;
     }
 }
+
+/* Estilos para el spinner de carga */
+.loading {
+    opacity: 0.7;
+    animation: pulse 1.5s infinite ease-in-out;
+    background-color: var(--message-bot-bg);
+    color: var(--message-bot-text);
+    border-radius: 16px 16px 16px 0;
+    padding: 12px 16px;
+    max-width: 70%;
+    align-self: flex-start;
+    margin-right: 10%;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+/* Mejora de contraste para bloques de código en modo oscuro */
+body.modo-oscuro .bot pre {
+    background: color-mix(in srgb, var(--message-bot-bg), #fff 10%); /* Aclarar ligeramente para mejor contraste en dark mode */
+    color: #f0f0f0; /* Texto más claro */
+}
+
+body.modo-oscuro .bot code {
+    background: color-mix(in srgb, var(--message-bot-bg), #fff 10%);
+    color: #f0f0f0;
+}
+
+/* Ajustes para botones en móvil */
+@media (max-width: 768px) {
+    .chat-actions .rename-btn, .chat-actions .delete-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Asegurar que dropdown no tape input en móvil */
+.dropdown-menu {
+    z-index: 1001; /* Aumentar z-index para que esté por encima de otros elementos */
+}

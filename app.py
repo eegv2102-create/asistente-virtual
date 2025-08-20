@@ -84,7 +84,7 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
-def buscar_respuesta_app(pregunta, historial=None):
+def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     respuestas_simples = {
         "hola": "¡Hola! Estoy listo para ayudarte con Programación Avanzada. ¿Qué tema quieres explorar? ¿Deseas saber más?",
@@ -111,15 +111,37 @@ def buscar_respuesta_app(pregunta, historial=None):
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
+    # Define el estilo del prompt según el nivel de explicación
+    if nivel_explicacion == "basica":
+        estilo_prompt = (
+            "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
+            "Usa un lenguaje simple, evita tecnicismos complejos y enfócate en conceptos básicos."
+        )
+    elif nivel_explicacion == "ejemplos":
+        estilo_prompt = (
+            "Proporciona una explicación clara con ejemplos prácticos de código en bloques Markdown (```python o ```java). "
+            "Asegúrate de que los ejemplos sean relevantes, fáciles de entender y bien comentados para ilustrar el concepto."
+        )
+    elif nivel_explicacion == "avanzada":
+        estilo_prompt = (
+            "Ofrece una explicación técnica, profunda y teórica, adecuada para estudiantes avanzados de Ingeniería en Telemática. "
+            "Incluye detalles técnicos, referencias a conceptos avanzados y, si es relevante, comparaciones con otras tecnologías o enfoques."
+        )
+    else:
+        estilo_prompt = (
+            "Explica de manera clara y completa, adecuada para estudiantes de Ingeniería en Telemática, ajustando el nivel de detalle según el contexto."
+        )
+
     prompt = (
         "Eres YELIA, un asistente virtual inteligente especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática.\n\n"
         "Tu comportamiento debe ser:\n"
         "1. Responder de forma clara, completa, actualizada y estructurada sobre temas de la asignatura (POO, patrones de diseño, MVC, bases de datos, integración con Java, etc.).\n"
         "2. Aceptar preguntas con errores ortográficos o expresiones informales, incluyendo mensajes cortos.\n"
         "3. Ser amigable y motivador, usando un tono cercano pero profesional.\n"
-        "4. Al final de cada respuesta, siempre preguntar: \"¿Deseas saber más?\"\n"
-        "5. Incluir ejemplos de código prácticos en bloques Markdown (```python o ```java) cuando sea relevante, con explicaciones detalladas.\n"
-        "6. Proporcionar definiciones teóricas profundas y estructuradas, como en una IA profesional.\n"
+        f"4. {estilo_prompt}\n"
+        "5. Al final de cada respuesta, siempre preguntar: \"¿Deseas saber más?\"\n"
+        "6. Incluir ejemplos de código prácticos en bloques Markdown (```python o ```java) cuando sea relevante, con explicaciones detalladas.\n"
+        "7. Proporcionar definiciones teóricas profundas y estructuradas, como en una IA profesional.\n"
         f"Contexto: {json.dumps(temas)}\n"
         f"Prerequisitos: {json.dumps(prerequisitos)}\n"
         f"Historial: {contexto}\n"
@@ -204,13 +226,14 @@ def respuesta():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta").strip()[:300])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
+        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:20])
         historial = data.get("historial", [])
 
         if not pregunta:
             logging.info("Pregunta vacía ignorada")
             return jsonify({"respuesta": "Por favor, escribe una pregunta para continuar. ¿Deseas saber más?"})
 
-        respuesta_text = buscar_respuesta_app(pregunta, historial)
+        respuesta_text = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
         avatar = None
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))

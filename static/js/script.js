@@ -611,6 +611,14 @@ const sendMessage = () => {
     container.appendChild(userDiv);
     input.value = '';
     scrollToBottom();
+    
+    // Agregar spinner de carga
+    const loadingDiv = document.createElement('div');
+    loadingDiv.classList.add('bot', 'loading');
+    loadingDiv.textContent = '⌛ Generando respuesta...';
+    container.appendChild(loadingDiv);
+    scrollToBottom();
+    
     const historial = JSON.parse(localStorage.getItem('currentConversation') || '{}').mensajes || [];
     fetch('/respuesta', {
         method: 'POST',
@@ -624,6 +632,9 @@ const sendMessage = () => {
         }
         return res.json();
     }).then(data => {
+        // Remover spinner de carga
+        container.removeChild(loadingDiv);
+        
         let respuestaLimpia = data.respuesta;
         const regex = /(\?Deseas saber más\?)(?:\s*\1)+/g;
         respuestaLimpia = respuestaLimpia.replace(regex, '$1').trim();
@@ -640,6 +651,10 @@ const sendMessage = () => {
         guardarMensaje(pregunta, respuestaLimpia, data.video_url);
         addCopyButtonListeners();
     }).catch(error => {
+        // Remover spinner en caso de error
+        if (loadingDiv && container.contains(loadingDiv)) {
+            container.removeChild(loadingDiv);
+        }
         mostrarNotificacion(`Error al obtener respuesta: ${error.message}`, 'error');
         console.error('Error en fetch /respuesta:', error);
     });
