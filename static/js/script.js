@@ -587,21 +587,35 @@ const sendMessage = () => {
     }).then(data => {
         container.removeChild(loadingDiv);
         console.log('Respuesta del backend:', data.respuesta);
+        let respuestaLimpia = data.respuesta.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        // Detectar bloques de código no formateados
+        const codeRegex = /(^|\n)(\b(?:class|def|public\s+\w+\s+\w+\s*\([^)]*\)\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
+        respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, keyword) => {
+            if (!match.includes('```')) {
+                const language = keyword.startsWith('def') ? 'python' : 'java';
+                return `${prefix}\`\`\`${language}\n${match.trim()}\n\`\`\``;
+            }
+            return match;
+        });
+        console.log('Respuesta formateada:', respuestaLimpia);
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta, { breaks: true, gfm: true }) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia, { breaks: true, gfm: true }) : respuestaLimpia) +
+            `<button class="copy-btn" data-text="${respuestaLimpia.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) {
             console.log('Aplicando Prism.js a la respuesta');
             Prism.highlightAll();
+        } else {
+            console.error('Prism.js no está cargado');
+            mostrarNotificacion('Error: Prism.js no está cargado', 'error');
         }
-        speakText(data.respuesta);
+        speakText(respuestaLimpia);
         const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
         const mensajeIndex = currentConversation.mensajes.findIndex(m => m.pregunta === pregunta && m.respuesta === 'Esperando respuesta...');
         if (mensajeIndex !== -1) {
-            currentConversation.mensajes[mensajeIndex].respuesta = data.respuesta;
+            currentConversation.mensajes[mensajeIndex].respuesta = respuestaLimpia;
             currentConversation.mensajes[mensajeIndex].video_url = data.video_url;
             localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
             const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');

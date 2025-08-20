@@ -230,38 +230,25 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
 def index():
     return render_template("index.html")
 
-@app.route("/ask", methods=["POST"])
+@app.route('/ask', methods=['POST'])
 def ask():
-    try:
-        data = request.get_json()
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        pregunta = bleach.clean(data.get("pregunta", "")[:300])
-        historial = data.get("historial", [])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica"))
-
-        if not pregunta:
-            logging.error("Pregunta vacía en /ask")
-            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
-
-        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
-        if "no disponible" in respuesta:
-            return jsonify({"respuesta": respuesta}), 503
-
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
-            c = conn.cursor()
-            c.execute("INSERT INTO logs (usuario, pregunta, respuesta) VALUES (%s, %s, %s)",
-                      (usuario, pregunta, respuesta))
-            conn.commit()
-            conn.close()
-        except PsycopgError as e:
-            logging.error(f"Error al guardar log: {str(e)}")
-
-        logging.info(f"Pregunta de {usuario}: {pregunta} - Respuesta: {respuesta}")
-        return jsonify({"respuesta": respuesta})
-    except Exception as e:
-        logging.error(f"Error en /ask: {str(e)}")
-        return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
+    data = request.json
+    pregunta = data.get('pregunta', '')
+    # Simulación de respuesta (reemplaza con tu lógica de IA)
+    respuesta = """
+class Persona {
+    String nombre;
+    void saludar() {
+        System.out.println("Hola, soy " + nombre);
+    }
+}
+Persona p = new Persona();
+p.nombre = "Ana";
+p.saludar();
+"""
+    # Asegurarse de envolver el código en triple backticks
+    respuesta_formateada = f"```java\n{respuesta}\n```"
+    return jsonify({'respuesta': respuesta_formateada, 'video_url': None})
 
 @app.route("/quiz", methods=["POST"])
 def quiz():
