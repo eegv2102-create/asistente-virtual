@@ -133,6 +133,15 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
+    # Obtener el ejemplo de código desde temas.json si existe
+    ejemplo_codigo = None
+    lenguaje = "java"  # Por defecto, ya que los ejemplos en temas.json son en Java
+    if tema_encontrado and unidad_encontrada:
+        ejemplo_codigo = temas[unidad_encontrada][tema_encontrado].get("ejemplo", "")
+        # Detectar si el código es en Python (por ejemplo, buscando 'def' o 'class' sin 'public')
+        if "def " in ejemplo_codigo or ("class " in ejemplo_codigo and "public " not in ejemplo_codigo):
+            lenguaje = "python"
+
     if nivel_explicacion == "basica":
         estilo_prompt = (
             "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
@@ -148,11 +157,14 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         ]
     elif nivel_explicacion == "ejemplos":
         estilo_prompt = (
-            "Proporciona la definición del concepto preguntado, seguida de un ejemplo de código claro y conciso que ilustre el concepto. "
-            "Usa un lenguaje claro y de nivel intermedio, adecuado para alguien con conocimientos básicos de programación. "
-            "No incluyas ventajas, prerequisitos ni preguntas adicionales. "
-            "Asegúrate de que el ejemplo de código esté bien comentado y sea relevante al concepto."
-        )
+        "Proporciona la definición del concepto preguntado, seguida de un ejemplo de código claro y conciso que ilustre el concepto. "
+        "El ejemplo debe estar envuelto en triple backticks con el lenguaje especificado (por ejemplo, \`\`\`java o \`\`\`python). "
+        "Usa un lenguaje claro y de nivel intermedio, adecuado para alguien con conocimientos básicos de programación. "
+        "No incluyas ventajas, prerequisitos ni preguntas adicionales. "
+        "Asegúrate de que el ejemplo de código esté bien comentado y sea relevante al concepto."
+    )
+        if ejemplo_codigo:
+            estilo_prompt += f"\nUsa este ejemplo de código si es relevante:\n```{lenguaje}\n{ejemplo_codigo}\n```"
         secciones_no_deseadas = [
             r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
             r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
@@ -191,14 +203,24 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
             temperature=0.7
         )
         respuesta = completion.choices[0].message.content.strip()
-        # Limpieza adicional para eliminar secciones no deseadas según el nivel
+
+        # Si el nivel es "ejemplos" y hay un ejemplo en temas.json, asegurar que esté formateado
+        if nivel_explicacion == "ejemplos" and ejemplo_codigo and "```" not in respuesta:
+            respuesta += f"\n\n```{lenguaje}\n{ejemplo_codigo}\n```"
+
+        # Detectar bloques de código no formateados y envolverlos
+        code_pattern = r'(?<!```)((?:class|def)\s+\w+[\s\S]*?)(?=\n\n|$|```)'
+        respuesta = re.sub(code_pattern, f"```{lenguaje}\n\\1\n```", respuesta)
+
+        # Limpieza adicional para eliminar secciones no deseadas
         for regex in secciones_no_deseadas:
             respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE).strip()
+
         return respuesta
     except Exception as e:
         logging.error(f"Error en Groq API: {str(e)}")
         return "Lo siento, el servicio de IA está temporalmente no disponible. Intenta más tarde o verifica https://groqstatus.com/."
-    
+            
 @app.route("/")
 def index():
     return render_template("index.html")

@@ -691,7 +691,18 @@ const sendMessage = () => {
         return res.json();
     }).then(data => {
         container.removeChild(loadingDiv);
-        const respuestaLimpia = data.respuesta;
+        let respuestaLimpia = data.respuesta;
+
+        // Detectar bloques de código no formateados y envolverlos (respaldo)
+        const codeRegex = /(^|\n)(class|def)\s+\w+[\s\S]*?(?=\n\n|$)/g;
+        respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, keyword) => {
+            if (!match.includes('```')) {
+                const language = keyword === 'def' ? 'python' : 'java';
+                return `${prefix}\`\`\`${language}\n${match.trim()}\n\`\`\``;
+            }
+            return match;
+        });
+
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia) : respuestaLimpia) +
