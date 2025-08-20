@@ -133,126 +133,59 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
-    # Obtener el ejemplo de código desde temas.json si existe
-    ejemplo_codigo = None
-    lenguaje = "java"  # Por defecto
+    # Corrección: Asegurar que se devuelva solo la definición para nivel básico
     if tema_encontrado and unidad_encontrada:
-        ejemplo_codigo = temas[unidad_encontrada][tema_encontrado].get("ejemplo", "")
-        if "def " in ejemplo_codigo or ("class " in ejemplo_codigo and "public " not in ejemplo_codigo):
-            lenguaje = "python"
-
-    if nivel_explicacion == "basica":
-        estilo_prompt = (
-            "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
-            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales."
-        )
-        secciones_no_deseadas = [
-            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
-            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?',
-            r'\n\s*\n\s*'
-        ]
-    elif nivel_explicacion == "ejemplos":
-        estilo_prompt = (
-            "Proporciona la definición del concepto preguntado, seguida de un ejemplo de código claro y conciso que ilustre el concepto. "
-            "El ejemplo debe estar envuelto en triple backticks con el lenguaje especificado (por ejemplo, \`\`\`java o \`\`\`python). "
-            "Usa un lenguaje claro y de nivel intermedio, adecuado para alguien con conocimientos básicos de programación. "
-            "Evita incluir texto descriptivo como 'clase' antes del código."
-        )
-        if ejemplo_codigo:
-            estilo_prompt += f"\nUsa este ejemplo de código si es relevante:\n```{lenguaje}\n{ejemplo_codigo}\n```"
-        secciones_no_deseadas = [
-            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?',
-            r'\n\s*\n\s*'
-        ]
-    elif nivel_explicacion == "avanzada":
-        estilo_prompt = (
-            "Proporciona una explicación teórica avanzada del concepto preguntado, incluyendo detalles profundos y referencias a estándares si aplica. "
-            "Proporciona solo la definición teórica, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales."
-        )
-        secciones_no_deseadas = [
-            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
-            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?',
-            r'\n\s*\n\s*'
-        ]
-
+        definicion = temas[unidad_encontrada][tema_encontrado]["definición"]
+        if nivel_explicacion == "basica":
+            return definicion  # Devolver solo la definición sin ejemplo
+        elif nivel_explicacion == "ejemplos":
+            ejemplo_codigo = temas[unidad_encontrada][tema_encontrado].get("ejemplo", "")
+            return f"{definicion}\n\n**Ejemplo**:\n```java\n{ejemplo_codigo}\n```"
+        else:  # avanzada
+            ventajas = temas[unidad_encontrada][tema_encontrado].get("ventajas", [])
+            ventajas_texto = "\n\n**Ventajas**:\n" + "\n".join(f"- {v}" for v in ventajas) if ventajas else ""
+            ejemplo_codigo = temas[unidad_encontrada][tema_encontrado].get("ejemplo", "")
+            return f"{definicion}{ventajas_texto}\n\n**Ejemplo**:\n```java\n{ejemplo_codigo}\n```"
+    
+    # Lógica para manejar consultas no relacionadas con temas específicos
     prompt = (
-        f"{estilo_prompt}\n"
-        f"Pregunta del usuario: {pregunta}\n"
-        f"Contexto: {contexto}"
+        f"Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+        f"Proporciona una respuesta clara y precisa en español para la pregunta: '{pregunta}'. "
+        f"Contexto: {contexto}\n"
+        f"Nivel de explicación: {nivel_explicacion}. "
+        f"Si es 'basica', explica solo el concepto sin ejemplos ni ventajas. "
+        f"Si es 'ejemplos', incluye un ejemplo de código en Java. "
+        f"Si es 'avanzada', incluye definición, ventajas y ejemplos. "
+        f"Timestamp: {int(time.time())}"
     )
 
     try:
         completion = call_groq_api(
             client,
             messages=[
-                {"role": "system", "content": "Eres un tutor experto en Programación Avanzada."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": pregunta}
             ],
             model="llama3-70b-8192",
-            max_tokens=500,
+            max_tokens=2000,
             temperature=0.7
         )
-        respuesta = completion.choices[0].message.content.strip()
-
-        # Normalizar saltos de línea
-        respuesta = respuesta.replace('\r\n', '\n').replace('\r', '\n')
-
-        # Log para depuración
-        logging.info(f"Respuesta cruda de Groq para pregunta '{pregunta}': {respuesta}")
-
-        # Si el nivel es "ejemplos" y hay un ejemplo en temas.json, incluirlo
-        if nivel_explicacion == "ejemplos" and ejemplo_codigo:
-            if "```" not in respuesta or ejemplo_codigo not in respuesta:
-                respuesta += f"\n\n**Ejemplo**:\n```{lenguaje}\n{ejemplo_codigo}\n```"
-
-        # Detectar y formatear bloques de código, eliminando texto como "clase"
-        code_pattern = r'(?m)^(\s*(?:clase\s+)?(?:class|def|public\s+\w+\s+\w+\s*\([^)]*\)\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))'
-        def format_code(match):
-            code = match.group(1).strip()
-            # Eliminar "clase" si está presente
-            code = re.sub(r'^\s*clase\s+', '', code, flags=re.IGNORECASE)
-            language = 'python' if 'def ' in code else 'java'
-            return f"```{language}\n{code}\n```"
-        respuesta = re.sub(code_pattern, format_code, respuesta)
-
-        # Limpieza adicional
-        for regex in secciones_no_deseadas:
-            respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE).strip()
-
-        # Log para depuración
-        logging.info(f"Respuesta formateada para pregunta '{pregunta}': {respuesta}")
-
-        return respuesta
+        respuesta = completion.choices[0].message.content
+        # Limpieza de la respuesta
+        if nivel_explicacion == "basica":
+            for pattern in [
+                r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
+                r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+                r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+                r'\?Deseas saber más\?',
+                r'\n\s*\n\s*'
+            ]:
+                respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
+        return respuesta.strip()
     except Exception as e:
-        logging.error(f"Error en Groq API: {str(e)}")
-        return "Lo siento, el servicio de IA está temporalmente no disponible. Intenta más tarde o verifica https://groqstatus.com/."
-                  
-@app.route("/")
-def index():
-    return render_template("index.html")
+        logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
+        return "Lo siento, no pude procesar tu pregunta. Intenta de nuevo."
 
-@app.route('/ask', methods=['POST'])
-def ask():
-    data = request.json
-    pregunta = data.get('pregunta', '')
-    # Simulación de respuesta (reemplaza con tu lógica de IA)
-    respuesta = """
-class Persona {
-    String nombre;
-    void saludar() {
-        System.out.println("Hola, soy " + nombre);
-    }
-}
-Persona p = new Persona();
-p.nombre = "Ana";
-p.saludar();
-"""
     # Asegurarse de envolver el código en triple backticks
     respuesta_formateada = f"```java\n{respuesta}\n```"
     return jsonify({'respuesta': respuesta_formateada, 'video_url': None})

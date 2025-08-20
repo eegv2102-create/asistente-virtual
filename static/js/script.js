@@ -549,88 +549,63 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
     });
 };
 
-const sendMessage = () => {
+const sendMessage = async () => {
     const input = getElement('#input');
-    const nivelExplicacion = getElement('#nivel-explicacion')?.value || localStorage.getItem('nivelExplicacion') || 'basica';
-    if (!input) return;
-    const pregunta = input.value.trim();
-    if (!pregunta) return;
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!container) return;
+    if (!input || !chatbox || !container || !input.value.trim()) return;
+
+    const pregunta = input.value.trim();
+    input.value = '';
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
-    userDiv.textContent = pregunta;
+    userDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta, { breaks: true, gfm: true }) : pregunta) +
+        `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
-    input.value = '';
     scrollToBottom();
-    guardarMensaje(pregunta, 'Esperando respuesta...');
+    guardarMensaje(pregunta, '');
+
+    const nivel = localStorage.getItem('nivelExplicacion') || 'basica'; // Verificar que se envíe correctamente
     const loadingDiv = document.createElement('div');
-    loadingDiv.classList.add('bot', 'loading');
-    loadingDiv.textContent = '⌛ Generando respuesta...';
+    loadingDiv.classList.add('loading');
+    loadingDiv.textContent = 'Cargando respuesta...';
     container.appendChild(loadingDiv);
     scrollToBottom();
-    const historial = JSON.parse(localStorage.getItem('currentConversation') || '{}').mensajes || [];
-    fetch('/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            pregunta,
-            usuario: 'anonimo',
-            avatar_id: selectedAvatar,
-            nivel_explicacion: nivelExplicacion,
-            historial
-        })
-    }).then(res => {
-        if (!res.ok) throw new Error('Error en /ask');
-        return res.json();
-    }).then(data => {
-        container.removeChild(loadingDiv);
-        console.log('Respuesta del backend:', data.respuesta);
-        let respuestaLimpia = data.respuesta.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-        // Detectar bloques de código no formateados
-        const codeRegex = /(^|\n)(\s*(?:clase\s+)?\b(?:class|def|public\s+\w+\s+\w+\s*\([^)]*\)\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
-        respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, code) => {
-            if (!match.includes('```')) {
-                const language = code.includes('def ') ? 'python' : 'java';
-                // Eliminar "clase" si está presente
-                const cleanCode = code.replace(/^\s*clase\s+/i, '').trim();
-                return `${prefix}\`\`\`${language}\n${cleanCode}\n\`\`\``;
-            }
-            return match;
+
+    try {
+        const res = await fetch('/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pregunta,
+                usuario: localStorage.getItem('usuario') || 'anonimo',
+                historial: JSON.parse(localStorage.getItem('historial') || '[]'),
+                nivel_explicacion: nivel // Asegúrate de que este valor sea correcto
+            })
         });
-        console.log('Respuesta formateada:', respuestaLimpia);
+        const data = await res.json();
+        container.removeChild(loadingDiv);
+        if (data.error) {
+            mostrarNotificacion(data.error, 'error');
+            return;
+        }
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia, { breaks: true, gfm: true }) : respuestaLimpia) +
-            `<button class="copy-btn" data-text="${respuestaLimpia.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta, { breaks: true, gfm: true }) : data.respuesta) +
+            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
-        if (window.Prism) {
-            console.log('Aplicando Prism.js a la respuesta');
-            Prism.highlightAll();
-        } else {
-            console.error('Prism.js no está cargado');
-            mostrarNotificacion('Error: Prism.js no está cargado', 'error');
-        }
-        speakText(respuestaLimpia);
-        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-        const mensajeIndex = currentConversation.mensajes.findIndex(m => m.pregunta === pregunta && m.respuesta === 'Esperando respuesta...');
-        if (mensajeIndex !== -1) {
-            currentConversation.mensajes[mensajeIndex].respuesta = respuestaLimpia;
-            currentConversation.mensajes[mensajeIndex].video_url = data.video_url;
-            localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
-            const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
-            historial[currentConversation.id] = currentConversation;
-            localStorage.setItem('chatHistory', JSON.stringify(historial));
-        }
-        addCopyButtonListeners();
-    }).catch(error => {
+        if (window.Prism) Prism.highlightAll();
+        guardarMensaje(pregunta, data.respuesta);
+        if (vozActiva && userHasInteracted) speakText(data.respuesta);
+    } catch (error) {
         container.removeChild(loadingDiv);
-        console.error('Error en /ask:', error);
         mostrarNotificacion('Error al obtener respuesta', 'error');
-    });
+        console.error('Error en sendMessage:', error);
+    }
 };
+const nivel = localStorage.getItem('nivelExplicacion') || 'basica';
+console.log('Nivel de explicación enviado:', nivel); // Depuración
 
 const limpiarChat = () => {
     stopSpeech();

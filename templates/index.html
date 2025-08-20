@@ -6,12 +6,9 @@
     <title>🧠 YELIA 🤖</title>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
-    
     <link rel="stylesheet" href="/static/css/style.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
@@ -75,11 +72,15 @@
                     </button>
                 </div>
 
-                <select id="nivel-explicacion" aria-label="Nivel de explicación">
-                    <option value="basica">Explicación Básica</option>
-                    <option value="ejemplos">Con Ejemplos de Código</option>
-                    <option value="avanzada">Avanzada/Teórica</option>
-                </select>
+                <!-- Cambiado de <select> a un botón con dropdown -->
+                <div class="dropdown-container">
+                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">Explicación Básica</button>
+                    <div class="dropdown-menu">
+                        <button onclick="selectNivel('basica')">Explicación Básica</button>
+                        <button onclick="selectNivel('ejemplos')">Con Ejemplos de Código</button>
+                        <button onclick="selectNivel('avanzada')">Avanzada/Teórica</button>
+                    </div>
+                </div>
 
                 <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
 
