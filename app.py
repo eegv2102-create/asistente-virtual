@@ -15,6 +15,7 @@ import bleach
 from gtts import gTTS
 import io
 import retrying
+import re
 
 app = Flask(__name__)
 load_dotenv()
@@ -109,9 +110,9 @@ def call_groq_api(client, messages, model, max_tokens, temperature):
 def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     respuestas_simples = {
-        "hola": "¡Hola! Estoy listo para ayudarte con Programación Avanzada. ¿Qué tema quieres explorar? ¿Deseas saber más?",
-        "gracias": "¡De nada! Sigue aprendiendo, estoy aquí para apoyarte. ¿Deseas saber más?",
-        "adiós": "¡Hasta pronto! Espero verte de nuevo para seguir aprendiendo. ¿Deseas saber más?"
+        "hola": "¡Hola! Estoy listo para ayudarte con Programación Avanzada. ¿Qué tema quieres explorar?",
+        "gracias": "¡De nada! Sigue aprendiendo, estoy aquí para apoyarte.",
+        "adiós": "¡Hasta pronto! Espero verte de nuevo para seguir aprendiendo."
     }
     if pregunta.lower().strip() in respuestas_simples:
         return respuestas_simples[pregunta.lower().strip()]
@@ -128,15 +129,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         if tema_encontrado:
             break
 
-    prereq_text = ""
-    if tema_encontrado:
-        unidad_key = unidad_encontrada.split(':')[0].strip()
-        if unidad_key in prerequisitos and tema_encontrado in prerequisitos[unidad_key]:
-            prereq_text = (
-                "\n\n**Prerequisitos recomendados**: Antes de profundizar en este tema, te sugiero repasar:\n" +
-                "\n".join([f"- {p}" for p in prerequisitos[unidad_key][tema_encontrado]])
-            )
-
     contexto = ""
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
@@ -144,22 +136,24 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     if nivel_explicacion == "basica":
         estilo_prompt = (
             "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
+            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales. "
             "Usa un lenguaje simple, evita tecnicismos complejos y enfócate en conceptos básicos."
         )
     elif nivel_explicacion == "ejemplos":
         estilo_prompt = (
-            "Proporciona explicaciones con ejemplos de código prácticos en Java, manteniendo un nivel intermedio. Incluye código comentado y explica paso a paso."
+            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales. "
+            "Mantiene un nivel intermedio, con un lenguaje claro y conciso."
         )
     elif nivel_explicacion == "avanzada":
         estilo_prompt = (
-            "Ofrece una explicación teórica avanzada, con detalles profundos, referencias a estándares y posibles implementaciones complejas en Java."
+            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales. "
+            "Ofrece una explicación teórica avanzada, con detalles profundos y referencias a estándares, usando un lenguaje técnico."
         )
 
     prompt = (
         f"{estilo_prompt}\n"
         f"Pregunta del usuario: {pregunta}\n"
-        f"Contexto: {contexto}\n"
-        f"{prereq_text}"
+        f"Contexto: {contexto}"
     )
 
     try:
@@ -173,11 +167,22 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
             max_tokens=500,
             temperature=0.7
         )
-        return completion.choices[0].message.content.strip()
+        respuesta = completion.choices[0].message.content.strip()
+        # Limpieza adicional para eliminar cualquier sección no deseada
+        secciones_no_deseadas = [
+            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
+            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?',
+            r'\n\s*\n\s*'
+        ]
+        for regex in secciones_no_deseadas:
+            respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE).strip()
+        return respuesta
     except Exception as e:
         logging.error(f"Error en Groq API: {str(e)}")
         return "Lo siento, el servicio de IA está temporalmente no disponible. Intenta más tarde o verifica https://groqstatus.com/."
-
+    
 @app.route("/")
 def index():
     return render_template("index.html")
