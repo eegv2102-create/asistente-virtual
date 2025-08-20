@@ -82,7 +82,6 @@ const speakText = async (text) => {
 
     if (!userHasInteracted) {
         console.warn('No se puede reproducir audio: el usuario no ha interactuado con la página');
-        mostrarNotificacion('Haz clic en la página para habilitar el audio', 'info');
         toggleVoiceHint(true);
         pendingWelcomeMessage = text;
         return;
