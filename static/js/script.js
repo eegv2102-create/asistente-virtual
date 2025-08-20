@@ -904,12 +904,24 @@ const init = () => {
         menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
     }
     if (modoBtn) {
-        modoBtn.setAttribute('data-tooltip', 'Cambiar Modo');
-        modoBtn.setAttribute('aria-label', 'Cambiar entre modo claro y oscuro');
+        const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
+        modoBtn.setAttribute('data-tooltip', modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+        modoBtn.setAttribute('aria-label', modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+        modoBtn.innerHTML = `
+            <i class="fas ${modoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+            <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+        `;
         modoBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-oscuro');
-            localStorage.setItem('modoOscuro', document.body.classList.contains('modo-oscuro'));
-            mostrarNotificacion('Modo cambiado', 'success');
+            const isModoOscuro = document.body.classList.contains('modo-oscuro');
+            localStorage.setItem('modoOscuro', isModoOscuro);
+            modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+            modoBtn.setAttribute('aria-label', isModoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+            modoBtn.innerHTML = `
+                <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+                <span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            `;
+            mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
         });
     }
     if (voiceBtn) {
