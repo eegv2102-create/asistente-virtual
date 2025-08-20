@@ -358,7 +358,7 @@ body {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s ease, visibility 0.2s ease;
-    z-index: 1006; /* Asegurar que el tooltip esté encima de todo */
+    z-index: 2000; /* Aumentado para estar encima de .chat-history y .main-section */
     box-shadow: 0 2px 4px var(--shadow);
     margin-right: 8px; /* Espacio entre el tooltip y el botón */
 }
@@ -378,7 +378,7 @@ body {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s ease, visibility 0.2s ease;
-    z-index: 1006; /* Asegurar que el tooltip esté encima de todo */
+    z-index: 2000; /* Aumentado para estar encima de .chat-history y .main-section */
     box-shadow: 0 2px 4px var(--shadow);
     margin-left: 8px; /* Espacio entre el tooltip y el botón */
 }
@@ -898,6 +898,7 @@ body {
     .chat-actions .rename-btn[data-tooltip]::after, .chat-actions .delete-btn[data-tooltip]::after {
         font-size: 0.7rem;
         padding: 3px 6px;
+        z-index: 2000; /* Aumentado para móviles */
     }
 }
 
