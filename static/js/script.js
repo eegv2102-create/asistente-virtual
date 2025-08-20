@@ -589,7 +589,7 @@ const sendMessage = () => {
         console.log('Respuesta del backend:', data.respuesta);
         let respuestaLimpia = data.respuesta.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         // Detectar bloques de código no formateados
-        const codeRegex = /(^|\n)(\s*(?:clase\s+)?\b(?:class|def|public\s+\w+\s+\w+\s*$$ [^)]* $$\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
+        const codeRegex = /(^|\n)(\s*(?:clase\s+)?\b(?:class|def|public\s+\w+\s+\w+\s*\([^)]*\)\s*\{)\s*[^\n]*[\s\S]*?(?=\n\n|$))/g;
         respuestaLimpia = respuestaLimpia.replace(codeRegex, (match, prefix, code) => {
             if (!match.includes('```')) {
                 const language = code.includes('def ') ? 'python' : 'java';
