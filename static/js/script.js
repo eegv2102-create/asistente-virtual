@@ -408,8 +408,8 @@ const actualizarListaChats = () => {
         const li = document.createElement('li');
         li.innerHTML = `<span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
                         <div class="chat-actions">
-                            <button class="rename-btn" data-tooltip="Renombrar chat" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
-                            <button class="delete-btn" data-tooltip="Eliminar chat" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
+                            <button class="rename-btn" data-tooltip="Renombrar" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
+                            <button class="delete-btn" data-tooltip="Eliminar" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
                         </div>`;
         li.dataset.index = index;
         li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
@@ -937,12 +937,12 @@ const init = () => {
         }));
     }
     if (sendBtn) {
-        sendBtn.setAttribute('data-tooltip', 'Enviar Mensaje');
+        sendBtn.setAttribute('data-tooltip', 'Enviar');
         sendBtn.setAttribute('aria-label', 'Enviar mensaje');
         sendBtn.addEventListener('click', sendMessage);
     }
     if (newChatBtn) {
-        newChatBtn.setAttribute('data-tooltip', 'Nueva Conversación');
+        newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
         newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
         newChatBtn.addEventListener('click', nuevaConversacion);
     }
@@ -957,7 +957,7 @@ const init = () => {
         nivelBtn.addEventListener('click', toggleDropdown);
     }
     if (voiceToggleBtn) {
-        voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
+        voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
     }
