@@ -504,34 +504,6 @@ const eliminarChat = index => {
     actualizarListaChats();
 };
 
-const cargarAnalytics = async () => {
-    const analyticsContainer = getElement('#analytics');
-    if (!analyticsContainer) {
-        console.error('Elemento #analytics no encontrado');
-        return;
-    }
-    try {
-        const response = await fetch('/analytics', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo' }),
-            cache: 'no-store'
-        });
-        if (!response.ok) {
-            throw new Error(`Error en /analytics: ${response.status} ${response.statusText}`);
-        }
-        const data = await response.json();
-        analyticsContainer.innerHTML = data.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
-    } catch (error) {
-        console.warn('Error en fetch /analytics, usando datos de prueba:', error);
-        const datosPrueba = [
-            { tema: 'POO', tasa_acierto: 0.85 },
-            { tema: 'Estructuras de Datos', tasa_acierto: 0.70 }
-        ];
-        analyticsContainer.innerHTML = datosPrueba.map(item => `<p>${item.tema}: Tasa de acierto ${item.tasa_acierto * 100}%</p>`).join('');
-    }
-};
-
 const obtenerRecomendacion = async () => {
     try {
         const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
