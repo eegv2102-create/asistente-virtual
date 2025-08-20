@@ -433,18 +433,34 @@ const cargarChat = index => {
         console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
-    container.innerHTML = chat.mensajes.map(msg => `
-        <div class="user">${msg.pregunta}</div>
-        <div class="bot">${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}
-            <button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
-        </div>
-    `).join('');
+    container.innerHTML = ''; // Limpiar el contenedor antes de cargar
+
+    chat.mensajes.forEach(msg => {
+        const userDiv = document.createElement('div');
+        userDiv.classList.add('user');
+        userDiv.textContent = msg.pregunta;
+        container.appendChild(userDiv);
+
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        // Aquí se asegura que la respuesta sea tratada como HTML si contiene etiquetas, o como Markdown si es texto
+        if (msg.respuesta.includes('<button class="quiz-option"')) {
+            // Es un mensaje de quiz, se usa innerHTML directamente
+            botDiv.innerHTML = msg.respuesta;
+        } else {
+            // Es un mensaje normal, se usa marked.parse
+            botDiv.innerHTML = `${typeof marked !== 'undefined' ? marked.parse(msg.respuesta) : msg.respuesta}
+                <button class="copy-btn" data-text="${msg.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        }
+        container.appendChild(botDiv);
+    });
+
     scrollToBottom();
+    if (window.Prism) Prism.highlightAll();
+    addCopyButtonListeners();
     localStorage.setItem('currentConversation', JSON.stringify({ id: index, nombre: chat.nombre, timestamp: chat.timestamp, mensajes: chat.mensajes }));
     getElements('#chat-list li').forEach(li => li.classList.remove('selected'));
     getElement(`#chat-list li[data-index="${index}"]`)?.classList.add('selected');
-    if (window.Prism) Prism.highlightAll();
-    addCopyButtonListeners();
 };
 
 const renombrarChat = index => {
@@ -545,51 +561,84 @@ const mostrarQuizEnChat = (quizData) => {
         mostrarNotificacion('Error: No se encontró el contenedor del chat', 'error');
         return;
     }
+
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    const opcionesHtml = quizData.opciones.map((opcion, i) => `
-        <button class="quiz-option" data-opcion="${opcion}">
-            ${quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
-        </button>
-    `).join('');
-    const mensaje = `**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}<div class="quiz-options">${opcionesHtml}</div>`;
-    botDiv.innerHTML = `
-        ${typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje}
-        <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
-    `;
+    
+    // Crea la pregunta del quiz como un párrafo para mejor semántica
+    const quizQuestion = document.createElement('p');
+    quizQuestion.innerHTML = `**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}`;
+    botDiv.appendChild(quizQuestion);
+
+    // Crea el contenedor de las opciones
+    const opcionesContainer = document.createElement('div');
+    opcionesContainer.classList.add('quiz-options');
+
+    quizData.opciones.forEach((opcion, i) => {
+        const button = document.createElement('button');
+        button.classList.add('quiz-option');
+        button.setAttribute('data-opcion', opcion);
+        button.setAttribute('data-respuesta-correcta', quizData.respuesta_correcta);
+        button.setAttribute('data-tema', quizData.tema);
+        button.textContent = quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`;
+        opcionesContainer.appendChild(button);
+    });
+
+    botDiv.appendChild(opcionesContainer);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.classList.add('copy-btn');
+    copyBtn.setAttribute('data-text', quizData.pregunta);
+    copyBtn.setAttribute('aria-label', 'Copiar pregunta');
+    copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+    botDiv.appendChild(copyBtn);
+
     container.appendChild(botDiv);
     scrollToBottom();
     if (window.Prism) Prism.highlightAllUnder(botDiv);
-
     guardarMensaje('Quiz', `${quizData.pregunta}\nOpciones: ${quizData.opciones.join(', ')}`, null, quizData.tema);
     speakText(`Quiz sobre ${quizData.tema}: ${quizData.pregunta}`);
 
+    // Aquí se añade el listener para los nuevos botones
     getElements('.quiz-option').forEach(btn => {
         btn.addEventListener('click', async () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
             btn.classList.add('selected');
-
-            // Deshabilitar todos los botones después de la selección
+            const opcion = btn.dataset.opcion;
+            const respuestaCorrecta = btn.dataset.respuesta_correcta;
+            const tema = btn.dataset.tema;
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
 
-            const respuestaUsuario = btn.dataset.opcion;
-            const respuestaCorrecta = quizData.respuesta_correcta;
-            const tema = quizData.tema;
-
-            const res = await fetch('/responder_quiz', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    usuario: localStorage.getItem('usuario') || 'anonimo',
-                    respuesta: respuestaUsuario,
-                    respuesta_correcta: respuestaCorrecta,
-                    tema: tema
-                })
-            });
-            const feedback = await res.json();
-            mostrarNotificacion(feedback.respuesta, feedback.es_correcta ? 'success' : 'error');
-            if (vozActiva) {
-                speakText(feedback.respuesta);
+            try {
+                const res = await fetch('/responder_quiz', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuario: localStorage.getItem('usuario') || 'anonimo',
+                        respuesta: opcion,
+                        respuesta_correcta: respuestaCorrecta,
+                        tema: tema
+                    })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    mostrarNotificacion(data.error, 'error');
+                    return;
+                }
+                const responseDiv = document.createElement('div');
+                responseDiv.classList.add('bot');
+                responseDiv.innerHTML = `
+                    ${typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta}
+                    <button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+                `;
+                container.appendChild(responseDiv);
+                scrollToBottom();
+                const textoParaVoz = data.respuesta.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
+                speakText(textoParaVoz);
+                addCopyButtonListeners();
+            } catch (error) {
+                console.error('Error al responder quiz:', error);
+                mostrarNotificacion('Error al responder el quiz', 'error');
             }
         });
     });
