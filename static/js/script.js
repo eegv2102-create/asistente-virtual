@@ -524,7 +524,7 @@ const obtenerQuiz = async (tipo) => {
             throw new Error(err.error || `Error en /quiz: ${res.status} ${res.statusText}`);
         }
         const data = await res.json();
-        console.log('Respuesta del endpoint /quiz:', data); // Para depuración
+        console.log('Respuesta del endpoint /quiz:', data);
         return data;
     } catch (error) {
         console.error('Error al obtener quiz:', error);
@@ -532,7 +532,6 @@ const obtenerQuiz = async (tipo) => {
         return { error: error.message };
     }
 };
-
 const mostrarQuizEnChat = (quizData) => {
     if (quizData.error) {
         mostrarNotificacion(quizData.error, 'error');
@@ -898,9 +897,15 @@ const closeMenusOnClickOutside = () => {
 
         if (!isClickInsideLeft && leftSection.classList.contains('active')) {
             leftSection.classList.remove('active');
+            menuToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Restaurar ícono original
+            menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
+            menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
         }
         if (!isClickInsideRight && rightSection.classList.contains('active')) {
             rightSection.classList.remove('active');
+            menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>'; // Restaurar ícono original
+            menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
+            menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
         }
     });
 };
@@ -922,36 +927,34 @@ const init = () => {
     const rightSection = getElement('.right-section');
 
     if (menuToggle && leftSection) {
-        menuToggle.addEventListener('click', () => {
-            leftSection.classList.toggle('active');
-            rightSection.classList.remove('active'); // Cerrar el otro menú
-        });
+        menuToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Ícono inicial
         menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
         menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
+        menuToggle.addEventListener('click', () => {
+            const isActive = leftSection.classList.toggle('active');
+            rightSection.classList.remove('active'); // Cerrar el otro menú
+            menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>'; // Restaurar ícono del menú derecho
+            menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
+            menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
+            menuToggle.innerHTML = `<i class="fas ${isActive ? 'fa-times' : 'fa-bars'}"></i>`;
+            menuToggle.setAttribute('data-tooltip', isActive ? 'Cerrar Menú' : 'Menú Izquierdo');
+            menuToggle.setAttribute('aria-label', isActive ? 'Cerrar menú izquierdo' : 'Abrir menú izquierdo');
+        });
     }
     if (menuToggleRight && rightSection) {
-        menuToggleRight.addEventListener('click', () => {
-            rightSection.classList.toggle('active');
-            leftSection.classList.remove('active'); // Cerrar el otro menú
-        });
+        menuToggleRight.innerHTML = '<i class="fas fa-info-circle"></i>'; // Ícono inicial
         menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
         menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
-    }
-    if (leftSection) {
-        const closeBtnLeft = document.createElement('button');
-        closeBtnLeft.classList.add('close-menu-btn');
-        closeBtnLeft.innerHTML = '<i class="fas fa-times"></i>';
-        closeBtnLeft.setAttribute('aria-label', 'Cerrar menú izquierdo');
-        leftSection.insertBefore(closeBtnLeft, leftSection.firstChild);
-        closeBtnLeft.addEventListener('click', () => leftSection.classList.remove('active'));
-    }
-    if (rightSection) {
-        const closeBtnRight = document.createElement('button');
-        closeBtnRight.classList.add('close-menu-btn');
-        closeBtnRight.innerHTML = '<i class="fas fa-times"></i>';
-        closeBtnRight.setAttribute('aria-label', 'Cerrar menú derecho');
-        rightSection.insertBefore(closeBtnRight, rightSection.firstChild);
-        closeBtnRight.addEventListener('click', () => rightSection.classList.remove('active'));
+        menuToggleRight.addEventListener('click', () => {
+            const isActive = rightSection.classList.toggle('active');
+            leftSection.classList.remove('active'); // Cerrar el otro menú
+            menuToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Restaurar ícono del menú izquierdo
+            menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
+            menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
+            menuToggleRight.innerHTML = `<i class="fas ${isActive ? 'fa-times' : 'fa-info-circle'}"></i>`;
+            menuToggleRight.setAttribute('data-tooltip', isActive ? 'Cerrar Menú' : 'Menú Derecho');
+            menuToggleRight.setAttribute('aria-label', isActive ? 'Cerrar menú derecho' : 'Abrir menú derecho');
+        });
     }
     if (modoBtn) {
         const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
@@ -995,16 +998,16 @@ const init = () => {
         });
     }
     if (quizBtn) {
-    quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
-    quizBtn.setAttribute('aria-label', 'Generar un quiz');
-    quizBtn.addEventListener('click', () => {
-        console.log('Botón de quiz clickeado');
-        obtenerQuiz('opciones').then(mostrarQuizEnChat).catch(error => {
-            console.error('Error al procesar quiz:', error);
-            mostrarNotificacion('Error al generar el quiz', 'error');
+        quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
+        quizBtn.setAttribute('aria-label', 'Generar un quiz');
+        quizBtn.addEventListener('click', () => {
+            console.log('Botón de quiz clickeado');
+            obtenerQuiz('opciones').then(mostrarQuizEnChat).catch(error => {
+                console.error('Error al procesar quiz:', error);
+                mostrarNotificacion('Error al generar el quiz', 'error');
+            });
         });
-    });
-}
+    }
     if (recommendBtn) {
         recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
         recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');

@@ -258,7 +258,14 @@ def quiz():
             f"Eres un tutor de Programación Avanzada. Genera un quiz de tipo {tipo_quiz} sobre el tema '{tema}'. "
             f"El nivel de explicación debe ser {nivel_explicacion}. "
             f"Genera una pregunta única (no repitas preguntas anteriores). "
-            "Devuelve un JSON con: pregunta (string), opciones (array de strings), respuesta_correcta (string, debe coincidir exactamente con una opción), tema (string), tipo_quiz (string)."
+            "Devuelve SOLO un objeto JSON con las claves: pregunta (string), opciones (array de strings), respuesta_correcta (string, debe coincidir exactamente con una opción), tema (string), tipo_quiz (string). "
+            "NO incluyas texto adicional fuera del JSON. "
+            "Ejemplo: "
+            "{\"pregunta\": \"¿Qué es un bucle for en Python?\", "
+            "\"opciones\": [\"Itera sobre una secuencia\", \"Define una función\", \"Crea una clase\", \"Ejecuta una condición\"], "
+            "\"respuesta_correcta\": \"Itera sobre una secuencia\", "
+            "\"tema\": \"Bucles\", "
+            "\"tipo_quiz\": \"opciones\"}"
             f"Contexto: usuario ha aprendido {','.join(temas_aprendidos)}. Timestamp: {int(time.time())}"
         )
 
@@ -273,7 +280,23 @@ def quiz():
             temperature=0.9
         )
 
-        quiz_data = json.loads(completion.choices[0].message.content)
+        # Loggear la respuesta cruda de Groq para depuración
+        logging.info(f"Respuesta cruda de Groq: {completion.choices[0].message.content}")
+
+        try:
+            quiz_data = json.loads(completion.choices[0].message.content)
+        except json.JSONDecodeError as je:
+            logging.error(f"Error al decodificar JSON de Groq: {str(je)}")
+            # Fallback: generar un quiz simple si Groq falla
+            quiz_data = {
+                "pregunta": f"¿Qué es {tema}?",
+                "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+                "respuesta_correcta": "Opción A",
+                "tema": tema,
+                "tipo_quiz": tipo_quiz
+            }
+            logging.warning(f"Usando quiz de fallback para tema {tema}")
+
         quiz_data['tipo_quiz'] = tipo_quiz  # Asegurar que tipo_quiz esté en la respuesta
         try:
             validate_quiz_format(quiz_data)
@@ -283,9 +306,6 @@ def quiz():
 
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
         return jsonify(quiz_data)
-    except json.JSONDecodeError as je:
-        logging.error(f"Error al decodificar JSON de Groq: {str(je)}")
-        return jsonify({"error": "Error al procesar la respuesta de la API"}), 500
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
