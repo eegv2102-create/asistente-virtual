@@ -185,6 +185,7 @@ body {
 
 .left-section, .right-section {
   width: 240px;
+  flex: 0 0 240px; /* Ancho fijo, no se encoge ni se expande */
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   padding: 16px;
@@ -376,6 +377,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  max-width: calc(100% - 480px); /* 1200px - (240px left + 240px right) */
 }
 
 #chatbox {
@@ -473,6 +475,7 @@ body {
   line-height: 1.4;
   white-space: pre-wrap;
   max-width: 100%;
+  box-sizing: border-box;
   margin-top: 8px;
   box-shadow: inset 0 1px 3px var(--shadow);
 }
@@ -791,11 +794,17 @@ body.modo-oscuro .token.punctuation {
     width: 100%;
     height: calc(100vh - 90px);
     margin: 0;
+    max-width: 100%; /* En móvil, ocupa todo el ancho */
   }
 
   #chatbox {
     max-height: calc(100vh - 150px);
     width: 100%;
+    padding: 8px;
+  }
+
+  .bot pre[class*="language-"] {
+    font-size: 0.8rem;
     padding: 8px;
   }
 
@@ -858,16 +867,6 @@ body.modo-oscuro .token.punctuation {
     margin-left: 6px;
   }
 
-  #modo-btn {
-    order: -1;
-    margin-right: 4px;
-  }
-
-  #voice-btn {
-    order: 1;
-    margin-left: 4px;
-  }
-
   .app-title h1 {
     font-size: clamp(1.2rem, 3vw, 1.5rem);
     order: 0;
@@ -886,11 +885,6 @@ body.modo-oscuro .token.punctuation {
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
-  }
-
-  .bot pre[class*="language-"] {
-    font-size: 0.8rem;
-    padding: 8px;
   }
 
   .chat-actions .rename-btn, .chat-actions .delete-btn {
