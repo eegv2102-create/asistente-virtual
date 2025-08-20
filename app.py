@@ -467,6 +467,11 @@ def recommend():
         if not temas_no_aprendidos:
             temas_no_aprendidos = temas_disponibles  # Si no hay temas no aprendidos, usar todos
 
+        # Definir contexto a partir del historial
+        contexto = ""
+        if historial:
+            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
+
         # Configurar cliente Groq
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
@@ -475,7 +480,7 @@ def recommend():
             "Elige temas de los disponibles que no hayan sido aprendidos, considerando el contexto del historial y los prerequisitos. "
             "Devuelve un objeto JSON con una clave 'recommendations' que contenga una lista de nombres de temas (por ejemplo, ['Polimorfismo', 'Patrones de diseño']). "
             "NO incluyas explicaciones adicionales fuera del JSON."
-            f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}\nTimestamp: {int(time.time())}"
+            f"\nContexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}\nTimestamp: {int(time.time())}"
             f"\nPrerequisitos: {json.dumps(prerequisitos)}"
         )
 
@@ -520,6 +525,7 @@ def recommend():
         recomendacion_texto = "Te recomiendo estudiar:\n" + "\n".join(f"- {tema}" for tema in recomendaciones)
         logging.warning(f"Usando recomendaciones de fallback por error: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
+    
     
 if __name__ == "__main__":
     init_db()
