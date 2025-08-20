@@ -136,19 +136,42 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     if nivel_explicacion == "basica":
         estilo_prompt = (
             "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
-            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales. "
+            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerrequisitos ni preguntas adicionales. "
             "Usa un lenguaje simple, evita tecnicismos complejos y enfócate en conceptos básicos."
         )
+        secciones_no_deseadas = [
+            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
+            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+            r'Prerrequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?',
+            r'\n\s*\n\s*'
+        ]
     elif nivel_explicacion == "ejemplos":
         estilo_prompt = (
-            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales. "
-            "Mantiene un nivel intermedio, con un lenguaje claro y conciso."
+            "Proporciona la definición del concepto preguntado, seguida de un ejemplo de código claro y conciso que ilustre el concepto. "
+            "Usa un lenguaje claro y de nivel intermedio, adecuado para alguien con conocimientos básicos de programación. "
+            "No incluyas ventajas, prerrequisitos ni preguntas adicionales. "
+            "Asegúrate de que el ejemplo de código esté bien comentado y sea relevante al concepto."
         )
+        secciones_no_deseadas = [
+            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+            r'Prerrequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?',
+            r'\n\s*\n\s*'
+        ]
     elif nivel_explicacion == "avanzada":
         estilo_prompt = (
-            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales. "
-            "Ofrece una explicación teórica avanzada, con detalles profundos y referencias a estándares, usando un lenguaje técnico."
+            "Proporciona una explicación teórica avanzada del concepto preguntado, incluyendo detalles profundos y referencias a estándares si aplica. "
+            "Usa un lenguaje técnico, pero claro, dirigido a alguien con experiencia en Programación Avanzada. "
+            "Proporciona solo la definición teórica, sin ejemplos, ventajas, prerrequisitos ni preguntas adicionales."
         )
+        secciones_no_deseadas = [
+            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
+            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+            r'Prerrequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?',
+            r'\n\s*\n\s*'
+        ]
 
     prompt = (
         f"{estilo_prompt}\n"
@@ -168,14 +191,7 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
             temperature=0.7
         )
         respuesta = completion.choices[0].message.content.strip()
-        # Limpieza adicional para eliminar cualquier sección no deseada
-        secciones_no_deseadas = [
-            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
-            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?',
-            r'\n\s*\n\s*'
-        ]
+        # Limpieza adicional para eliminar secciones no deseadas según el nivel
         for regex in secciones_no_deseadas:
             respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE).strip()
         return respuesta
