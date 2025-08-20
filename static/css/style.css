@@ -101,7 +101,7 @@ body {
   transition: background-color 0.3s ease, transform 0.2s ease;
   pointer-events: auto;
   z-index: 1005;
-  position: relative; /* Necesario para tooltips */
+  position: relative;
 }
 
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
@@ -116,7 +116,8 @@ body {
 }
 
 /* Estilos para tooltips de botones inferiores (arriba) */
-#new-chat-btn[data-tooltip], #btn-clear[data-tooltip], #send-btn[data-tooltip], #voice-toggle-btn[data-tooltip] {
+#new-chat-btn[data-tooltip], #btn-clear[data-tooltip], 
+#send-btn[data-tooltip], #voice-toggle-btn[data-tooltip] {
   position: relative;
 }
 
@@ -124,7 +125,7 @@ body {
 #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: 100%; /* Coloca el tooltip arriba */
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   background-color: var(--bg-secondary);
@@ -233,19 +234,19 @@ body {
 .chat-history {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden; /* Evitar barra de desplazamiento horizontal */
+  overflow-x: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   background-color: var(--bg-primary);
-  width: 100%; /* Asegurar que no exceda el contenedor */
-  box-sizing: border-box; /* Incluir padding en el ancho */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 #chat-list {
   list-style: none;
   padding: 8px;
   margin: 0;
-  width: 100%; /* Asegurar que la lista no exceda el contenedor */
+  width: 100%;
 }
 
 #chat-list::-webkit-scrollbar,
@@ -280,7 +281,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  overflow: hidden; /* Evitar desbordamiento dentro de los elementos li */
+  overflow: hidden;
 }
 
 #chat-list li:hover, #chat-list li:focus {
@@ -296,16 +297,16 @@ body {
 
 #chat-list li .chat-name {
   flex: 1;
-  white-space: nowrap; /* Evitar que el texto se divida en varias líneas */
-  overflow: hidden; /* Ocultar texto que excede */
-  text-overflow: ellipsis; /* Mostrar puntos suspensivos para texto largo */
-  max-width: calc(100% - 80px); /* Limitar ancho para dejar espacio a los botones */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 80px);
 }
 
 #chat-list li .chat-actions {
   display: flex;
   gap: 8px;
-  flex-shrink: 0; /* Evitar que los botones se compriman */
+  flex-shrink: 0;
 }
 
 .chat-actions .rename-btn, .chat-actions .delete-btn {
@@ -320,7 +321,7 @@ body {
   cursor: pointer;
   font-size: 0.9rem;
   pointer-events: auto;
-  position: relative; /* Necesario para tooltips */
+  position: relative;
 }
 
 .chat-actions .rename-btn {
@@ -348,9 +349,9 @@ body {
 .chat-actions .delete-btn[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  top: -100%; /* Coloca el tooltip arriba del botón */
-  left: -100%; /* Coloca el tooltip a la izquierda del botón */
-  transform: translate(-10px, -10px); /* Desplazamiento diagonal izquierda arriba */
+  top: -100%;
+  left: -100%;
+  transform: translate(-10px, -10px);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   padding: 4px 8px;
@@ -360,10 +361,9 @@ body {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.2s ease, visibility 0.2s ease;
-  z-index: 3000; /* Aumentado para estar encima de .left-section, .main-section y .chat-history */
+  z-index: 3000;
   box-shadow: 0 2px 4px var(--shadow);
 }
-
 
 .chat-actions .rename-btn:hover::after, .chat-actions .rename-btn:focus::after,
 .chat-actions .delete-btn:hover::after, .chat-actions .delete-btn:focus::after {
@@ -461,8 +461,10 @@ body {
   color: var(--error);
 }
 
-.bot pre {
-  background: color-mix(in srgb, var(--message-bot-bg), #000 20%);
+/* Estilos para bloques de código (Prism.js) */
+.bot pre[class*="language-"] {
+  background-color: color-mix(in srgb, var(--message-bot-bg), #000 10%) !important;
+  color: var(--message-bot-text) !important;
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
@@ -472,15 +474,68 @@ body {
   white-space: pre-wrap;
   max-width: 100%;
   margin-top: 8px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 3px var(--shadow);
 }
 
-.bot code {
-  background: color-mix(in srgb, var(--message-bot-bg), #000 10%);
+body.modo-oscuro .bot pre[class*="language-"] {
+  background-color: color-mix(in srgb, var(--message-bot-bg), #fff 10%) !important;
+  color: #e0e0e0 !important;
+}
+
+.bot code[class*="language-"] {
+  background: transparent !important;
+  color: var(--message-bot-text) !important;
   padding: 2px 4px;
   border-radius: 4px;
   font-family: 'Fira Code', 'Consolas', monospace;
   font-size: 0.9rem;
+}
+
+body.modo-oscuro .bot code[class*="language-"] {
+  color: #e0e0e0 !important;
+}
+
+/* Estilos para tokens de Prism.js */
+.token.comment {
+  color: #6a737d !important;
+}
+
+body.modo-oscuro .token.comment {
+  color: #a0a0a0 !important;
+}
+
+.token.keyword {
+  color: #d73a49 !important;
+}
+
+body.modo-oscuro .token.keyword {
+  color: #ff6b6b !important;
+}
+
+.token.string {
+  color: #032f62 !important;
+}
+
+body.modo-oscuro .token.string {
+  color: #9ecbff !important;
+}
+
+.token.function {
+  color: #6f42c1 !important;
+}
+
+body.modo-oscuro .token.function {
+  color: #d2a8ff !important;
+}
+
+.token.operator,
+.token.punctuation {
+  color: var(--message-bot-text) !important;
+}
+
+body.modo-oscuro .token.operator,
+body.modo-oscuro .token.punctuation {
+  color: #e0e0e0 !important;
 }
 
 .bot strong {
@@ -833,7 +888,7 @@ body {
     font-size: 0.9rem;
   }
 
-  .bot pre {
+  .bot pre[class*="language-"] {
     font-size: 0.8rem;
     padding: 8px;
   }
@@ -878,14 +933,14 @@ body {
   }
 
   .chat-actions .rename-btn[data-tooltip]::after, .chat-actions .delete-btn[data-tooltip]::after {
-    top: -120%; /* Más arriba para evitar cortes */
-    left: -90%; /* Ajuste para pantallas pequeñas */
-    transform: translate(-5px, -5px); /* Desplazamiento diagonal reducido */
+    top: -120%;
+    left: -90%;
+    transform: translate(-5px, -5px);
     font-size: 0.7rem;
     padding: 3px 6px;
-    z-index: 3000; /* Aumentado para móviles */
+    z-index: 3000;
   }
-
+}
 
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
@@ -918,15 +973,4 @@ body {
   0% { opacity: 0.7; }
   50% { opacity: 1; }
   100% { opacity: 0.7; }
-}
-
-body.modo-oscuro .bot pre {
-  background: color-mix(in srgb, var(--message-bot-bg), #fff 10%);
-  color: #f0f0f0;
-}
-
-body.modo-oscuro .bot code {
-  background: color-mix(in srgb, var(--message-bot-bg), #fff 10%);
-  color: #f0f0f0;
-}
 }
