@@ -86,7 +86,7 @@ body {
     color: var(--text-primary);
 }
 
-#modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn {
+#modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn, #voice-toggle-btn {
     background: none;
     border: 1px solid var(--border);
     color: var(--text-primary);
@@ -100,15 +100,51 @@ body {
     transition: background-color 0.3s ease, transform 0.2s ease;
     pointer-events: auto;
     z-index: 1005;
+    position: relative; /* Necesario para tooltips */
 }
 
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
 #send-btn:hover, #new-chat-btn:hover, #btn-clear:hover, #nivel-btn:hover,
+#voice-toggle-btn:hover,
 #modo-btn:focus, #voice-btn:focus, #quiz-btn:focus, #recommend-btn:focus,
-#send-btn:focus, #new-chat-btn:focus, #btn-clear:focus, #nivel-btn:focus {
+#send-btn:focus, #new-chat-btn:focus, #btn-clear:focus, #nivel-btn:focus,
+#voice-toggle-btn:focus {
     background-color: var(--accent);
     color: var(--button-text);
     transform: scale(1.05);
+}
+
+/* Estilos para tooltips de botones inferiores (arriba) */
+#new-chat-btn[data-tooltip], #btn-clear[data-tooltip], #send-btn[data-tooltip], #voice-toggle-btn[data-tooltip] {
+    position: relative;
+}
+
+#new-chat-btn[data-tooltip]::after, #btn-clear[data-tooltip]::after, 
+#send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%; /* Coloca el tooltip arriba */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1006;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+#new-chat-btn:hover::after, #btn-clear:hover::after, 
+#send-btn:hover::after, #voice-toggle-btn:hover::after,
+#new-chat-btn:focus::after, #btn-clear:focus::after, 
+#send-btn:focus::after, #voice-toggle-btn:focus::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .voice-hint {
@@ -162,8 +198,8 @@ body {
     border-left: none;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start; /* Alinea el contenido al inicio */
-    align-items: center; /* Centra los avatares horizontalmente */
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .left-section {
@@ -176,8 +212,8 @@ body {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
-    width: 100%; /* Asegura que el encabezado ocupe todo el ancho */
-    text-align: center; /* Centra el texto del encabezado */
+    width: 100%;
+    text-align: center;
 }
 
 .sidebar-content {
@@ -235,6 +271,9 @@ body {
     margin-bottom: 8px;
     background-color: var(--bg-secondary);
     transition: background-color 0.3s ease, transform 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 #chat-list li:hover, #chat-list li:focus {
@@ -265,6 +304,7 @@ body {
     cursor: pointer;
     font-size: 0.9rem;
     pointer-events: auto;
+    position: relative; /* Necesario para tooltips */
 }
 
 .chat-actions .rename-btn {
@@ -285,6 +325,53 @@ body {
 .chat-actions .delete-btn:hover, .chat-actions .delete-btn:focus {
     background-color: #c0392b;
     transform: scale(1.1);
+}
+
+/* Estilos para tooltips de chat-actions */
+.chat-actions .rename-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 100%; /* Coloca el tooltip a la izquierda */
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1006;
+    box-shadow: 0 2px 4px var(--shadow);
+    margin-right: 8px; /* Espacio entre el tooltip y el botón */
+}
+
+.chat-actions .delete-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%; /* Coloca el tooltip a la derecha */
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1006;
+    box-shadow: 0 2px 4px var(--shadow);
+    margin-left: 8px; /* Espacio entre el tooltip y el botón */
+}
+
+.chat-actions .rename-btn:hover::after, .chat-actions .rename-btn:focus::after,
+.chat-actions .delete-btn:hover::after, .chat-actions .delete-btn:focus::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .main-section {
@@ -589,30 +676,30 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: 100%; /* Ocupa todo el ancho del contenedor */
-    align-items: center; /* Centra los avatares horizontalmente */
-    flex: 1; /* Permite que crezca para llenar el espacio disponible */
-    justify-content: flex-start; /* Alinea los avatares al inicio */
+    width: 100%;
+    align-items: center;
+    flex: 1;
+    justify-content: flex-start;
 }
 
 .avatar-options img {
-    width: 60px; /* Aumentado para mayor protagonismo */
+    width: 60px;
     height: 60px;
-    border-radius: 12px; /* Bordes más suaves */
+    border-radius: 12px;
     cursor: pointer;
     transition: transform 0.2s ease, border 0.2s ease;
     pointer-events: auto;
-    border: 2px solid transparent; /* Borde por defecto transparente */
+    border: 2px solid transparent;
 }
 
 .avatar-options img:hover, .avatar-options img:focus {
-    transform: scale(1.15); /* Aumentado para mejor efecto visual */
-    border: 2px solid var(--accent); /* Borde al pasar el ratón */
+    transform: scale(1.15);
+    border: 2px solid var(--accent);
 }
 
 .avatar-options img.selected {
     border: 2px solid var(--accent);
-    transform: scale(1.1); /* Ligeramente más grande cuando está seleccionado */
+    transform: scale(1.1);
 }
 
 @media (max-width: 768px) {
@@ -640,7 +727,7 @@ body {
     .right-section {
         transform: translateX(100%);
         right: 0;
-        align-items: center; /* Centra el contenido en móviles */
+        align-items: center;
     }
 
     .left-section.active, .right-section.active {
@@ -777,13 +864,25 @@ body {
     }
 
     .avatar-options {
-        width: 100%; /* Ocupa todo el ancho en móviles */
-        align-items: center; /* Centra los avatares */
+        width: 100%;
+        align-items: center;
     }
 
     .avatar-options img {
-        width: 50px; /* Tamaño más pequeño en móviles */
+        width: 50px;
         height: 50px;
+    }
+
+    /* Ajustar tooltips en móviles */
+    #new-chat-btn[data-tooltip]::after, #btn-clear[data-tooltip]::after, 
+    #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+
+    .chat-actions .rename-btn[data-tooltip]::after, .chat-actions .delete-btn[data-tooltip]::after {
+        font-size: 0.7rem;
+        padding: 3px 6px;
     }
 }
 
@@ -828,10 +927,4 @@ body.modo-oscuro .bot pre {
 body.modo-oscuro .bot code {
     background: color-mix(in srgb, var(--message-bot-bg), #fff 10%);
     color: #f0f0f0;
-}
-
-@media (max-width: 768px) {
-    #notification-card {
-        bottom: 120px; /* Más espacio en móvil */
-    }
 }
