@@ -1,4 +1,3 @@
-/* style.css */
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #f5f6f5;
@@ -555,24 +554,9 @@ body.modo-oscuro .bot code {
   gap: 6px;
 }
 
-#nivel-explicacion {
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  margin: 0;
-}
-
-#nivel-explicacion:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
 .dropdown-container {
   position: relative;
-  display: none;
+  display: block; /* Asegurar que el dropdown esté visible en todas las pantallas */
 }
 
 .dropdown-menu {
@@ -796,10 +780,6 @@ body.modo-oscuro .bot code {
     border-radius: 16px;
   }
 
-  #nivel-explicacion {
-    display: none;
-  }
-
   .dropdown-container {
     display: block;
   }
@@ -892,12 +872,6 @@ body.modo-oscuro .bot code {
     height: 50px;
   }
 
-  #new-chat-btn[data-tooltip]::after, #btn-clear[data-tooltip]::after, 
-  #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
-    font-size: 0.7rem;
-    padding: 3px 6px;
-  }
-
   .chat-actions .rename-btn[data-tooltip]::after, .chat-actions .delete-btn[data-tooltip]::after {
     top: -120%;
     left: -90%;
@@ -914,11 +888,7 @@ body.modo-oscuro .bot code {
   }
 
   .dropdown-container {
-    display: none;
-  }
-
-  #nivel-explicacion {
-    display: block;
+    display: block; /* Mantener el dropdown visible en pantallas grandes */
   }
 }
 
@@ -942,9 +912,10 @@ body.modo-oscuro .bot code {
 }
 
 .bot ul {
-    padding-left: 20px;
-    margin: 10px 0;
+  padding-left: 20px;
+  margin: 10px 0;
 }
+
 .bot li {
-    margin-bottom: 5px;
+  margin-bottom: 5px;
 }
