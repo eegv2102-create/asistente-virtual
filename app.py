@@ -260,16 +260,27 @@ def quiz():
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         prompt = (
             f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre el tema '{tema}' en Programación Avanzada. "
-            "Devuelve un JSON con las claves: 'pregunta' (texto de la pregunta), 'opciones' (lista de opciones), "
-            "'respuesta_correcta' (texto exacto de la opción correcta), 'tema' (el tema), 'nivel' (siempre 'basico'). "
-            f"Para tipo 'opciones', incluye exactamente 4 opciones. Para 'verdadero_falso', incluye exactamente 2 opciones (Verdadero, Falso)."
+            "Devuelve un JSON válido con las siguientes claves: "
+            "'pregunta' (texto de la pregunta), "
+            "'opciones' (lista de opciones), "
+            "'respuesta_correcta' (texto exacto de la opción correcta), "
+            "'tema' (el tema), "
+            "'nivel' (siempre 'basico'). "
+            f"Para tipo 'opciones', incluye exactamente 4 opciones. "
+            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones (Verdadero, Falso). "
+            "Ejemplo de formato: "
+            "{\"pregunta\": \"¿Qué es la encapsulación en POO?\", "
+            "\"opciones\": [\"Ocultar datos\", \"Herencia\", \"Polimorfismo\", \"Abstracción\"], "
+            "\"respuesta_correcta\": \"Ocultar datos\", "
+            "\"tema\": \"POO\", "
+            "\"nivel\": \"basico\"}"
         )
 
         completion = call_groq_api(
             client,
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Genera la pregunta del quiz."}
+                {"role": "user", "content": "Genera la pregunta del quiz en formato JSON válido."}
             ],
             model="llama3-70b-8192",
             max_tokens=300,
@@ -278,27 +289,64 @@ def quiz():
 
         try:
             quiz_data = json.loads(completion.choices[0].message.content.strip())
-            if not isinstance(quiz_data, dict) or not all(key in quiz_data for key in ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]):
-                logging.error(f"Formato de quiz inválido: {quiz_data}")
-                raise ValueError("Formato de quiz inválido")
+            # Validaciones mínimas para asegurar que el JSON tiene las claves necesarias
+            required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
+            if not isinstance(quiz_data, dict) or not all(key in quiz_data for key in required_keys):
+                logging.error(f"Formato de quiz inválido, claves faltantes: {quiz_data}")
+                raise ValueError("Formato de quiz inválido: faltan claves requeridas")
             if tipo_quiz == "opciones" and len(quiz_data["opciones"]) != 4:
                 logging.error(f"Número incorrecto de opciones para tipo 'opciones': {len(quiz_data['opciones'])}")
-                raise ValueError("La pregunta de opción múltiple debe tener exactamente 4 opciones")
+                quiz_data = {
+                    "pregunta": "¿Qué es la encapsulación en POO?",
+                    "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"],
+                    "respuesta_correcta": "Ocultar datos",
+                    "tema": tema,
+                    "nivel": "basico"
+                }
             if tipo_quiz == "verdadero_falso" and len(quiz_data["opciones"]) != 2:
                 logging.error(f"Número incorrecto de opciones para tipo 'verdadero_falso': {len(quiz_data['opciones'])}")
-                raise ValueError("La pregunta de verdadero/falso debe tener exactamente 2 opciones")
+                quiz_data = {
+                    "pregunta": f"La encapsulación permite ocultar datos en {tema}.",
+                    "opciones": ["Verdadero", "Falso"],
+                    "respuesta_correcta": "Verdadero",
+                    "tema": tema,
+                    "nivel": "basico"
+                }
+            if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
+                logging.error(f"Respuesta correcta no está en opciones: {quiz_data['respuesta_correcta']}")
+                raise ValueError("La respuesta correcta debe estar en la lista de opciones")
         except json.JSONDecodeError:
-            logging.error("Respuesta de Groq no es un JSON válido")
-            return jsonify({"error": "Error al procesar el formato del quiz"}), 500
+            logging.error(f"Respuesta de Groq no es un JSON válido: {completion.choices[0].message.content}")
+            quiz_data = {
+                "pregunta": f"¿Qué es la encapsulación en {tema}?" if tipo_quiz == "opciones" else f"La encapsulación permite ocultar datos en {tema}.",
+                "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
+                "respuesta_correcta": "Ocultar datos" if tipo_quiz == "opciones" else "Verdadero",
+                "tema": tema,
+                "nivel": "basico"
+            }
         except ValueError as ve:
             logging.error(f"Error en el formato del quiz: {str(ve)}")
-            return jsonify({"error": f"Error en el formato del quiz: {str(ve)}"}), 500
+            quiz_data = {
+                "pregunta": f"¿Qué es la encapsulación en {tema}?" if tipo_quiz == "opciones" else f"La encapsulación permite ocultar datos en {tema}.",
+                "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
+                "respuesta_correcta": "Ocultar datos" if tipo_quiz == "opciones" else "Verdadero",
+                "tema": tema,
+                "nivel": "basico"
+            }
 
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
         return jsonify(quiz_data)
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
-        return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
+        quiz_data = {
+            "pregunta": f"¿Qué es la encapsulación en {tema}?" if tipo_quiz == "opciones" else f"La encapsulación permite ocultar datos en {tema}.",
+            "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
+            "respuesta_correcta": "Ocultar datos" if tipo_quiz == "opciones" else "Verdadero",
+            "tema": tema,
+            "nivel": "basico"
+        }
+        logging.info(f"Devolviendo quiz por defecto para usuario {usuario} sobre tema {tema}: {quiz_data}")
+        return jsonify(quiz_data)
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
