@@ -481,11 +481,13 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
             cache: 'no-store'
         });
         if (!response.ok) {
-            throw new Error(`Error en /quiz: ${response.status} ${response.statusText}`);
+            const err = await response.json();
+            throw new Error(err.error || `Error en /quiz: ${response.status} ${response.statusText}`);
         }
         return await response.json();
     } catch (error) {
         console.warn('Error en fetch /quiz, generando quiz simulado:', error);
+        mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
         return {
             pregunta: tipoQuiz === 'verdadero_falso' ? 'La encapsulación permite ocultar datos.' : '¿Qué es la encapsulación en POO?',
             opciones: tipoQuiz === 'verdadero_falso' ? ['Verdadero', 'Falso'] : ['Ocultar datos', 'Herencia', 'Polimorfismo', 'Abstracción'],
@@ -535,92 +537,128 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuario: 'anonimo', respuesta: opcion, respuesta_correcta: respuestaCorrecta, tema })
-    }).then(res => res.json()).then(data => {
+    }).then(res => {
+        if (!res.ok) {
+            return res.json().then(err => {
+                throw new Error(err.error || `Error en /responder_quiz: ${res.status} ${res.statusText}`);
+            });
+        }
+        return res.json();
+    }).then(data => {
         const chatbox = getElement('#chatbox');
         const container = chatbox?.querySelector('.message-container');
-        if (!container) return;
+        if (!container || !chatbox) return;
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';
-        botDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(data.respuesta, { breaks: true, gfm: true }) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        botDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) + 
+            `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
-        if (window.Prism) Prism.highlightAll();
+        if (window.Prism) Prism.highlightAllUnder(botDiv);
         speakText(data.respuesta);
         guardarMensaje(`Respuesta al quiz sobre ${tema}`, data.respuesta);
         addCopyButtonListeners();
     }).catch(error => {
-        console.error('Error en responder quiz:', error);
-        mostrarNotificacion('Error al responder quiz', 'error');
+        const errorMsg = `Error al responder quiz: ${error.message.includes('503') ? 'Servicio no disponible. Revisa https://groqstatus.com/' : error.message}`;
+        mostrarNotificacion(errorMsg, 'error');
+        console.error('Error en fetch /responder_quiz:', error);
     });
 };
 
-const sendMessage = async () => {
+const sendMessage = () => {
     const input = getElement('#input');
+    const nivelExplicacion = localStorage.getItem('nivelExplicacion') || 'basica';
+    if (!input) {
+        console.error('Elemento #input no encontrado');
+        mostrarNotificacion('Error: Campo de entrada no encontrado', 'error');
+        return;
+    }
+    const pregunta = input.value.trim();
+    if (!pregunta) {
+        mostrarNotificacion('Por favor, escribe una pregunta', 'error');
+        return;
+    }
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!input || !chatbox || !container || !input.value.trim()) return;
-
-    const pregunta = input.value.trim();
-    input.value = '';
+    if (!container || !chatbox) {
+        console.error('Elemento #chatbox o .message-container no encontrado');
+        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
+        return;
+    }
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
-    userDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta, { breaks: true, gfm: true }) : pregunta) +
-        `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+    userDiv.textContent = pregunta;
     container.appendChild(userDiv);
+    input.value = '';
     scrollToBottom();
-    guardarMensaje(pregunta, '');
 
-    const nivel = localStorage.getItem('nivelExplicacion') || 'basica'; // Verificar que se envíe correctamente
+    guardarMensaje(pregunta, 'Esperando respuesta...');
+
     const loadingDiv = document.createElement('div');
-    loadingDiv.classList.add('loading');
-    loadingDiv.textContent = 'Cargando respuesta...';
+    loadingDiv.classList.add('bot', 'loading');
+    loadingDiv.textContent = '⌛ Generando respuesta...';
     container.appendChild(loadingDiv);
     scrollToBottom();
 
-    try {
-        const res = await fetch('/ask', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                pregunta,
-                usuario: localStorage.getItem('usuario') || 'anonimo',
-                historial: JSON.parse(localStorage.getItem('historial') || '[]'),
-                nivel_explicacion: nivel // Asegúrate de que este valor sea correcto
-            })
-        });
-        const data = await res.json();
-        container.removeChild(loadingDiv);
-        if (data.error) {
-            mostrarNotificacion(data.error, 'error');
-            return;
+    const historial = JSON.parse(localStorage.getItem('currentConversation') || '{}').mensajes || [];
+    fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            pregunta,
+            usuario: 'anonimo',
+            avatar_id: selectedAvatar,
+            nivel_explicacion: nivelExplicacion,
+            historial
+        })
+    }).then(res => {
+        if (!res.ok) {
+            return res.json().then(err => {
+                throw new Error(err.error || `Error en /ask: ${res.status} ${res.statusText}`);
+            });
         }
+        return res.json();
+    }).then(data => {
+        container.removeChild(loadingDiv);
+        const respuestaLimpia = data.respuesta;
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta, { breaks: true, gfm: true }) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia) : respuestaLimpia) +
+            `<button class="copy-btn" data-text="${respuestaLimpia}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
-        if (window.Prism) Prism.highlightAll();
-        guardarMensaje(pregunta, data.respuesta);
-        if (vozActiva && userHasInteracted) speakText(data.respuesta);
-    } catch (error) {
-        container.removeChild(loadingDiv);
-        mostrarNotificacion('Error al obtener respuesta', 'error');
-        console.error('Error en sendMessage:', error);
-    }
-};
-const nivel = localStorage.getItem('nivelExplicacion') || 'basica';
-console.log('Nivel de explicación enviado:', nivel); // Depuración
-
-const limpiarChat = () => {
-    stopSpeech();
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (container) container.innerHTML = '';
-    localStorage.setItem('currentConversation', JSON.stringify({ id: null, mensajes: [] }));
-    mostrarNotificacion('Chat limpiado', 'success');
+        if (window.Prism) Prism.highlightAllUnder(botDiv);
+        speakText(respuestaLimpia);
+        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+        const mensajeIndex = currentConversation.mensajes.findIndex(m => m.pregunta === pregunta && m.respuesta === 'Esperando respuesta...');
+        if (mensajeIndex !== -1) {
+            currentConversation.mensajes[mensajeIndex].respuesta = respuestaLimpia;
+            currentConversation.mensajes[mensajeIndex].video_url = data.video_url;
+            localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
+            const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
+            historial[currentConversation.id] = currentConversation;
+            localStorage.setItem('chatHistory', JSON.stringify(historial));
+        }
+        addCopyButtonListeners();
+    }).catch(error => {
+        if (loadingDiv && container.contains(loadingDiv)) {
+            container.removeChild(loadingDiv);
+        }
+        const errorMsg = `Error al obtener respuesta: ${error.message.includes('503') ? 'Servicio de IA no disponible. Revisa https://groqstatus.com/' : error.message}`;
+        mostrarNotificacion(errorMsg, 'error');
+        console.error('Error en fetch /ask:', error);
+        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+        const mensajeIndex = currentConversation.mensajes.findIndex(m => m.pregunta === pregunta && m.respuesta === 'Esperando respuesta...');
+        if (mensajeIndex !== -1) {
+            currentConversation.mensajes[mensajeIndex].respuesta = 'Error al obtener respuesta';
+            localStorage.setItem('currentConversation', JSON.stringify(currentConversation));
+            const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
+            historial[currentConversation.id] = currentConversation;
+            localStorage.setItem('chatHistory', JSON.stringify(historial));
+        }
+        actualizarListaChats();
+    });
 };
 
 const nuevaConversacion = () => {
@@ -661,16 +699,24 @@ const addCopyButtonListeners = () => {
 
 const toggleDropdown = () => {
     const dropdownMenu = getElement('.dropdown-menu');
-    if (dropdownMenu) dropdownMenu.classList.toggle('active');
+    if (dropdownMenu) {
+        dropdownMenu.classList.toggle('active');
+    } else {
+        console.error('Elemento .dropdown-menu no encontrado');
+        mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
+    }
 };
 
 const selectNivel = (nivel) => {
     const nivelBtn = getElement('#nivel-btn');
     if (nivelBtn) {
-        nivelBtn.textContent = nivel === 'basica' ? 'Básica' : nivel === 'ejemplos' ? 'Ejemplos' : 'Avanzada';
+        nivelBtn.textContent = nivel === 'basica' ? 'Explicación Básica' : nivel === 'ejemplos' ? 'Con Ejemplos de Código' : 'Avanzada/Teórica';
         localStorage.setItem('nivelExplicacion', nivel);
         toggleDropdown();
         mostrarNotificacion(`Nivel de explicación: ${nivelBtn.textContent}`, 'success');
+    } else {
+        console.error('Elemento #nivel-btn no encontrado');
+        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
     }
 };
 

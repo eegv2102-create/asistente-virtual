@@ -200,17 +200,61 @@ def validate_quiz_format(quiz_data):
         raise ValueError("El quiz debe tener al menos 2 opciones")
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
-    
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    try:
+        data = request.get_json()
+        if not data:
+            logging.error("Solicitud sin datos en /ask")
+            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
+
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        pregunta = bleach.clean(data.get("pregunta", "")[:300])
+        historial = data.get("historial", [])
+        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica"))
+
+        if not pregunta:
+            logging.error("Pregunta vacía en /ask")
+            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
+
+        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
+        if "no disponible" in respuesta.lower():
+            logging.error(f"Servicio no disponible para pregunta: {pregunta}")
+            return jsonify({"respuesta": respuesta}), 503
+
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"), connect_timeout=10)
+            c = conn.cursor()
+            c.execute("INSERT INTO logs (usuario, pregunta, respuesta) VALUES (%s, %s, %s)",
+                      (usuario, pregunta, respuesta))
+            conn.commit()
+            conn.close()
+            logging.info(f"Log guardado para usuario {usuario}: {pregunta}")
+        except PsycopgError as e:
+            logging.error(f"Error al guardar log en la base de datos: {str(e)}")
+
+        logging.info(f"Pregunta de {usuario}: {pregunta} - Respuesta: {respuesta}")
+        return jsonify({"respuesta": respuesta})
+    except Exception as e:
+        logging.error(f"Error en /ask: {str(e)}")
+        return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
+        
 @app.route("/quiz", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def quiz():
     try:
         data = request.get_json()
+        if not data:
+            logging.error("Solicitud sin datos en /quiz")
+            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
+
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        tema = bleach.clean(data.get("tema", "")[:50])
+        tema = bleach.clean(data.get("tema", "POO")[:50])
         tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones"))
 
         if tipo_quiz not in ["opciones", "verdadero_falso"]:
+            logging.error(f"Tipo de quiz inválido: {tipo_quiz}")
             return jsonify({"error": "Tipo de quiz inválido"}), 400
 
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -235,10 +279,13 @@ def quiz():
         try:
             quiz_data = json.loads(completion.choices[0].message.content.strip())
             if not isinstance(quiz_data, dict) or not all(key in quiz_data for key in ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]):
+                logging.error(f"Formato de quiz inválido: {quiz_data}")
                 raise ValueError("Formato de quiz inválido")
             if tipo_quiz == "opciones" and len(quiz_data["opciones"]) != 4:
+                logging.error(f"Número incorrecto de opciones para tipo 'opciones': {len(quiz_data['opciones'])}")
                 raise ValueError("La pregunta de opción múltiple debe tener exactamente 4 opciones")
             if tipo_quiz == "verdadero_falso" and len(quiz_data["opciones"]) != 2:
+                logging.error(f"Número incorrecto de opciones para tipo 'verdadero_falso': {len(quiz_data['opciones'])}")
                 raise ValueError("La pregunta de verdadero/falso debe tener exactamente 2 opciones")
         except json.JSONDecodeError:
             logging.error("Respuesta de Groq no es un JSON válido")
@@ -248,32 +295,36 @@ def quiz():
             return jsonify({"error": f"Error en el formato del quiz: {str(ve)}"}), 500
 
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {tema}: {quiz_data}")
-        return jsonify(quiz_data)  # Devolver solo una pregunta
+        return jsonify(quiz_data)
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
-        return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500 
+        return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
     try:
         data = request.get_json()
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        respuesta = bleach.clean(data.get("respuesta", "")[:100])
-        tema = bleach.clean(data.get("tema", "")[:100])
-        respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:100])  # Asegúrate de que el frontend envíe esto
+        if not data:
+            logging.error("Solicitud sin datos en /responder_quiz")
+            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
 
-        if not respuesta or not tema or not respuesta_correcta:
-            logging.error("Faltan datos en /responder_quiz")
-            return jsonify({"error": "Faltan datos en la solicitud"}), 400
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        respuesta = bleach.clean(data.get("respuesta", "")[:300])
+        respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300])
+        tema = bleach.clean(data.get("tema", "")[:50])
+
+        if not respuesta or not respuesta_correcta or not tema:
+            logging.error(f"Datos incompletos en /responder_quiz: respuesta={respuesta}, respuesta_correcta={respuesta_correcta}, tema={tema}")
+            return jsonify({"error": "Faltan datos requeridos (respuesta, respuesta_correcta o tema)"}), 400
 
         progreso = cargar_progreso(usuario)
         puntos = progreso["puntos"]
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
 
-        es_correcta = respuesta.lower() == respuesta_correcta.lower()
+        es_correcta = respuesta == respuesta_correcta
         if es_correcta:
             puntos += 10
-            if tema and tema not in temas_aprendidos:
+            if tema not in temas_aprendidos:
                 temas_aprendidos.append(tema)
             mensaje = f"✅ ¡Correcto! Has ganado 10 puntos. Tema: {tema}. ¿Deseas saber más?"
         else:
