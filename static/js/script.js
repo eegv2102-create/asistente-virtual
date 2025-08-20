@@ -88,10 +88,25 @@ const speakText = async (text) => {
         return;
     }
 
+    // Limpieza avanzada para TTS: Remover Markdown, código y ajustar acrónimos
     let textoParaVoz = text;
-    textoParaVoz = textoParaVoz.replace(/```[\s\S]*?```/g, ' [código de ejemplo] ');
-    textoParaVoz = textoParaVoz.replace(/`[^`]+`/g, ' [código en línea] ');
-    textoParaVoz = textoParaVoz.trim();
+    
+    // Remover bloques de código completamente (no leer ejemplos)
+    textoParaVoz = textoParaVoz.replace(/```[\s\S]*?```/g, '');  // Bloques grandes
+    textoParaVoz = textoParaVoz.replace(/`[^`]+`/g, '');  // Código inline
+    
+    // Remover Markdown simple para evitar leer símbolos
+    textoParaVoz = textoParaVoz.replace(/\*\*([^*]+)\*\*/g, '$1');  // Negrita **
+    textoParaVoz = textoParaVoz.replace(/\*([^*]+)\*/g, '$1');  // Cursiva *
+    textoParaVoz = textoParaVoz.replace(/#+\s*/g, '');  // Encabezados #
+    textoParaVoz = textoParaVoz.replace(/-\s*/g, '');  // Listas -
+    textoParaVoz = textoParaVoz.replace(/\n+/g, ' ');  // Convertir saltos de línea en espacios para flujo natural
+    
+    // Ajustar acrónimos para pronunciación natural (ej: YELIA como "Yelia")
+    textoParaVoz = textoParaVoz.replace(/\bYELIA\b/g, 'Yelia');  // Leer como palabra
+    // Agrega más si necesitas, ej: textoParaVoz = textoParaVoz.replace(/\bPOO\b/g, 'P O O'); para deletrear si quieres, o como 'poo' para palabra
+    
+    textoParaVoz = textoParaVoz.trim();  // Limpiar espacios extras
 
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
@@ -166,16 +181,13 @@ const speakText = async (text) => {
             utterance.onerror = (event) => {
                 console.error('Error en speechSynthesis:', event.error);
                 mostrarNotificacion('Error en voz local: ' + event.error, 'error');
-                if (event.error === 'not-allowed') {
-                    toggleVoiceHint(true);
-                }
                 if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
             currentAudio = utterance;
         } else {
             console.warn('speechSynthesis no soportado en este navegador');
-            mostrarNotificacion('El navegador no soporta voz local (speechSynthesis)', 'error');
+            mostrarNotificacion('Voz local no soportada en este navegador', 'error');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
@@ -970,6 +982,16 @@ const init = () => {
         voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
+    }
+    // Agregar listener para Enter en el input
+    const inputElement = getElement('#input');
+    if (inputElement) {
+        inputElement.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {  // !shiftKey permite saltos de línea con Shift+Enter
+                event.preventDefault();  // Evita salto de línea
+                sendMessage();  // Llama a la función de enviar
+            }
+        });
     }
     handleVoiceHint();
     document.addEventListener('click', () => {

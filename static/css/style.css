@@ -533,15 +533,16 @@ body {
 
 #notification-card {
     position: fixed;
-    bottom: 20px;
+    bottom: 100px;  /* Aumenta esto para dar espacio a los botones inferiores */
     right: 20px;
-    background-color: var(--bg-primary);
+    background-color: var(--bg-secondary);
     color: var(--text-primary);
-    padding: 12px 16px;
+    padding: 16px;
     border-radius: 8px;
-    box-shadow: 0 2px 8px var(--shadow);
+    box-shadow: 0 4px 8px var(--shadow);
+    max-width: 300px;
     display: none;
-    z-index: 1002;
+    z-index: 1002;  /* Asegura que esté por encima de otros elementos, pero no tape botones si ajustas bottom */
 }
 
 #notification-card.active {
@@ -801,4 +802,9 @@ body.modo-oscuro .bot pre {
 body.modo-oscuro .bot code {
     background: color-mix(in srgb, var(--message-bot-bg), #fff 10%);
     color: #f0f0f0;
+}
+@media (max-width: 768px) {
+    #notification-card {
+        bottom: 120px;  /* Más espacio en móvil, donde los botones están fijos abajo */
+    }
 }
