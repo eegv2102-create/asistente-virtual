@@ -532,6 +532,7 @@ const obtenerQuiz = async (tipo) => {
         return { error: error.message };
     }
 };
+
 const mostrarQuizEnChat = (quizData) => {
     if (quizData.error) {
         mostrarNotificacion(quizData.error, 'error');
@@ -544,11 +545,10 @@ const mostrarQuizEnChat = (quizData) => {
         mostrarNotificacion('Error: No se encontró el contenedor del chat', 'error');
         return;
     }
-
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
     const opcionesHtml = quizData.opciones.map((opcion, i) => `
-        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quizData.respuesta_correcta}" data-tema="${quizData.tema}">
+        <button class="quiz-option" data-opcion="${opcion}">
             ${quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
         </button>
     `).join('');
@@ -560,6 +560,7 @@ const mostrarQuizEnChat = (quizData) => {
     container.appendChild(botDiv);
     scrollToBottom();
     if (window.Prism) Prism.highlightAllUnder(botDiv);
+
     guardarMensaje('Quiz', `${quizData.pregunta}\nOpciones: ${quizData.opciones.join(', ')}`, null, quizData.tema);
     speakText(`Quiz sobre ${quizData.tema}: ${quizData.pregunta}`);
 
@@ -567,40 +568,28 @@ const mostrarQuizEnChat = (quizData) => {
         btn.addEventListener('click', async () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
             btn.classList.add('selected');
-            const opcion = btn.dataset.opcion;
-            const respuestaCorrecta = btn.dataset.respuesta_correcta;
-            const tema = btn.dataset.tema;
+
+            // Deshabilitar todos los botones después de la selección
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
 
-            try {
-                const res = await fetch('/responder_quiz', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        usuario: localStorage.getItem('usuario') || 'anonimo',
-                        respuesta: opcion,
-                        respuesta_correcta: respuestaCorrecta,
-                        tema: tema
-                    })
-                });
-                const data = await res.json();
-                if (data.error) {
-                    mostrarNotificacion(data.error, 'error');
-                    return;
-                }
-                const responseDiv = document.createElement('div');
-                responseDiv.classList.add('bot');
-                responseDiv.innerHTML = `
-                    ${typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta}
-                    <button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
-                `;
-                container.appendChild(responseDiv);
-                scrollToBottom();
-                const textoParaVoz = data.respuesta.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
-                speakText(textoParaVoz);
-            } catch (error) {
-                console.error('Error al responder quiz:', error);
-                mostrarNotificacion('Error al responder el quiz', 'error');
+            const respuestaUsuario = btn.dataset.opcion;
+            const respuestaCorrecta = quizData.respuesta_correcta;
+            const tema = quizData.tema;
+
+            const res = await fetch('/responder_quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    usuario: localStorage.getItem('usuario') || 'anonimo',
+                    respuesta: respuestaUsuario,
+                    respuesta_correcta: respuestaCorrecta,
+                    tema: tema
+                })
+            });
+            const feedback = await res.json();
+            mostrarNotificacion(feedback.respuesta, feedback.es_correcta ? 'success' : 'error');
+            if (vozActiva) {
+                speakText(feedback.respuesta);
             }
         });
     });

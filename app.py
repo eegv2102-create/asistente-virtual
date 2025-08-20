@@ -340,8 +340,9 @@ def responder_quiz():
                 temas_aprendidos.append(tema)
             mensaje = f"✅ ¡Correcto! Has ganado 10 puntos. Tema: {tema}. ¿Deseas saber más?"
         else:
-            # Usar respuesta_correcta directamente, sin fallback a "No disponible"
-            mensaje = f"❌ Incorrecto. La respuesta correcta era: {data.get('respuesta_correcta')}. ¿Deseas saber más?"
+            # Línea corregida para manejar el valor None
+            respuesta_display = data.get('respuesta_correcta') or "No disponible"
+            mensaje = f"❌ Incorrecto. La respuesta correcta era: {respuesta_display}. ¿Deseas saber más?"
 
         guardar_progreso(usuario, puntos, ",".join(temas_aprendidos))
         logging.info(f"Quiz respondido por {usuario}: {mensaje}")
