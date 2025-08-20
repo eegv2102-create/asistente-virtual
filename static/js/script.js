@@ -595,7 +595,7 @@ const mostrarQuizEnChat = (quizData) => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
             btn.classList.add('selected');
             const opcion = btn.dataset.opcion;
-            const respuestaCorrecta = btn.dataset.respuestaCorrecta;
+            const respuestaCorrecta = btn.dataset.respuesta_correcta;
             const tema = btn.dataset.tema;
             responderQuiz(opcion, respuestaCorrecta, tema);
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
@@ -813,7 +813,7 @@ const mostrarMensajeBienvenida = () => {
         console.error('Elemento #chatbox o .message-container no encontrado');
         return;
     }
-    const mensaje = '¡Bienvenido! Estoy listo para ayudarte con tus preguntas sobre programación. Escribe algo o usa el botón de voz para comenzar.';
+    const mensaje = '¡Hola! Soy YELIA, tu asistente para Programación Avanzada en Ingeniería en Telemática. Estoy aquí para ayudarte. ¿Qué quieres aprender hoy?';
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
     botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) + 
@@ -897,13 +897,16 @@ const init = () => {
     if (menuToggle) {
         menuToggle.addEventListener('click', toggleMenu);
         menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
+        menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
     }
     if (menuToggleRight) {
         menuToggleRight.addEventListener('click', toggleRightMenu);
         menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
+        menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
     }
     if (modoBtn) {
         modoBtn.setAttribute('data-tooltip', 'Cambiar Modo');
+        modoBtn.setAttribute('aria-label', 'Cambiar entre modo claro y oscuro');
         modoBtn.addEventListener('click', () => {
             document.body.classList.toggle('modo-oscuro');
             localStorage.setItem('modoOscuro', document.body.classList.contains('modo-oscuro'));
@@ -912,21 +915,25 @@ const init = () => {
     }
     if (voiceBtn) {
         voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
+        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar voz' : 'Activar voz');
         voiceBtn.addEventListener('click', () => {
             vozActiva = !vozActiva;
             localStorage.setItem('vozActiva', vozActiva);
             voiceBtn.innerHTML = `<i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>`;
             voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
+            voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar voz' : 'Activar voz');
             mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
             if (!vozActiva) stopSpeech();
         });
     }
     if (quizBtn) {
         quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
+        quizBtn.setAttribute('aria-label', 'Generar un quiz');
         quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
     }
     if (recommendBtn) {
         recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
+        recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
         recommendBtn.addEventListener('click', () => obtenerRecomendacion().then(data => {
             const mensaje = `Recomendación: ${data.recommendation}`;
             const botDiv = document.createElement('div');
@@ -941,22 +948,27 @@ const init = () => {
     }
     if (sendBtn) {
         sendBtn.setAttribute('data-tooltip', 'Enviar Mensaje');
+        sendBtn.setAttribute('aria-label', 'Enviar mensaje');
         sendBtn.addEventListener('click', sendMessage);
     }
     if (newChatBtn) {
         newChatBtn.setAttribute('data-tooltip', 'Nueva Conversación');
+        newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
         newChatBtn.addEventListener('click', nuevaConversacion);
     }
     if (clearBtn) {
         clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
+        clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
         clearBtn.addEventListener('click', limpiarChat);
     }
     if (nivelBtn) {
         nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
+        nivelBtn.setAttribute('aria-label', 'Cambiar nivel de explicación');
         nivelBtn.addEventListener('click', toggleDropdown);
     }
     if (voiceToggleBtn) {
         voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
+        voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
     }
     handleVoiceHint();
