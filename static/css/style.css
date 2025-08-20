@@ -808,3 +808,7 @@ body.modo-oscuro .bot code {
         bottom: 120px;  /* Más espacio en móvil, donde los botones están fijos abajo */
     }
 }
+#notification-card {
+    max-height: 200px;
+    overflow-y: auto;
+}

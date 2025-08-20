@@ -72,17 +72,17 @@ const updateAvatarDisplay = () => {
 };
 
 const speakText = async (text) => {
-    console.log('Intentando reproducir voz:', { vozActiva, text, userHasInteracted });
+    console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted });
     
     if (!vozActiva || !text) {
-        console.warn('Voz desactivada o texto vacío, no se reproduce voz', { vozActiva, text });
-        mostrarNotificacion('Voz desactivada o texto vacío', 'error');
+        console.warn('Audio desactivado o texto vacío, no se reproduce audio', { vozActiva, text });
+        mostrarNotificacion('Audio desactivado o texto vacío', 'error');
         return;
     }
 
     if (!userHasInteracted) {
         console.warn('No se puede reproducir audio: el usuario no ha interactuado con la página');
-        mostrarNotificacion('Haz clic en la página para habilitar la voz', 'info');
+        mostrarNotificacion('Haz clic en la página para habilitar el audio', 'info');
         toggleVoiceHint(true);
         pendingWelcomeMessage = text;
         return;
@@ -104,7 +104,6 @@ const speakText = async (text) => {
     
     // Ajustar acrónimos para pronunciación natural (ej: YELIA como "Yelia")
     textoParaVoz = textoParaVoz.replace(/\bYELIA\b/g, 'Yelia');  // Leer como palabra
-    // Agrega más si necesitas, ej: textoParaVoz = textoParaVoz.replace(/\bPOO\b/g, 'P O O'); para deletrear si quieres, o como 'poo' para palabra
     
     textoParaVoz = textoParaVoz.trim();  // Limpiar espacios extras
 
@@ -141,7 +140,7 @@ const speakText = async (text) => {
             console.log('Reproduciendo audio desde /tts');
         }).catch(error => {
             console.error('Error al reproducir audio desde /tts:', error);
-            mostrarNotificacion('Error al reproducir voz: ' + error.message, 'error');
+            mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
             if (error.message.includes("user didn't interact")) {
                 toggleVoiceHint(true);
             }
@@ -154,7 +153,7 @@ const speakText = async (text) => {
         };
     } catch (error) {
         console.error('Fallo en /tts, intentando speechSynthesis:', error);
-        mostrarNotificacion(`Error en TTS: ${error.message}. Intentando voz local.`, 'error');
+        mostrarNotificacion(`Error en TTS: ${error.message}. Intentando audio local.`, 'error');
 
         if ('speechSynthesis' in window) {
             const voices = speechSynthesis.getVoices();
@@ -180,14 +179,14 @@ const speakText = async (text) => {
             };
             utterance.onerror = (event) => {
                 console.error('Error en speechSynthesis:', event.error);
-                mostrarNotificacion('Error en voz local: ' + event.error, 'error');
+                mostrarNotificacion('Error en audio local: ' + event.error, 'error');
                 if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
             currentAudio = utterance;
         } else {
             console.warn('speechSynthesis no soportado en este navegador');
-            mostrarNotificacion('Voz local no soportada en este navegador', 'error');
+            mostrarNotificacion('Audio local no soportado en este navegador', 'error');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
@@ -640,7 +639,7 @@ const sendMessage = () => {
     container.appendChild(userDiv);
     input.value = '';
     scrollToBottom();
-    
+
     guardarMensaje(pregunta, 'Esperando respuesta...');
 
     const loadingDiv = document.createElement('div');
@@ -648,13 +647,13 @@ const sendMessage = () => {
     loadingDiv.textContent = '⌛ Generando respuesta...';
     container.appendChild(loadingDiv);
     scrollToBottom();
-    
+
     const historial = JSON.parse(localStorage.getItem('currentConversation') || '{}').mensajes || [];
-    fetch('/respuesta', {
+    fetch('/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            pregunta: `${pregunta} (Proporciona solo la definición, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales)`,
+            pregunta,
             usuario: 'anonimo',
             avatar_id: selectedAvatar,
             nivel_explicacion: nivelExplicacion,
@@ -663,27 +662,16 @@ const sendMessage = () => {
     }).then(res => {
         if (!res.ok) {
             return res.json().then(err => {
-                throw new Error(err.error || `Error en /respuesta: ${res.status} ${res.statusText}`);
+                throw new Error(err.error || `Error en /ask: ${res.status} ${res.statusText}`);
             });
         }
         return res.json();
     }).then(data => {
         container.removeChild(loadingDiv);
-        let respuestaLimpia = data.respuesta;
-        const seccionesNoDeseadas = [
-            /Ejemplo:[\s\S]*?(?=(?:^###|\?Deseas saber más\?$|\Z))/gm,
-            /Ventajas:[\s\S]*?(?=(?:^###|\?Deseas saber más\?$|\Z))/gm,
-            /Prerequisitos recomendados:[\s\S]*?(?=(?:^###|\?Deseas saber más\?$|\Z))/gm,
-            /\?Deseas saber más\?/g
-        ];
-        seccionesNoDeseadas.forEach(regex => {
-            respuestaLimpia = respuestaLimpia.replace(regex, '').trim();
-        });
-        console.log('Respuesta limpia:', respuestaLimpia);
-
+        const respuestaLimpia = data.respuesta;
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia) : respuestaLimpia) + 
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(respuestaLimpia) : respuestaLimpia) +
             `<button class="copy-btn" data-text="${respuestaLimpia}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
@@ -705,7 +693,7 @@ const sendMessage = () => {
             container.removeChild(loadingDiv);
         }
         mostrarNotificacion(`Error al obtener respuesta: ${error.message}`, 'error');
-        console.error('Error en fetch /respuesta:', error);
+        console.error('Error en fetch /ask:', error);
         const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
         const mensajeIndex = currentConversation.mensajes.findIndex(m => m.pregunta === pregunta && m.respuesta === 'Esperando respuesta...');
         if (mensajeIndex !== -1) {
@@ -926,15 +914,22 @@ const init = () => {
         });
     }
     if (voiceBtn) {
-        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
-        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar voz' : 'Activar voz');
+        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+        voiceBtn.innerHTML = `
+            <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+            <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+        `;
         voiceBtn.addEventListener('click', () => {
             vozActiva = !vozActiva;
             localStorage.setItem('vozActiva', vozActiva);
-            voiceBtn.innerHTML = `<i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>`;
-            voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Voz' : 'Activar Voz');
-            voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar voz' : 'Activar voz');
-            mostrarNotificacion(`Voz ${vozActiva ? 'activada' : 'desactivada'}`, 'success');
+            voiceBtn.innerHTML = `
+                <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+                <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+            `;
+            voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+            voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+            mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
             if (!vozActiva) stopSpeech();
         });
     }
@@ -983,13 +978,12 @@ const init = () => {
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
     }
-    // Agregar listener para Enter en el input
     const inputElement = getElement('#input');
     if (inputElement) {
         inputElement.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {  // !shiftKey permite saltos de línea con Shift+Enter
-                event.preventDefault();  // Evita salto de línea
-                sendMessage();  // Llama a la función de enviar
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
             }
         });
     }
