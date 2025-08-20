@@ -87,6 +87,8 @@ const speakText = async (text) => {
     }
 
     let textoParaVoz = text;
+    // Limpiar emojis, markdown y caracteres especiales
+    textoParaVoz = textoParaVoz.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
     textoParaVoz = textoParaVoz.replace(/```[\s\S]*?```/g, '');
     textoParaVoz = textoParaVoz.replace(/`[^`]+`/g, '');
     textoParaVoz = textoParaVoz.replace(/\*\*([^*]+)\*\*/g, '$1');
@@ -150,33 +152,25 @@ const speakText = async (text) => {
             console.log('Voces disponibles en speechSynthesis:', voices);
             const esVoice = voices.find(v => v.lang.includes('es'));
             if (!esVoice) {
-                console.warn('No se encontró voz en español (es-ES) para speechSynthesis');
-                mostrarNotificacion('No se encontró voz en español en este navegador', 'error');
+                console.warn('No se encontró voz en español');
+                mostrarNotificacion('No se encontró voz en español', 'error');
                 if (botMessage) botMessage.classList.remove('speaking');
                 return;
             }
-
             const utterance = new SpeechSynthesisUtterance(textoParaVoz);
-            utterance.lang = 'es-ES';
             utterance.voice = esVoice;
-            utterance.pitch = 1;
-            utterance.rate = 0.9;
-            utterance.onstart = () => console.log('Iniciando reproducción con speechSynthesis');
+            utterance.lang = 'es-MX';
+            utterance.rate = 1;
             utterance.onend = () => {
-                console.log('Reproducción de speechSynthesis finalizada');
+                console.log('Audio local finalizado');
                 if (botMessage) botMessage.classList.remove('speaking');
                 currentAudio = null;
             };
-            utterance.onerror = (event) => {
-                console.error('Error en speechSynthesis:', event.error);
-                mostrarNotificacion('Error en audio local: ' + event.error, 'error');
-                if (botMessage) botMessage.classList.remove('speaking');
-            };
-            speechSynthesis.speak(utterance);
             currentAudio = utterance;
+            speechSynthesis.speak(utterance);
         } else {
-            console.warn('speechSynthesis no soportado en este navegador');
-            mostrarNotificacion('Audio local no soportado en este navegador', 'error');
+            console.warn('SpeechSynthesis no soportado');
+            mostrarNotificacion('El navegador no soporta síntesis de voz', 'error');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
@@ -543,38 +537,74 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
 };
 
 const mostrarQuizEnChat = (quizData) => {
+    if (quizData.error) {
+        mostrarNotificacion(quizData.error, 'error');
+        return;
+    }
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (!container || !chatbox) return;
-    const quiz = quizData.quiz[0];
+
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    const opcionesHtml = quiz.opciones.map((opcion, i) => `
-        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quiz.respuesta_correcta}" data-tema="${quiz.tema}">
-            ${quiz.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
+    const opcionesHtml = quizData.opciones.map((opcion, i) => `
+        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quizData.respuesta_correcta}" data-tema="${quizData.tema}">
+            ${quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
         </button>
     `).join('');
+    const mensaje = `**Quiz sobre ${quizData.tema}:** ${quizData.pregunta}<div class="quiz-options">${opcionesHtml}</div>`;
     botDiv.innerHTML = `
-        ${typeof marked !== 'undefined' ? marked.parse(quiz.pregunta) : quiz.pregunta}
-        <div class="quiz-options">${opcionesHtml}</div>
-        <button class="copy-btn" data-text="${quiz.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
+        ${typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje}
+        <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
     container.appendChild(botDiv);
     scrollToBottom();
     if (window.Prism) Prism.highlightAllUnder(botDiv);
-    guardarMensaje('Quiz', `${quiz.pregunta}\nOpciones: ${quiz.opciones.join(', ')}`, null, quiz.tema);
+    guardarMensaje('Quiz', `${quizData.pregunta}\nOpciones: ${quizData.opciones.join(', ')}`, null, quizData.tema);
+    speakText(`Quiz sobre ${quizData.tema}: ${quizData.pregunta}`);
+
     getElements('.quiz-option').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
             btn.classList.add('selected');
             const opcion = btn.dataset.opcion;
             const respuestaCorrecta = btn.dataset.respuesta_correcta;
             const tema = btn.dataset.tema;
-            responderQuiz(opcion, respuestaCorrecta, tema);
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
+
+            try {
+                const res = await fetch('/responder_quiz', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuario: localStorage.getItem('usuario') || 'anonimo',
+                        respuesta: opcion,
+                        respuesta_correcta: respuestaCorrecta,
+                        tema: tema
+                    })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    mostrarNotificacion(data.error, 'error');
+                    return;
+                }
+                const responseDiv = document.createElement('div');
+                responseDiv.classList.add('bot');
+                responseDiv.innerHTML = `
+                    ${typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta}
+                    <button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+                `;
+                container.appendChild(responseDiv);
+                scrollToBottom();
+                // Asegurar que los emojis no se lean en el audio
+                const textoParaVoz = data.respuesta.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '');
+                speakText(textoParaVoz);
+            } catch (error) {
+                console.error('Error al responder quiz:', error);
+                mostrarNotificacion('Error al responder el quiz', 'error');
+            }
         });
     });
-    speakText(quiz.pregunta);
 };
 
 const sendMessage = () => {
@@ -855,6 +885,26 @@ const handleVoiceHint = () => {
     });
 };
 
+const closeMenusOnClickOutside = () => {
+    const leftSection = getElement('.left-section');
+    const rightSection = getElement('.right-section');
+    const menuToggle = getElement('.menu-toggle');
+    const menuToggleRight = getElement('.menu-toggle-right');
+
+    document.addEventListener('click', (event) => {
+        if (!leftSection || !rightSection || !menuToggle || !menuToggleRight) return;
+        const isClickInsideLeft = leftSection.contains(event.target) || menuToggle.contains(event.target);
+        const isClickInsideRight = rightSection.contains(event.target) || menuToggleRight.contains(event.target);
+
+        if (!isClickInsideLeft && leftSection.classList.contains('active')) {
+            leftSection.classList.remove('active');
+        }
+        if (!isClickInsideRight && rightSection.classList.contains('active')) {
+            rightSection.classList.remove('active');
+        }
+    });
+};
+
 const init = () => {
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
@@ -868,16 +918,40 @@ const init = () => {
     const nivelBtn = getElement('#nivel-btn');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     const nivelSelect = getElement('#nivel-explicacion');
+    const leftSection = getElement('.left-section');
+    const rightSection = getElement('.right-section');
 
-    if (menuToggle) {
-        menuToggle.addEventListener('click', toggleMenu);
+    if (menuToggle && leftSection) {
+        menuToggle.addEventListener('click', () => {
+            leftSection.classList.toggle('active');
+            rightSection.classList.remove('active'); // Cerrar el otro menú
+        });
         menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
         menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
     }
-    if (menuToggleRight) {
-        menuToggleRight.addEventListener('click', toggleRightMenu);
+    if (menuToggleRight && rightSection) {
+        menuToggleRight.addEventListener('click', () => {
+            rightSection.classList.toggle('active');
+            leftSection.classList.remove('active'); // Cerrar el otro menú
+        });
         menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
         menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
+    }
+    if (leftSection) {
+        const closeBtnLeft = document.createElement('button');
+        closeBtnLeft.classList.add('close-menu-btn');
+        closeBtnLeft.innerHTML = '<i class="fas fa-times"></i>';
+        closeBtnLeft.setAttribute('aria-label', 'Cerrar menú izquierdo');
+        leftSection.insertBefore(closeBtnLeft, leftSection.firstChild);
+        closeBtnLeft.addEventListener('click', () => leftSection.classList.remove('active'));
+    }
+    if (rightSection) {
+        const closeBtnRight = document.createElement('button');
+        closeBtnRight.classList.add('close-menu-btn');
+        closeBtnRight.innerHTML = '<i class="fas fa-times"></i>';
+        closeBtnRight.setAttribute('aria-label', 'Cerrar menú derecho');
+        rightSection.insertBefore(closeBtnRight, rightSection.firstChild);
+        closeBtnRight.addEventListener('click', () => rightSection.classList.remove('active'));
     }
     if (modoBtn) {
         const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
@@ -980,6 +1054,7 @@ const init = () => {
             }
         });
     }
+    closeMenusOnClickOutside();
     handleVoiceHint();
     document.addEventListener('click', () => {
         if (!userHasInteracted) {

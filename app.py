@@ -117,12 +117,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     if pregunta.lower().strip() in respuestas_simples:
         return respuestas_simples[pregunta.lower().strip()]
 
-    # Validar nivel_explicacion
-    niveles_validos = ["basica", "ejemplos", "avanzada"]
-    if nivel_explicacion not in niveles_validos:
-        logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}. Usando 'basica' por defecto.")
-        nivel_explicacion = "basica"
-
     tema_encontrado = None
     unidad_encontrada = None
     for unidad, subtemas in temas.items():
@@ -135,87 +129,76 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         if tema_encontrado:
             break
 
-    # Limitar historial a las últimas 3 interacciones para evitar confusión
     contexto = ""
     if historial:
-        contexto = "\nHistorial reciente (referencia, no repitas contenido):\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-3:]])
+        contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
-    # Prompts mejorados para cada nivel
     if nivel_explicacion == "basica":
         estilo_prompt = (
-            "Eres un tutor de Programación Avanzada. Explica el concepto preguntado de manera sencilla y clara, como si le hablaras a un principiante sin conocimientos previos. "
-            "Proporciona **solo la definición** del concepto en no más de 100 palabras, usando un lenguaje simple y evitando tecnicismos complejos. "
-            "**No incluyas ejemplos, ventajas, desventajas, prerrequisitos, preguntas adicionales ni encabezados como 'Ejemplo:' o 'Ventajas:'.** "
-            "Si el concepto no está claro, pide al usuario que lo especifique."
+            "Explica de manera sencilla y clara, como si le hablaras a un principiante que recién comienza en Programación Avanzada. "
+            "Proporciona solo la definición del concepto preguntado, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales. "
+            "Usa un lenguaje simple, evita tecnicismos complejos y enfócate en conceptos básicos."
         )
         secciones_no_deseadas = [
-            r'(?:Ejemplo|Ejemplo de código|Example|Code example):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Ventajas|Advantages|Beneficios):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Desventajas|Disadvantages):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Prerrequisitos|Prerrequisitos recomendados|Prerequisites):[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?|Quieres continuar\?|Anything else\?',
+            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
+            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?',
             r'\n\s*\n\s*'
         ]
     elif nivel_explicacion == "ejemplos":
         estilo_prompt = (
-            "Eres un tutor de Programación Avanzada. Proporciona la definición del concepto preguntado en no más de 100 palabras, seguida de **un ejemplo de código claro y conciso** en un lenguaje relevante al concepto (por ejemplo, Python, Java, o C++). "
-            "El ejemplo debe estar comentado y ser fácil de entender para alguien con conocimientos básicos de programación. "
-            "**No incluyas ventajas, desventajas, prerrequisitos, preguntas adicionales ni encabezados como 'Ventajas:' o 'Prerrequisitos:'.** "
-            "Formato: <Definición>\n\n**Ejemplo de código**:\n```lenguaje\n<código>\n```"
+            "Proporciona la definición del concepto preguntado, seguida de un ejemplo de código claro y conciso que ilustre el concepto. "
+            "Usa un lenguaje claro y de nivel intermedio, adecuado para alguien con conocimientos básicos de programación. "
+            "No incluyas ventajas, prerequisitos ni preguntas adicionales. "
+            "Asegúrate de que el ejemplo de código esté bien comentado y sea relevante al concepto."
         )
         secciones_no_deseadas = [
-            r'(?:Ventajas|Advantages|Beneficios):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Desventajas|Disadvantages):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Prerrequisitos|Prerrequisitos recomendados|Prerequisites):[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?|Quieres continuar\?|Anything else\?',
+            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?',
             r'\n\s*\n\s*'
         ]
     elif nivel_explicacion == "avanzada":
         estilo_prompt = (
-            "Eres un tutor de Programación Avanzada. Proporciona una explicación teórica avanzada del concepto preguntado en no más de 150 palabras, dirigida a alguien con experiencia en programación. "
-            "Incluye detalles técnicos profundos, referencias a estándares o especificaciones si aplica, y usa un lenguaje técnico pero claro. "
-            "**No incluyas ejemplos, ventajas, desventajas, prerrequisitos, preguntas adicionales ni encabezados como 'Ejemplo:' o 'Ventajas:'.** "
-            "Si el concepto no está claro, pide al usuario que lo especifique."
+            "Proporciona una explicación teórica avanzada del concepto preguntado, incluyendo detalles profundos y referencias a estándares si aplica. "
+            "Usa un lenguaje técnico, pero claro, dirigido a alguien con experiencia en Programación Avanzada. "
+            "Proporciona solo la definición teórica, sin ejemplos, ventajas, prerequisitos ni preguntas adicionales."
         )
         secciones_no_deseadas = [
-            r'(?:Ejemplo|Ejemplo de código|Example|Code example):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Ventajas|Advantages|Beneficios):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Desventajas|Disadvantages):[\s\S]*?(?=(?:^##|\Z))',
-            r'(?:Prerrequisitos|Prerrequisitos recomendados|Prerequisites):[\s\S]*?(?=(?:^##|\Z))',
-            r'\?Deseas saber más\?|Quieres continuar\?|Anything else\?',
+            r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
+            r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
+            r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
+            r'\?Deseas saber más\?',
             r'\n\s*\n\s*'
         ]
 
     prompt = (
         f"{estilo_prompt}\n"
         f"Pregunta del usuario: {pregunta}\n"
-        f"Contexto: {contexto}\n"
-        f"Tema relacionado (si aplica): {tema_encontrado or 'No identificado'}"
+        f"Contexto: {contexto}"
     )
 
     try:
         completion = call_groq_api(
             client,
             messages=[
-                {"role": "system", "content": "Eres un tutor experto en Programación Avanzada. Sigue estrictamente las instrucciones del prompt."},
+                {"role": "system", "content": "Eres un tutor experto en Programación Avanzada."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama3-70b-8192",  # Cambiar a "mixtral-8x7b-32768" si el problema persiste
+            model="llama3-70b-8192",
             max_tokens=500,
-            temperature=0.5  # Reducido para mayor precisión
+            temperature=0.7
         )
         respuesta = completion.choices[0].message.content.strip()
-        # Limpieza adicional para eliminar secciones no deseadas
+        # Limpieza adicional para eliminar secciones no deseadas según el nivel
         for regex in secciones_no_deseadas:
-            respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE | re.IGNORECASE).strip()
-        # Asegurar formato para ejemplos
-        if nivel_explicacion == "ejemplos" and "```" not in respuesta:
-            respuesta += "\n\n**Ejemplo de código**:\n```python\n# Ejemplo no proporcionado por el modelo. Contacta al soporte para más detalles.\n```"
+            respuesta = re.sub(regex, '', respuesta, flags=re.MULTILINE).strip()
         return respuesta
     except Exception as e:
         logging.error(f"Error en Groq API: {str(e)}")
         return "Lo siento, el servicio de IA está temporalmente no disponible. Intenta más tarde o verifica https://groqstatus.com/."
-
+    
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -227,7 +210,7 @@ def ask():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         pregunta = bleach.clean(data.get("pregunta", "")[:300])
         historial = data.get("historial", [])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:20])
+        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica"))
 
         if not pregunta:
             logging.error("Pregunta vacía en /ask")
@@ -247,56 +230,53 @@ def ask():
         except PsycopgError as e:
             logging.error(f"Error al guardar log: {str(e)}")
 
-        logging.info(f"Pregunta de {usuario}: {pregunta} - Nivel: {nivel_explicacion} - Respuesta: {respuesta}")
+        logging.info(f"Pregunta de {usuario}: {pregunta} - Respuesta: {respuesta}")
         return jsonify({"respuesta": respuesta})
     except Exception as e:
         logging.error(f"Error en /ask: {str(e)}")
         return jsonify({"error": f"Error al procesar la pregunta: {str(e)}"}), 500
 
 @app.route("/quiz", methods=["POST"])
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def quiz():
     try:
         data = request.get_json()
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        tipo_quiz = bleach.clean(data.get("tipo", "opciones")[:20])
         tema = bleach.clean(data.get("tema", "")[:50])
-        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones"))
+        nivel_explicacion = bleach.clean(data.get("nivel", "basica")[:20])
 
-        if tipo_quiz not in ["opciones", "verdadero_falso"]:
-            return jsonify({"error": "Tipo de quiz inválido"}), 400
+        progreso = cargar_progreso(usuario)
+        temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
+
+        temas_disponibles = []
+        for unidad, subtemas in temas.items():
+            temas_disponibles.extend(subtemas.keys())
+        tema = tema if tema in temas_disponibles else random.choice(temas_disponibles)
 
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        # Añadir timestamp para forzar variación en las preguntas
         prompt = (
-            f"Genera un quiz de {tipo_quiz} sobre el tema '{tema}' en Programación Avanzada. "
-            "Devuelve un JSON con: {'quiz': [{'pregunta': str, 'opciones': list[str], 'respuesta_correcta': str, 'tema': str, 'nivel': str}]} "
-            f"Genera 5 preguntas. Para opciones: exactamente 4 opciones, una correcta. Para verdadero_falso: exactamente 2 opciones (Verdadero, Falso)."
+            f"Eres un tutor de Programación Avanzada. Genera un quiz de tipo {tipo_quiz} sobre el tema '{tema}'. "
+            f"El nivel de explicación debe ser {nivel_explicacion}. "
+            f"Genera una pregunta única (no repitas preguntas anteriores). "
+            "Devuelve un JSON con: pregunta (string), opciones (array de strings), respuesta_correcta (string, debe coincidir exactamente con una opción), tema (string)."
+            f"Contexto: usuario ha aprendido {','.join(temas_aprendidos)}. Timestamp: {int(time.time())}"
         )
 
         completion = call_groq_api(
             client,
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Genera el quiz."}
+                {"role": "user", "content": "Genera un quiz."}
             ],
             model="llama3-70b-8192",
-            max_tokens=1000,
-            temperature=0.5
+            max_tokens=300,
+            temperature=0.9  # Aumentar temperatura para más variación
         )
 
+        quiz_data = json.loads(completion.choices[0].message.content)
         try:
-            quiz_data = json.loads(completion.choices[0].message.content.strip())
-            if not isinstance(quiz_data, dict) or "quiz" not in quiz_data or not isinstance(quiz_data["quiz"], list):
-                raise ValueError("Formato de quiz inválido")
-            for q in quiz_data["quiz"]:
-                if not all(key in q for key in ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]):
-                    raise ValueError("Faltan campos requeridos en una pregunta del quiz")
-                if tipo_quiz == "opciones" and len(q["opciones"]) != 4:
-                    raise ValueError("Cada pregunta de opción múltiple debe tener exactamente 4 opciones")
-                if tipo_quiz == "verdadero_falso" and len(q["opciones"]) != 2:
-                    raise ValueError("Cada pregunta de verdadero/falso debe tener exactamente 2 opciones")
-        except json.JSONDecodeError:
-            logging.error("Respuesta de Groq no es un JSON válido")
-            return jsonify({"error": "Error al procesar el formato del quiz"}), 500
+            validate_quiz_format(quiz_data)
         except ValueError as ve:
             logging.error(f"Error en el formato del quiz: {str(ve)}")
             return jsonify({"error": f"Error en el formato del quiz: {str(ve)}"}), 500
@@ -306,14 +286,25 @@ def quiz():
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar el quiz: {str(e)}"}), 500
+    
+def validate_quiz_format(quiz_data):
+    required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema"]
+    for key in required_keys:
+        if key not in quiz_data:
+            raise ValueError(f"Falta la clave {key} en el quiz")
+    if not isinstance(quiz_data["opciones"], list) or len(quiz_data["opciones"]) < 2:
+        raise ValueError("El quiz debe tener al menos 2 opciones")
+    if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
+        raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
+    
 
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
     try:
         data = request.get_json()
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        respuesta = bleach.clean(data.get("respuesta", "")[:300])
-        respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300])
+        respuesta = bleach.clean(data.get("respuesta", "")[:300]).strip().lower()
+        respuesta_correcta = bleach.clean(data.get("respuesta_correcta", "")[:300]).strip().lower()
         tema = bleach.clean(data.get("tema", "")[:50])
 
         progreso = cargar_progreso(usuario)
@@ -327,7 +318,7 @@ def responder_quiz():
                 temas_aprendidos.append(tema)
             mensaje = f"✅ ¡Correcto! Has ganado 10 puntos. Tema: {tema}. ¿Deseas saber más?"
         else:
-            mensaje = f"❌ Incorrecto. La respuesta correcta era: {respuesta_correcta}. ¿Deseas saber más?"
+            mensaje = f"❌ Incorrecto. La respuesta correcta era: {data.get('respuesta_correcta', 'No disponible')}. ¿Deseas saber más?"
 
         guardar_progreso(usuario, puntos, ",".join(temas_aprendidos))
         logging.info(f"Quiz respondido por {usuario}: {mensaje}")
@@ -376,6 +367,9 @@ def recommend():
             temas_disponibles.extend(subtemas.keys())
 
         temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
+        if not temas_no_aprendidos:
+            temas_no_aprendidos = temas_disponibles  # Si no hay temas no aprendidos, usar todos
+
         contexto = "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -383,8 +377,9 @@ def recommend():
             "Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
             "Tu tarea es recomendar un tema de Programación Avanzada basado en el historial de interacciones y los temas ya aprendidos. "
             "Elige un tema de los disponibles que no haya sido aprendido, considerando el contexto del historial. "
+            "Si no hay temas no aprendidos, elige un tema relevante para reforzar. "
             "Devuelve solo el nombre del tema recomendado (por ejemplo, 'Patrones de diseño') sin explicaciones adicionales."
-            f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}"
+            f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_no_aprendidos)}\nTimestamp: {int(time.time())}"
         )
 
         completion = call_groq_api(
@@ -395,12 +390,12 @@ def recommend():
             ],
             model="llama3-70b-8192",
             max_tokens=50,
-            temperature=0.5
+            temperature=0.7
         )
 
         recomendacion = completion.choices[0].message.content.strip()
         if not recomendacion or recomendacion not in temas_disponibles:
-            recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else "Patrones de diseño"
+            recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
 
         logging.info(f"Recomendación para usuario {usuario}: {recomendacion}")
         return jsonify({"recommendation": recomendacion})
