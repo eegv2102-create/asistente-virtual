@@ -420,12 +420,4 @@ def recommend():
 
 if __name__ == "__main__":
     init_db()
-    if os.getenv("RENDER", "false").lower() != "true":
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.bind(("0.0.0.0", 5000))
-            sock.close()
-            webbrowser.open("http://localhost:5000")
-        except OSError:
-            logging.warning("Puerto 5000 en uso.")
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
