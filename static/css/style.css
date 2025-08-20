@@ -79,29 +79,33 @@ body {
 }
 
 .app-title h1 {
-    font-size: clamp(1.5rem, 4vw, 2rem); /* Aumentar tamaño del título */
+    font-size: clamp(1.5rem, 4vw, 2rem);
     text-align: center;
     margin: 0;
     flex: 1;
     color: var(--text-primary);
 }
 
-#modo-btn, #voice-btn {
+#modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn {
     background: none;
     border: 1px solid var(--border);
     color: var(--text-primary);
     cursor: pointer;
-    padding: 8px 12px; /* Aumentar padding para botones más grandes */
+    padding: 8px 12px;
     border-radius: 8px;
-    font-size: 1rem; /* Aumentar tamaño de fuente */
+    font-size: 1rem;
     display: flex;
     align-items: center;
     gap: 6px;
     transition: background-color 0.3s ease, transform 0.2s ease;
+    pointer-events: auto;
+    z-index: 1005;
 }
 
-#modo-btn:hover, #voice-btn:hover,
-#modo-btn:focus, #voice-btn:focus {
+#modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
+#send-btn:hover, #new-chat-btn:hover, #btn-clear:hover, #nivel-btn:hover,
+#modo-btn:focus, #voice-btn:focus, #quiz-btn:focus, #recommend-btn:focus,
+#send-btn:focus, #new-chat-btn:focus, #btn-clear:focus, #nivel-btn:focus {
     background-color: var(--accent);
     color: var(--button-text);
     transform: scale(1.05);
@@ -134,8 +138,8 @@ body {
     justify-content: space-between;
     width: 100%;
     max-width: 1200px;
-    height: calc(100vh - 80px); /* Ajustar altura para eliminar espacio extra */
-    margin-top: 10px; /* Reducir margin-top */
+    height: calc(100vh - 80px);
+    margin-top: 10px;
     background-color: var(--bg-primary);
     border-radius: 8px;
     overflow: hidden;
@@ -181,26 +185,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-#quiz-btn, #recommend-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-#quiz-btn:hover, #recommend-btn:hover,
-#quiz-btn:focus, #recommend-btn:focus {
-    background-color: var(--accent);
-    color: var(--button-text);
-    transform: scale(1.05);
 }
 
 .chat-history {
@@ -274,6 +258,7 @@ body {
     justify-content: center;
     cursor: pointer;
     font-size: 0.9rem;
+    pointer-events: auto;
 }
 
 .chat-actions .rename-btn {
@@ -308,7 +293,7 @@ body {
     padding: 16px;
     overflow-y: auto;
     background-color: var(--bg-secondary);
-    max-height: calc(100vh - 140px); /* Ajustar altura */
+    max-height: calc(100vh - 140px);
 }
 
 .message-container {
@@ -366,6 +351,7 @@ body {
     margin-left: 8px;
     color: var(--text-secondary);
     font-size: 0.9rem;
+    pointer-events: auto;
 }
 
 .copy-btn:hover, .copy-btn:focus {
@@ -429,6 +415,7 @@ body {
     border-radius: 8px;
     padding: 8px;
     cursor: pointer;
+    pointer-events: auto;
 }
 
 .quiz-option:hover, .quiz-option:focus {
@@ -476,21 +463,6 @@ body {
     display: none;
 }
 
-#nivel-btn {
-    padding: 4px 8px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 0.8rem;
-    cursor: pointer;
-}
-
-#nivel-btn:hover, #nivel-btn:focus {
-    background-color: var(--accent);
-    color: var(--button-text);
-}
-
 .dropdown-menu {
     display: none;
     position: absolute;
@@ -519,6 +491,7 @@ body {
     color: var(--text-primary);
     font-size: 0.8rem;
     cursor: pointer;
+    pointer-events: auto;
 }
 
 .dropdown-menu button:hover, .dropdown-menu button:focus {
@@ -534,6 +507,7 @@ body {
     font-size: 0.9rem;
     background-color: var(--bg-primary);
     color: var(--text-primary);
+    pointer-events: auto;
 }
 
 #input:focus {
@@ -541,7 +515,7 @@ body {
     border-color: var(--accent);
 }
 
-#new-chat-btn, #btn-clear, #send-btn, #voice-toggle-btn {
+#voice-toggle-btn {
     background-color: var(--button-bg);
     color: var(--button-text);
     border: none;
@@ -549,20 +523,11 @@ body {
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.85rem;
+    pointer-events: auto;
 }
 
-#new-chat-btn:hover, #send-btn:hover, #voice-toggle-btn:hover,
-#new-chat-btn:focus, #send-btn:focus, #voice-toggle-btn:focus {
+#voice-toggle-btn:hover, #voice-toggle-btn:focus {
     background-color: var(--button-hover);
-    transform: scale(1.05);
-}
-
-#btn-clear {
-    background-color: var(--error);
-}
-
-#btn-clear:hover, #btn-clear:focus {
-    background-color: #c0392b;
     transform: scale(1.05);
 }
 
@@ -608,6 +573,7 @@ body {
     height: 32px;
     align-items: center;
     justify-content: center;
+    pointer-events: auto;
 }
 
 .avatar-options {
@@ -622,6 +588,7 @@ body {
     border-radius: 8px;
     cursor: pointer;
     transition: transform 0.2s ease;
+    pointer-events: auto;
 }
 
 .avatar-options img:hover, .avatar-options img:focus {
@@ -636,14 +603,14 @@ body {
     .container {
         flex-direction: column;
         height: calc(100vh - 90px);
-        margin-top: 10px; /* Reducir margin-top en móviles */
+        margin-top: 10px;
         margin-left: 0;
         margin-right: 0;
     }
 
     .left-section, .right-section {
         position: fixed;
-        top: 90px; /* Ajustar para el nuevo tamaño del título */
+        top: 90px;
         height: calc(100vh - 90px);
         width: 80%;
         max-width: 300px;
@@ -698,7 +665,7 @@ body {
         border-radius: 16px;
     }
 
-    #new-chat-btn, #btn-clear, #send-btn, #voice-toggle-btn {
+    #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn, #voice-toggle-btn {
         padding: 4px 8px;
         font-size: 0.75rem;
         min-width: 30px;
@@ -742,7 +709,7 @@ body {
     }
 
     .app-title h1 {
-        font-size: clamp(1.2rem, 3vw, 1.5rem); /* Ajustar tamaño en móviles */
+        font-size: clamp(1.2rem, 3vw, 1.5rem);
         order: 0;
     }
 
@@ -781,7 +748,7 @@ body {
     }
 
     .app-title {
-        padding: 10px 8px; /* Ajustar padding en móviles */
+        padding: 10px 8px;
     }
 }
 
