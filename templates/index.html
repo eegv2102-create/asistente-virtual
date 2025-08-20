@@ -18,21 +18,21 @@
 <body>
     <header class="app-title">
         <div class="title-container">
+            <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i></button>
+            <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i></button>
+            <button id="modo-btn" data-tooltip="Modo Oscuro" aria-label="Cambiar modo">
+                <i class="fas fa-moon"></i>
+                <span id="modo-text">Modo Oscuro</span>
+            </button>
             <h1>🧠 YELIA 🤖</h1>
-            <div class="header-buttons">
-                <button id="modo-btn" data-tooltip="Modo Oscuro" aria-label="Cambiar modo">
-                    <i class="fas fa-moon"></i>
-                    <span id="modo-text">Modo Oscuro</span>
-                </button>
-                <button id="voice-btn" data-tooltip="Activar Voz" aria-label="Activar/Desactivar voz">
-                    <i class="fas fa-volume-up"></i>
-                    <span id="voice-text">Activar Voz</span>
-                </button>
-            </div>
+            <button id="voice-btn" data-tooltip="Activar Voz" aria-label="Activar/Desactivar voz">
+                <i class="fas fa-volume-up"></i>
+                <span id="voice-text">Activar Voz</span>
+            </button>
         </div>
     </header>
 
-    <div class="header-divider"></div> <!-- Nuevo divisor -->
+    <div class="header-divider"></div>
 
     <div id="voice-hint" class="voice-hint hidden">Haz clic en cualquier lugar para habilitar la voz</div>
 
@@ -114,9 +114,6 @@
             </div>
         </aside>
     </div>
-
-    <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i></button>
-    <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i></button>
 
     <div id="notification-card">
         <p>Notificación</p>
