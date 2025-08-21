@@ -642,16 +642,14 @@ const mostrarQuizEnChat = (quizData) => {
 
 const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
     console.log('Enviando respuesta del quiz:', { opcion, respuestaCorrecta, tema, pregunta });
-    opcion = opcion || 'Opción no especificada';
-    respuestaCorrecta = respuestaCorrecta || 'Respuesta correcta no especificada';
-    tema = tema || 'Tema no especificado';
-    pregunta = pregunta || 'Pregunta no especificada';
-    if (!opcion || !respuestaCorrecta || !tema) {
+    // Validar que todos los datos estén presentes
+    if (!opcion || !respuestaCorrecta || !tema || !pregunta) {
         console.error('Faltan datos críticos en responderQuiz:', { opcion, respuestaCorrecta, tema, pregunta });
-        mostrarNotificacion(`Error: Faltan datos críticos para responder el quiz. Faltan: ${[
+        mostrarNotificacion(`Error: Faltan datos para responder el quiz. Faltan: ${[
             !opcion && 'opción',
             !respuestaCorrecta && 'respuesta_correcta',
-            !tema && 'tema'
+            !tema && 'tema',
+            !pregunta && 'pregunta'
         ].filter(Boolean).join(', ')}`, 'error');
         return;
     }
@@ -675,7 +673,10 @@ const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
         console.log('Respuesta recibida de /responder_quiz:', data);
         const chatbox = getElement('#chatbox');
         const container = chatbox?.querySelector('.message-container');
-        if (!container || !chatbox) return;
+        if (!container || !chatbox) {
+            console.error('No se encontró el contenedor del chatbox');
+            return;
+        }
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';

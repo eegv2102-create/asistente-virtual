@@ -284,7 +284,12 @@ def quiz():
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
         if not temas_disponibles:
-            temas_disponibles = ["POO", "UML", "Patrones de Diseño", "Concurrencia", "Pruebas Unitarias"]
+            temas_disponibles = [
+                "Introducción a la POO", "Clases y Objetos", "Encapsulamiento", "Herencia",
+                "Polimorfismo", "Clases Abstractas e Interfaces", "UML", "Diagramas UML",
+                "Patrones de Diseño en POO", "Patrón MVC", "Acceso a Archivos",
+                "Bases de Datos y ORM", "Integración POO + MVC + BD", "Pruebas y Buenas Prácticas"
+            ]
 
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
@@ -296,25 +301,26 @@ def quiz():
 
         prompt = (
             f"Eres YELIA, un tutor de Programación Avanzada para Ingeniería en Telemática. "
-            f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre el tema '{tema_seleccionado}' en Programación Avanzada. "
-            "La pregunta debe ser clara, precisa, con una única respuesta correcta, y diferente a cualquier pregunta generada previamente. "
-            "Devuelve un JSON válido con las siguientes claves: "
-            "'pregunta' (texto de la pregunta, máximo 200 caracteres), "
-            "'opciones' (lista de opciones, cada una máximo 100 caracteres), "
-            "'respuesta_correcta' (texto exacto de una de las opciones), "
-            "'tema' (el tema, máximo 50 caracteres), "
-            "'nivel' (siempre 'basico'). "
+            f"Genera una sola pregunta de quiz de tipo '{tipo_quiz}' sobre el tema '{tema_seleccionado}'. "
+            f"La pregunta debe ser clara, precisa, con una única respuesta correcta que coincida exactamente con una de las opciones, "
+            f"y diferente a cualquier pregunta generada previamente. "
+            f"Devuelve un JSON válido con las claves: "
+            f"'pregunta' (máximo 200 caracteres), "
+            f"'opciones' (lista de opciones, cada una máximo 100 caracteres), "
+            f"'respuesta_correcta' (texto exacto de una opción), "
+            f"'tema' (el tema, máximo 50 caracteres), "
+            f"'nivel' (siempre 'basico'). "
             f"Para tipo 'opciones', incluye exactamente 4 opciones únicas, con una sola correcta. "
-            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones ('Verdadero', 'Falso'), con una sola correcta. "
-            "Asegúrate de que 'respuesta_correcta' coincide exactamente con una de las opciones en 'opciones'. "
-            "Evita ambigüedades; por ejemplo, para '¿Qué permite que una clase herede atributos y métodos?', la respuesta debe ser 'Herencia'. "
-            f"Usa el timestamp {int(time.time())} como semilla para garantizar unicidad. "
-            "Ejemplo de formato: "
-            "{\"pregunta\": \"¿Qué tipo de diagrama UML representa la estructura estática de un sistema?\", "
-            "\"opciones\": [\"Diagrama de Clases\", \"Diagrama de Actividades\", \"Diagrama de Estados\", \"Diagrama de Componentes\"], "
-            "\"respuesta_correcta\": \"Diagrama de Clases\", "
-            "\"tema\": \"UML\", "
-            "\"nivel\": \"basico\"}"
+            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones ('Verdadero', 'Falso'). "
+            f"Asegúrate de que 'respuesta_correcta' sea idéntica a una de las opciones (sin espacios adicionales ni variaciones). "
+            f"Evita términos ambiguos; por ejemplo, para herencia, usa 'Herencia', no 'Generalización'. "
+            f"Usa el timestamp {int(time.time())} como semilla para unicidad. "
+            f"Ejemplo: "
+            f"{{\"pregunta\": \"¿Qué permite ocultar los detalles internos de una clase?\", "
+            f"\"opciones\": [\"Encapsulamiento\", \"Herencia\", \"Polimorfismo\", \"Abstracción\"], "
+            f"\"respuesta_correcta\": \"Encapsulamiento\", "
+            f"\"tema\": \"Encapsulamiento\", "
+            f"\"nivel\": \"basico\"}}"
         )
 
         completion = call_groq_api(
@@ -324,7 +330,7 @@ def quiz():
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.3  # Bajada para reducir creatividad
+            temperature=0.2  # Reducida para mayor precisión
         )
 
         try:
@@ -333,14 +339,13 @@ def quiz():
         except (json.JSONDecodeError, ValueError) as e:
             logging.error(f"Error en el formato del quiz de Groq: {str(e)}")
             quiz_data = {
-                "pregunta": f"En {tema_seleccionado}, ¿qué permite que una clase herede atributos y métodos?" if tema_seleccionado == "POO" else f"¿Qué diagrama UML muestra la estructura estática?",
-                "opciones": ["Herencia", "Polimorfismo", "Abstracción", "Encapsulación"] if tema_seleccionado == "POO" else ["Diagrama de Clases", "Diagrama de Actividades", "Diagrama de Estados", "Diagrama de Componentes"],
-                "respuesta_correcta": "Herencia" if tema_seleccionado == "POO" else "Diagrama de Clases",
+                "pregunta": f"¿Qué permite ocultar los detalles internos de una clase?" if tema_seleccionado == "Encapsulamiento" else f"¿Qué diagrama UML muestra la estructura estática?",
+                "opciones": ["Encapsulamiento", "Herencia", "Polimorfismo", "Abstracción"] if tema_seleccionado == "Encapsulamiento" else ["Diagrama de Clases", "Diagrama de Actividades", "Diagrama de Estados", "Diagrama de Componentes"],
+                "respuesta_correcta": "Encapsulamiento" if tema_seleccionado == "Encapsulamiento" else "Diagrama de Clases",
                 "tema": tema_seleccionado,
                 "nivel": "basico"
             }
 
-        # Validar formato del quiz
         try:
             validate_quiz_format(quiz_data)
         except ValueError as e:
@@ -370,10 +375,12 @@ def responder_quiz():
             logging.error("Faltan respuesta o respuesta_correcta en /responder_quiz")
             return jsonify({'error': 'Faltan respuesta o respuesta_correcta'}), 400
 
-        # Validar estrictamente la respuesta
-        es_correcta = respuesta.strip().lower() == respuesta_correcta.strip().lower()
+        # Normalizar respuestas para comparación robusta
+        respuesta_norm = ' '.join(respuesta.strip().lower().split())
+        respuesta_correcta_norm = ' '.join(respuesta_correcta.strip().lower().split())
+        es_correcta = respuesta_norm == respuesta_correcta_norm
 
-        # Intentar guardar en la base de datos, pero no fallar si no se puede
+        # Guardar en base de datos
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -388,7 +395,6 @@ def responder_quiz():
             logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}")
         except PsycopgError as e:
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
-            # Continuar sin fallar la respuesta al usuario
 
         # Generar explicación con Grok
         try:
@@ -398,25 +404,26 @@ def responder_quiz():
                 f"La respuesta dada fue: '{respuesta}'. "
                 f"La respuesta correcta es: '{respuesta_correcta}'. "
                 f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
-                f"Sigue estrictamente este formato: "
-                f"Si es correcta, responde exactamente: '¡Felicidades, está bien! [Explicación breve sobre por qué es correcta]. ¿Deseas saber más del tema o de otro tema?'. "
-                f"Si es incorrecta, responde exactamente: 'Incorrecto. La respuesta correcta es: {respuesta_correcta}. [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada]. ¿Deseas saber más del tema o de otro tema?'. "
-                f"La explicación debe ser clara, concisa (máximo 100 palabras), en español, y enfocada en Programación Avanzada. "
-                f"No uses términos fuera de las opciones ni digas que es 'parcialmente correcta' o 'no completa'; respeta si es correcta o incorrecta según la validación. "
-                f"Usa Markdown para formato."
+                f"Sigue estrictamente este formato en Markdown: "
+                f"- Si es correcta: '**¡Felicidades, está bien!** [Explicación breve de por qué la respuesta es correcta, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
+                f"- Si es incorrecta: '**Incorrecto. La respuesta correcta es: {respuesta_correcta}.** [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
+                f"No uses términos fuera de las opciones proporcionadas ni digas 'parcialmente correcta' o 'no completa'. "
+                f"Usa solo el contexto de la pregunta y las opciones. "
+                f"Responde en español, en formato Markdown."
             )
             response = call_groq_api(
                 messages=[{"role": "system", "content": prompt}],
                 model="llama3-70b-8192",
-                max_tokens=150,
-                temperature=0.3  # Bajada para mayor precisión
+                max_tokens=100,
+                temperature=0.2  # Reducida para mayor precisión
             )
             explicacion = response.choices[0].message.content.strip()
         except Exception as e:
             logging.error(f"Error al generar explicación con Groq: {str(e)}")
             explicacion = (
-                f"**{'¡Felicidades, está bien!' if es_correcta else 'Incorrecto. La respuesta correcta es: ' + respuesta_correcta}** "
-                f"{'La respuesta es correcta. ¿Deseas saber más del tema o de otro tema?' if es_correcta else 'La respuesta correcta es adecuada porque [explicación de respaldo]. ¿Deseas saber más del tema o de otro tema?'}"
+                f"**{'¡Felicidades, está bien!' if es_correcta else f'Incorrecto. La respuesta correcta es: {respuesta_correcta}.'}** "
+                f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
+                f"¿Deseas saber más del tema o de otro tema?"
             )
 
         return jsonify({
