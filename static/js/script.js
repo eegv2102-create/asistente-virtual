@@ -547,10 +547,21 @@ const mostrarQuizEnChat = (quizData) => {
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
         });
     });
+    console.log('Botones de quiz generados:', Array.from(getElements('.quiz-option')).map(btn => ({
+        opcion: btn.dataset.opcion,
+        respuestaCorrecta: btn.dataset.respuesta_correcta,
+        tema: btn.dataset.tema
+    })));
     speakText(quizData.pregunta);
 };
 
 const responderQuiz = (opcion, respuestaCorrecta, tema) => {
+    console.log('Enviando respuesta del quiz:', { opcion, respuestaCorrecta, tema });
+    if (!opcion || !respuestaCorrecta || !tema) {
+        console.error('Faltan datos en responderQuiz:', { opcion, respuestaCorrecta, tema });
+        mostrarNotificacion('Error: Faltan datos para responder el quiz', 'error');
+        return;
+    }
     fetch('/responder_quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -563,6 +574,7 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
         }
         return res.json();
     }).then(data => {
+        console.log('Respuesta del servidor /responder_quiz:', data);
         const chatbox = getElement('#chatbox');
         const container = chatbox?.querySelector('.message-container');
         if (!container || !chatbox) return;
@@ -579,8 +591,8 @@ const responderQuiz = (opcion, respuestaCorrecta, tema) => {
         addCopyButtonListeners();
     }).catch(error => {
         const errorMsg = `Error al responder quiz: ${error.message.includes('503') ? 'Servicio no disponible. Revisa https://groqstatus.com/' : error.message}`;
-        mostrarNotificacion(errorMsg, 'error');
         console.error('Error en fetch /responder_quiz:', error);
+        mostrarNotificacion(errorMsg, 'error');
     });
 };
 
