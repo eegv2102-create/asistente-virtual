@@ -37,6 +37,7 @@ client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 def get_db_connection():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn.set_session(autocommit=False)
         return conn
     except Exception as e:
         logging.error(f"Error al conectar con la base de datos: {str(e)}")
@@ -68,21 +69,16 @@ def init_db():
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        # Crear tabla progreso
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
-        # Crear tabla logs
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Crear tabla avatars
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
-        # Crear tabla quiz_logs
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, es_correcta BOOLEAN, puntos INTEGER, tema TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Crear índices
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
@@ -140,7 +136,6 @@ def call_groq_api(messages, model, max_tokens, temperature):
         raise
 
 def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
-    # Verificar si la pregunta es relevante para Programación Avanzada
     prompt_relevancia = (
         f"Determina si la pregunta '{pregunta}' es sobre Programación Avanzada en Ingeniería en Telemática. "
         "Responde solo 'Sí' o 'No'."
@@ -285,10 +280,27 @@ def quiz():
             logging.error(f"Tipo de quiz inválido: {tipo_quiz}")
             return jsonify({"error": "Tipo de quiz inválido"}), 400
 
+        # Obtener temas disponibles
+        temas_disponibles = []
+        for unidad, subtemas in temas.items():
+            temas_disponibles.extend(subtemas.keys())
+        if not temas_disponibles:
+            temas_disponibles = ["POO", "UML", "Patrones de Diseño", "Concurrencia", "Pruebas Unitarias"]
+
+        # Obtener temas aprendidos y recomendados
+        progreso = cargar_progreso(usuario)
+        temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
+        temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
+        if not temas_no_aprendidos:
+            temas_no_aprendidos = temas_disponibles
+
+        # Elegir un tema aleatorio
+        tema_seleccionado = random.choice(temas_no_aprendidos if temas_no_aprendidos else temas_disponibles)
+
         prompt = (
             f"Eres YELIA, un tutor de Programación Avanzada para Ingeniería en Telemática. "
-            f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre un tema aleatorio de Programación Avanzada (ej. POO, UML, patrones de diseño, concurrencia, pruebas unitarias). "
-            "La pregunta debe ser clara, precisa y tener una única respuesta correcta. "
+            f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre el tema '{tema_seleccionado}' en Programación Avanzada. "
+            "La pregunta debe ser clara, precisa, con una única respuesta correcta, y diferente a cualquier pregunta generada previamente. "
             "Devuelve un JSON válido con las siguientes claves: "
             "'pregunta' (texto de la pregunta, máximo 200 caracteres), "
             "'opciones' (lista de opciones, cada una máximo 100 caracteres), "
@@ -299,6 +311,7 @@ def quiz():
             f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones ('Verdadero', 'Falso'), con una sola correcta. "
             "Asegúrate de que 'respuesta_correcta' coincide exactamente con una de las opciones en 'opciones'. "
             "Evita ambigüedades; por ejemplo, para '¿Qué permite que una clase herede atributos y métodos?', la respuesta debe ser 'Herencia'. "
+            f"Usa el timestamp {int(time.time())} como semilla para garantizar unicidad. "
             "Ejemplo de formato: "
             "{\"pregunta\": \"¿Qué tipo de diagrama UML representa la estructura estática de un sistema?\", "
             "\"opciones\": [\"Diagrama de Clases\", \"Diagrama de Actividades\", \"Diagrama de Estados\", \"Diagrama de Componentes\"], "
@@ -314,7 +327,7 @@ def quiz():
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.5
+            temperature=0.7
         )
 
         try:
@@ -323,10 +336,10 @@ def quiz():
         except (json.JSONDecodeError, ValueError) as e:
             logging.error(f"Error en el formato del quiz de Groq: {str(e)}")
             quiz_data = {
-                "pregunta": "En POO, ¿qué permite que una clase herede atributos y métodos de otra?",
-                "opciones": ["Herencia", "PolItalianismofismo", "Abstracción", "Encapsulación"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
-                "respuesta_correcta": "Herencia" if tipo_quiz == "opciones" else "Verdadero",
-                "tema": "POO",
+                "pregunta": f"En {tema_seleccionado}, ¿qué permite que una clase herede atributos y métodos?" if tema_seleccionado == "POO" else f"¿Qué diagrama UML muestra la estructura estática?",
+                "opciones": ["Herencia", "Polimorfismo", "Abstracción", "Encapsulación"] if tema_seleccionado == "POO" else ["Diagrama de Clases", "Diagrama de Actividades", "Diagrama de Estados", "Diagrama de Componentes"],
+                "respuesta_correcta": "Herencia" if tema_seleccionado == "POO" else "Diagrama de Clases",
+                "tema": tema_seleccionado,
                 "nivel": "basico"
             }
 
@@ -389,8 +402,8 @@ def responder_quiz():
                 f"La respuesta correcta es: '{respuesta_correcta}'. "
                 f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
                 f"Proporciona una explicación clara y concisa (máximo 100 palabras) sobre por qué la respuesta es correcta o incorrecta. "
-                f"Si es correcta, refuerza el concepto con una breve explicación. "
-                f"Si es incorrecta, explica por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada. "
+                f"Si es correcta, incluye un mensaje de felicitación: '¡Felicidades, está bien! ¿Deseas saber más del tema o de otro tema?'. "
+                f"Si es incorrecta, explica por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, incluyendo el literal de la respuesta correcta. "
                 f"Usa un tono amigable y educativo, enfocado en Programación Avanzada. "
                 f"Responde en español, en formato Markdown."
             )
@@ -404,8 +417,8 @@ def responder_quiz():
         except Exception as e:
             logging.error(f"Error al generar explicación con Groq: {str(e)}")
             explicacion = (
-                f"**{'¡Correcto!' if es_correcta else 'Incorrecto'}** "
-                f"{'La respuesta es correcta.' if es_correcta else f'La respuesta correcta es: {respuesta_correcta}.'}"
+                f"**{'¡Felicidades, está bien!' if es_correcta else 'Incorrecto'}** "
+                f"{'La respuesta es correcta. ¿Deseas saber más del tema o de otro tema?' if es_correcta else f'La respuesta correcta es: {respuesta_correcta}.'}"
             )
 
         return jsonify({
@@ -526,6 +539,17 @@ def recommend():
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         logging.warning(f"Usando recomendación de fallback por error: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
+    
+@app.route("/temas", methods=["GET"])
+def get_temas():
+    try:
+        temas_disponibles = []
+        for unidad, subtemas in temas.items():
+            temas_disponibles.extend(subtemas.keys())
+        return jsonify({"temas": temas_disponibles})
+    except Exception as e:
+        logging.error(f"Error en /temas: {str(e)}")
+        return jsonify({"error": "Error al obtener temas"}), 500
 
 if __name__ == "__main__":
     init_db()

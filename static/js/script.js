@@ -6,6 +6,23 @@ let currentAudio = null;
 let userHasInteracted = false;
 let pendingWelcomeMessage = null;
 let lastVoiceHintTime = 0;
+let quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+const TEMAS_DISPONIBLES = [
+  'Introducción a la POO',
+  'Clases y Objetos',
+  'Encapsulamiento',
+  'Herencia',
+  'Polimorfismo',
+  'Clases Abstractas e Interfaces',
+  'UML',
+  'Diagramas UML',
+  'Patrones de Diseño en POO',
+  'Patrón MVC',
+  'Acceso a Archivos',
+  'Bases de Datos y ORM',
+  'Integración POO + MVC + BD',
+  'Pruebas y Buenas Prácticas'
+];
 
 const getElement = selector => {
     const element = document.querySelector(selector);
@@ -478,10 +495,23 @@ const obtenerRecomendacion = async () => {
 
 const obtenerQuiz = async (tipoQuiz = 'opciones') => {
     try {
+        // Seleccionar un tema aleatorio
+        const tema = TEMAS_DISPONIBLES[Math.floor(Math.random() * TEMAS_DISPONIBLES.length)];
+        
+        // Limitar quizHistory a las últimas 5 preguntas para evitar repeticiones
+        if (quizHistory.length > 5) {
+            quizHistory = quizHistory.slice(-5);
+        }
+        
         const response = await fetch('/quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', tema: 'POO', tipo_quiz: tipoQuiz }),
+            body: JSON.stringify({ 
+                usuario: 'anonimo', 
+                tipo_quiz: tipoQuiz,
+                tema: tema,
+                quiz_history: quizHistory // Enviar historial de preguntas
+            }),
             cache: 'no-store'
         });
         if (!response.ok) {
@@ -502,15 +532,24 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
         if (!quizData.opciones.includes(quizData.respuesta_correcta)) {
             throw new Error('Formato de quiz inválido: respuesta_correcta no está en opciones');
         }
+        // Añadir la pregunta al historial
+        quizHistory.push({
+            pregunta: quizData.pregunta,
+            tema: quizData.tema,
+            timestamp: Date.now()
+        });
+        localStorage.setItem('quizHistory', JSON.stringify(quizHistory));
         return quizData;
     } catch (error) {
         console.warn('Error en fetch /quiz, generando quiz simulado:', error);
         mostrarNotificacion(`Error al generar quiz: ${error.message}`, 'error');
+        // Quiz simulado como respaldo
+        const tema = TEMAS_DISPONIBLES[Math.floor(Math.random() * TEMAS_DISPONIBLES.length)];
         return {
-            pregunta: tipoQuiz === 'verdadero_falso' ? 'La encapsulación permite ocultar datos.' : '¿Qué es la encapsulación en POO?',
-            opciones: tipoQuiz === 'verdadero_falso' ? ['Verdadero', 'Falso'] : ['Ocultar datos', 'Herencia', 'Polimorfismo', 'Abstracción'],
-            respuesta_correcta: tipoQuiz === 'verdadero_falso' ? 'Verdadero' : 'Ocultar datos',
-            tema: 'POO',
+            pregunta: tema === 'POO' ? '¿Qué es la encapsulación en POO?' : '¿Qué diagrama UML muestra la estructura estática?',
+            opciones: tema === 'POO' ? ['Ocultar datos', 'Herencia', 'Polimorfismo', 'Abstracción'] : ['Diagrama de Clases', 'Diagrama de Actividades', 'Diagrama de Estados', 'Diagrama de Componentes'],
+            respuesta_correcta: tema === 'POO' ? 'Ocultar datos' : 'Diagrama de Clases',
+            tema: tema,
             nivel: 'basico'
         };
     }
@@ -518,7 +557,6 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
 
 const sanitizeHTML = (str) => {
     if (!str) return '';
-    // Usar DOMPurify si está disponible, sino fallback a sanitización básica
     if (window.DOMPurify) {
         return DOMPurify.sanitize(str);
     }
@@ -540,7 +578,6 @@ const mostrarQuizEnChat = (quizData) => {
         mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
         return;
     }
-    // Validar datos del quiz
     if (!quizData.pregunta || !Array.isArray(quizData.opciones) || !quizData.respuesta_correcta || !quizData.tema || !quizData.nivel) {
         console.error('Datos de quiz incompletos:', quizData);
         mostrarNotificacion('Error: Datos de quiz incompletos', 'error');
@@ -553,7 +590,6 @@ const mostrarQuizEnChat = (quizData) => {
     }
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    // Sanitizar valores para evitar problemas en atributos data-*
     const preguntaSanitizada = sanitizeHTML(quizData.pregunta);
     const temaSanitizado = sanitizeHTML(quizData.tema);
     const respuestaCorrectaSanitizada = sanitizeHTML(quizData.respuesta_correcta);
@@ -578,14 +614,18 @@ const mostrarQuizEnChat = (quizData) => {
     scrollToBottom();
     if (window.Prism) Prism.highlightAllUnder(botDiv);
     guardarMensaje('Quiz', `${preguntaSanitizada}\nOpciones: ${quizData.opciones.join(', ')}`, null, temaSanitizado);
+    // Asegurar que no haya listeners duplicados
     getElements('.quiz-option').forEach(btn => {
-        btn.addEventListener('click', () => {
+        // Remover listeners previos
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.addEventListener('click', () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
-            btn.classList.add('selected');
-            const opcion = btn.dataset.opcion;
-            const respuestaCorrecta = btn.dataset.respuesta_correcta;
-            const tema = btn.dataset.tema;
-            const pregunta = btn.dataset.pregunta;
+            newBtn.classList.add('selected');
+            const opcion = newBtn.dataset.opcion;
+            const respuestaCorrecta = newBtn.dataset.respuesta_correcta;
+            const tema = newBtn.dataset.tema;
+            const pregunta = newBtn.dataset.pregunta;
             console.log('Botón clicado:', { opcion, respuestaCorrecta, tema, pregunta });
             responderQuiz(opcion, respuestaCorrecta, tema, pregunta);
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
@@ -639,23 +679,42 @@ const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';
-        const respuestaSanitizada = sanitizeHTML(data.respuesta);
-        botDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(respuestaSanitizada) : respuestaSanitizada) +
-            `<button class="copy-btn" data-text="${respuestaSanitizada}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        // Asegurar que la respuesta mantenga el formato Markdown
+        const respuestaSanitizada = typeof marked !== 'undefined' ? marked.parse(data.respuesta, { breaks: true, gfm: true }) : sanitizeHTML(data.respuesta);
+        botDiv.innerHTML = `
+            ${icono}
+            <div class="quiz-response">${respuestaSanitizada}</div>
+            <button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+            <div class="quiz-actions">
+                <button class="quiz-new" onclick="obtenerQuiz('opciones').then(mostrarQuizEnChat)">Nueva Pregunta</button>
+            </div>
+        `;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAllUnder(botDiv);
-        speakText(respuestaSanitizada);
-        guardarMensaje(`Respuesta al quiz sobre ${tema}`, respuestaSanitizada);
+        speakText(data.respuesta);
+        guardarMensaje(`Respuesta al quiz sobre ${tema}`, data.respuesta);
         addCopyButtonListeners();
-        // Generar un nuevo quiz automáticamente
-        setTimeout(() => obtenerQuiz('opciones').then(mostrarQuizEnChat), 1000);
     }).catch(error => {
         const errorMsg = `Error al responder quiz: ${error.message.includes('503') ? 'Servicio no disponible. Revisa https://groqstatus.com/' : error.message}`;
         console.error('Error en fetch /responder_quiz:', error);
         mostrarNotificacion(errorMsg, 'error');
-        // Intentar generar un nuevo quiz incluso si hay error
-        setTimeout(() => obtenerQuiz('opciones').then(mostrarQuizEnChat), 1000);
+        const chatbox = getElement('#chatbox');
+        const container = chatbox?.querySelector('.message-container');
+        if (!container || !chatbox) return;
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        botDiv.innerHTML = `
+            <span class="quiz-feedback incorrect">❌</span>
+            <div class="quiz-response">${sanitizeHTML(errorMsg)}</div>
+            <button class="copy-btn" data-text="${sanitizeHTML(errorMsg)}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+            <div class="quiz-actions">
+                <button class="quiz-new" onclick="obtenerQuiz('opciones').then(mostrarQuizEnChat)">Nueva Pregunta</button>
+            </div>
+        `;
+        container.appendChild(botDiv);
+        scrollToBottom();
+        addCopyButtonListeners();
     });
 };
 
@@ -908,6 +967,56 @@ const mostrarMensajeBienvenida = () => {
 };
 
 const init = () => {
+    // Inicializar quizHistory
+    quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+
+    // Obtener temas desde el backend
+    fetch('/temas', { method: 'GET' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.temas && Array.isArray(data.temas)) {
+                TEMAS_DISPONIBLES = data.temas;
+                console.log('Temas cargados:', TEMAS_DISPONIBLES);
+            } else {
+                console.warn('No se pudieron cargar temas, usando lista por defecto');
+                TEMAS_DISPONIBLES = [
+                    'Introducción a la POO',
+                    'Clases y Objetos',
+                    'Encapsulamiento',
+                    'Herencia',
+                    'Polimorfismo',
+                    'Clases Abstractas e Interfaces',
+                    'UML',
+                    'Diagramas UML',
+                    'Patrones de Diseño en POO',
+                    'Patrón MVC',
+                    'Acceso a Archivos',
+                    'Bases de Datos y ORM',
+                    'Integración POO + MVC + BD',
+                    'Pruebas y Buenas Prácticas'
+                ];
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar temas:', error);
+            TEMAS_DISPONIBLES = [
+                'Introducción a la POO',
+                'Clases y Objetos',
+                'Encapsulamiento',
+                'Herencia',
+                'Polimorfismo',
+                'Clases Abstractas e Interfaces',
+                'UML',
+                'Diagramas UML',
+                'Patrones de Diseño en POO',
+                'Patrón MVC',
+                'Acceso a Archivos',
+                'Bases de Datos y ORM',
+                'Integración POO + MVC + BD',
+                'Pruebas y Buenas Prácticas'
+            ];
+        });
+
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
@@ -1006,7 +1115,7 @@ const init = () => {
     if (clearBtn) {
         clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
         clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
-        clearBtn.addEventListener('click', nuevaConversacion); // Cambiado a nuevaConversacion para consistencia
+        clearBtn.addEventListener('click', nuevaConversacion);
     }
     if (nivelBtn) {
         nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
@@ -1033,7 +1142,7 @@ const init = () => {
         if (vozActiva && !userHasInteracted) {
             toggleVoiceHint(true);
         }
-    }, 100); // Retraso para asegurar que el DOM esté cargado
+    }, 100);
     document.addEventListener('click', () => {
         if (!userHasInteracted) {
             userHasInteracted = true;
