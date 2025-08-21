@@ -280,21 +280,18 @@ def quiz():
             logging.error(f"Tipo de quiz inválido: {tipo_quiz}")
             return jsonify({"error": "Tipo de quiz inválido"}), 400
 
-        # Obtener temas disponibles
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
         if not temas_disponibles:
             temas_disponibles = ["POO", "UML", "Patrones de Diseño", "Concurrencia", "Pruebas Unitarias"]
 
-        # Obtener temas aprendidos y recomendados
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
         temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
         if not temas_no_aprendidos:
             temas_no_aprendidos = temas_disponibles
 
-        # Elegir un tema aleatorio
         tema_seleccionado = random.choice(temas_no_aprendidos if temas_no_aprendidos else temas_disponibles)
 
         prompt = (
@@ -327,7 +324,7 @@ def quiz():
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.7
+            temperature=0.3  # Bajada para reducir creatividad
         )
 
         try:
@@ -393,7 +390,7 @@ def responder_quiz():
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
             # Continuar sin fallar la respuesta al usuario
 
-        # Generar explicación con Groq
+        # Generar explicación con Grok
         try:
             prompt = (
                 f"Eres YELIA, un tutor educativo de Programación Avanzada para Ingeniería en Telemática. "
@@ -401,24 +398,25 @@ def responder_quiz():
                 f"La respuesta dada fue: '{respuesta}'. "
                 f"La respuesta correcta es: '{respuesta_correcta}'. "
                 f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
-                f"Proporciona una explicación clara y concisa (máximo 100 palabras) sobre por qué la respuesta es correcta o incorrecta. "
-                f"Si es correcta, incluye un mensaje de felicitación: '¡Felicidades, está bien! ¿Deseas saber más del tema o de otro tema?'. "
-                f"Si es incorrecta, explica por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, incluyendo el literal de la respuesta correcta. "
-                f"Usa un tono amigable y educativo, enfocado en Programación Avanzada. "
-                f"Responde en español, en formato Markdown."
+                f"Sigue estrictamente este formato: "
+                f"Si es correcta, responde exactamente: '¡Felicidades, está bien! [Explicación breve sobre por qué es correcta]. ¿Deseas saber más del tema o de otro tema?'. "
+                f"Si es incorrecta, responde exactamente: 'Incorrecto. La respuesta correcta es: {respuesta_correcta}. [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada]. ¿Deseas saber más del tema o de otro tema?'. "
+                f"La explicación debe ser clara, concisa (máximo 100 palabras), en español, y enfocada en Programación Avanzada. "
+                f"No uses términos fuera de las opciones ni digas que es 'parcialmente correcta' o 'no completa'; respeta si es correcta o incorrecta según la validación. "
+                f"Usa Markdown para formato."
             )
             response = call_groq_api(
                 messages=[{"role": "system", "content": prompt}],
                 model="llama3-70b-8192",
                 max_tokens=150,
-                temperature=0.5
+                temperature=0.3  # Bajada para mayor precisión
             )
             explicacion = response.choices[0].message.content.strip()
         except Exception as e:
             logging.error(f"Error al generar explicación con Groq: {str(e)}")
             explicacion = (
-                f"**{'¡Felicidades, está bien!' if es_correcta else 'Incorrecto'}** "
-                f"{'La respuesta es correcta. ¿Deseas saber más del tema o de otro tema?' if es_correcta else f'La respuesta correcta es: {respuesta_correcta}.'}"
+                f"**{'¡Felicidades, está bien!' if es_correcta else 'Incorrecto. La respuesta correcta es: ' + respuesta_correcta}** "
+                f"{'La respuesta es correcta. ¿Deseas saber más del tema o de otro tema?' if es_correcta else 'La respuesta correcta es adecuada porque [explicación de respaldo]. ¿Deseas saber más del tema o de otro tema?'}"
             )
 
         return jsonify({

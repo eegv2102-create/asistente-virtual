@@ -679,7 +679,6 @@ const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';
-        // Asegurar que la respuesta mantenga el formato Markdown
         const respuestaSanitizada = typeof marked !== 'undefined' ? marked.parse(data.respuesta, { breaks: true, gfm: true }) : sanitizeHTML(data.respuesta);
         botDiv.innerHTML = `
             ${icono}
