@@ -964,7 +964,8 @@ const init = () => {
                     'Acceso a Archivos',
                     'Bases de Datos y ORM',
                     'Integración POO + MVC + BD',
-                    'Pruebas y Buenas Prácticas'
+                    'Pruebas y Buenas Prácticas',
+                    'Concurrencia'
                 ];
             }
         })
@@ -984,7 +985,8 @@ const init = () => {
                 'Acceso a Archivos',
                 'Bases de Datos y ORM',
                 'Integración POO + MVC + BD',
-                'Pruebas y Buenas Prácticas'
+                'Pruebas y Buenas Prácticas',
+                'Concurrencia'
             ];
         });
 
