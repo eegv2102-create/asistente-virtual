@@ -518,7 +518,17 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
 
 const sanitizeHTML = (str) => {
     if (!str) return '';
-    return str.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, ' ');
+    // Usar DOMPurify si está disponible, sino fallback a sanitización básica
+    if (window.DOMPurify) {
+        return DOMPurify.sanitize(str);
+    }
+    return str
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, ' ')
+        .replace(/&/g, '&amp;')
+        .replace(/'/g, '&#39;');
 };
 
 const mostrarQuizEnChat = (quizData) => {
@@ -534,6 +544,11 @@ const mostrarQuizEnChat = (quizData) => {
     if (!quizData.pregunta || !Array.isArray(quizData.opciones) || !quizData.respuesta_correcta || !quizData.tema || !quizData.nivel) {
         console.error('Datos de quiz incompletos:', quizData);
         mostrarNotificacion('Error: Datos de quiz incompletos', 'error');
+        return;
+    }
+    if (!quizData.opciones.includes(quizData.respuesta_correcta)) {
+        console.error('respuesta_correcta no está en opciones:', quizData);
+        mostrarNotificacion('Error: Respuesta correcta inválida', 'error');
         return;
     }
     const botDiv = document.createElement('div');

@@ -138,7 +138,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     )
     try:
         completion = call_groq_api(
-            client,
             messages=[
                 {"role": "system", "content": prompt_relevancia},
                 {"role": "user", "content": pregunta}
@@ -180,7 +179,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
 
     try:
         completion = call_groq_api(
-            client,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": pregunta}
@@ -280,16 +278,18 @@ def quiz():
 
         prompt = (
             f"Eres YELIA, un tutor de Programación Avanzada para Ingeniería en Telemática. "
-            f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre un tema aleatorio de Programación Avanzada (ej. POO, UML, patrones de diseño, concurrencia). "
+            f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre un tema aleatorio de Programación Avanzada (ej. POO, UML, patrones de diseño, concurrencia, pruebas unitarias). "
+            "La pregunta debe ser clara, precisa y tener una única respuesta correcta. "
             "Devuelve un JSON válido con las siguientes claves: "
             "'pregunta' (texto de la pregunta, máximo 200 caracteres), "
             "'opciones' (lista de opciones, cada una máximo 100 caracteres), "
             "'respuesta_correcta' (texto exacto de una de las opciones), "
             "'tema' (el tema, máximo 50 caracteres), "
             "'nivel' (siempre 'basico'). "
-            f"Para tipo 'opciones', incluye exactamente 4 opciones únicas. "
-            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones ('Verdadero', 'Falso'). "
+            f"Para tipo 'opciones', incluye exactamente 4 opciones únicas, con una sola correcta. "
+            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones ('Verdadero', 'Falso'), con una sola correcta. "
             "Asegúrate de que 'respuesta_correcta' coincide exactamente con una de las opciones en 'opciones'. "
+            "Evita ambigüedades; por ejemplo, para '¿Qué permite que una clase herede atributos y métodos?', la respuesta debe ser 'Herencia'. "
             "Ejemplo de formato: "
             "{\"pregunta\": \"¿Qué tipo de diagrama UML representa la estructura estática de un sistema?\", "
             "\"opciones\": [\"Diagrama de Clases\", \"Diagrama de Actividades\", \"Diagrama de Estados\", \"Diagrama de Componentes\"], "
@@ -299,14 +299,13 @@ def quiz():
         )
 
         completion = call_groq_api(
-            client,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": "Genera la pregunta del quiz en formato JSON válido."}
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.7
+            temperature=0.5
         )
 
         try:
@@ -315,9 +314,9 @@ def quiz():
         except (json.JSONDecodeError, ValueError) as e:
             logging.error(f"Error en el formato del quiz de Groq: {str(e)}")
             quiz_data = {
-                "pregunta": "En POO, ¿qué es la encapsulación?",
-                "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
-                "respuesta_correcta": "Ocultar datos" if tipo_quiz == "opciones" else "Verdadero",
+                "pregunta": "En POO, ¿qué permite que una clase herede atributos y métodos de otra?",
+                "opciones": ["Herencia", "PolItalianismofismo", "Abstracción", "Encapsulación"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
+                "respuesta_correcta": "Herencia" if tipo_quiz == "opciones" else "Verdadero",
                 "tema": "POO",
                 "nivel": "basico"
             }
@@ -382,11 +381,11 @@ def responder_quiz():
                 f"Proporciona una explicación clara y concisa (máximo 100 palabras) sobre por qué la respuesta es correcta o incorrecta. "
                 f"Si es correcta, refuerza el concepto con una breve explicación. "
                 f"Si es incorrecta, explica por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada. "
+                f"Evita ambigüedades; por ejemplo, si la pregunta es '¿Qué permite que una clase herede atributos y métodos?', la respuesta correcta es 'Herencia', porque permite a una clase hija adquirir propiedades de una clase padre. "
                 f"Usa un tono amigable y educativo, enfocado en Programación Avanzada. "
                 f"Responde en español, en formato Markdown."
             )
             response = call_groq_api(
-                client,
                 messages=[{"role": "system", "content": prompt}],
                 model="llama3-70b-8192",
                 max_tokens=150,
@@ -480,7 +479,6 @@ def recommend():
         )
 
         completion = call_groq_api(
-            client,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": "Recomienda un tema."}
