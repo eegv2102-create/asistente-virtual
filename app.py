@@ -551,6 +551,7 @@ def get_temas():
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
+        logging.info(f"Temas disponibles enviados: {temas_disponibles}")
         return jsonify({"temas": temas_disponibles})
     except Exception as e:
         logging.error(f"Error en /temas: {str(e)}")

@@ -569,75 +569,46 @@ const sanitizeHTML = (str) => {
         .replace(/'/g, '&#39;');
 };
 
-const mostrarQuizEnChat = (quizData) => {
-    console.log('mostrarQuizEnChat recibido:', JSON.stringify(quizData, null, 2));
+const mostrarQuizEnChat = (data) => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (!container || !chatbox) {
-        console.error('Contenedor de chat no encontrado');
-        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
-        return;
-    }
-    if (!quizData.pregunta || !Array.isArray(quizData.opciones) || !quizData.respuesta_correcta || !quizData.tema || !quizData.nivel) {
-        console.error('Datos de quiz incompletos:', quizData);
-        mostrarNotificacion('Error: Datos de quiz incompletos', 'error');
-        return;
-    }
-    if (!quizData.opciones.includes(quizData.respuesta_correcta)) {
-        console.error('respuesta_correcta no está en opciones:', quizData);
-        mostrarNotificacion('Error: Respuesta correcta inválida', 'error');
+        console.error('No se encontró el contenedor del chatbox');
         return;
     }
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    const preguntaSanitizada = sanitizeHTML(quizData.pregunta);
-    const temaSanitizado = sanitizeHTML(quizData.tema);
-    const respuestaCorrectaSanitizada = sanitizeHTML(quizData.respuesta_correcta);
-    const opcionesHtml = quizData.opciones.map((opcion, i) => {
-        const opcionSanitizada = sanitizeHTML(opcion);
-        return `
-            <button class="quiz-option" 
-                    data-opcion="${opcionSanitizada}" 
-                    data-respuesta-correcta="${respuestaCorrectaSanitizada}" 
-                    data-tema="${temaSanitizado}" 
-                    data-pregunta="${preguntaSanitizada}">
-                ${quizData.tipo_quiz === 'verdadero_falso' ? opcionSanitizada : `${i + 1}. ${opcionSanitizada}`}
+    let opcionesHTML = '';
+    data.opciones.forEach((opcion, index) => {
+        opcionesHTML += `
+            <button class="quiz-option" data-option="${sanitizeHTML(opcion)}" data-correct="${sanitizeHTML(data.respuesta_correcta)}" data-tema="${sanitizeHTML(data.tema)}" data-pregunta="${sanitizeHTML(data.pregunta)}">
+                ${index + 1}. ${sanitizeHTML(opcion)}
             </button>
         `;
-    }).join('');
+    });
     botDiv.innerHTML = `
-        ${typeof marked !== 'undefined' ? marked.parse(preguntaSanitizada) : preguntaSanitizada}
-        <div class="quiz-options">${opcionesHtml}</div>
-        <button class="copy-btn" data-text="${preguntaSanitizada}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
+        <div class="quiz-question">${sanitizeHTML(data.pregunta)}</div>
+        <div class="quiz-options">${opcionesHTML}</div>
+        <button class="copy-btn" data-text="${sanitizeHTML(data.pregunta)}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
     container.appendChild(botDiv);
     scrollToBottom();
     if (window.Prism) Prism.highlightAllUnder(botDiv);
-    guardarMensaje('Quiz', `${preguntaSanitizada}\nOpciones: ${quizData.opciones.join(', ')}`, null, temaSanitizado);
-    // Asegurar que no haya listeners duplicados
-    getElements('.quiz-option').forEach(btn => {
-        // Remover listeners previos
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-        newBtn.addEventListener('click', () => {
-            getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
-            newBtn.classList.add('selected');
-            const opcion = newBtn.dataset.opcion;
-            const respuestaCorrecta = newBtn.dataset.respuesta_correcta;
-            const tema = newBtn.dataset.tema;
-            const pregunta = newBtn.dataset.pregunta;
-            console.log('Botón clicado:', { opcion, respuestaCorrecta, tema, pregunta });
+    speakText(data.pregunta);
+    guardarMensaje(`Quiz sobre ${data.tema}`, data.pregunta);
+    addCopyButtonListeners();
+
+    // Añadir event listeners a los botones de opciones
+    const optionButtons = botDiv.querySelectorAll('.quiz-option');
+    optionButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const opcion = button.getAttribute('data-option');
+            const respuestaCorrecta = button.getAttribute('data-correct');
+            const tema = button.getAttribute('data-tema');
+            const pregunta = button.getAttribute('data-pregunta');
             responderQuiz(opcion, respuestaCorrecta, tema, pregunta);
-            getElements('.quiz-option').forEach(opt => opt.disabled = true);
         });
     });
-    console.log('Botones de quiz generados:', Array.from(getElements('.quiz-option')).map(btn => ({
-        opcion: btn.dataset.opcion,
-        respuestaCorrecta: btn.dataset.respuesta_correcta,
-        tema: btn.dataset.tema,
-        pregunta: btn.dataset.pregunta
-    })));
-    speakText(preguntaSanitizada);
 };
 
 const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
@@ -1017,6 +988,7 @@ const init = () => {
             ];
         });
 
+    // Resto de la función init (sin cambios)
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
