@@ -523,7 +523,7 @@ const mostrarQuizEnChat = (quizData) => {
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
     const opcionesHtml = quizData.opciones.map((opcion, i) => `
-        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quizData.respuesta_correcta}" data-tema="${quizData.tema}">
+        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quizData.respuesta_correcta}" data-tema="${quizData.tema}" data-pregunta="${quizData.pregunta}">
             ${quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
         </button>
     `).join('');
@@ -543,38 +543,46 @@ const mostrarQuizEnChat = (quizData) => {
             const opcion = btn.dataset.opcion;
             const respuestaCorrecta = btn.dataset.respuesta_correcta;
             const tema = btn.dataset.tema;
-            responderQuiz(opcion, respuestaCorrecta, tema);
+            const pregunta = btn.dataset.pregunta;
+            responderQuiz(opcion, respuestaCorrecta, tema, pregunta);
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
         });
     });
     console.log('Botones de quiz generados:', Array.from(getElements('.quiz-option')).map(btn => ({
         opcion: btn.dataset.opcion,
         respuestaCorrecta: btn.dataset.respuesta_correcta,
-        tema: btn.dataset.tema
+        tema: btn.dataset.tema,
+        pregunta: btn.dataset.pregunta
     })));
     speakText(quizData.pregunta);
 };
 
-const responderQuiz = (opcion, respuestaCorrecta, tema) => {
-    console.log('Enviando respuesta del quiz:', { opcion, respuestaCorrecta, tema });
-    if (!opcion || !respuestaCorrecta || !tema) {
-        console.error('Faltan datos en responderQuiz:', { opcion, respuestaCorrecta, tema });
+
+const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
+    console.log('Enviando respuesta del quiz:', { opcion, respuestaCorrecta, tema, pregunta });
+    if (!opcion || !respuestaCorrecta || !tema || !pregunta) {
+        console.error('Faltan datos en responderQuiz:', { opcion, respuestaCorrecta, tema, pregunta });
         mostrarNotificacion('Error: Faltan datos para responder el quiz', 'error');
         return;
     }
     fetch('/responder_quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuario: 'anonimo', respuesta: opcion, respuesta_correcta: respuestaCorrecta, tema })
+        body: JSON.stringify({
+            usuario: 'anonimo',
+            respuesta: opcion,
+            respuesta_correcta: respuestaCorrecta,
+            tema: tema,
+            pregunta: pregunta  // Ahora se envía la pregunta
+        })
     }).then(res => {
         if (!res.ok) {
             return res.json().then(err => {
-                throw new Error(err.error || `Error en /responder_quiz: ${res.status} ${res.statusText}`);
+                throw new Error(err.error || `Error en /responder_quiz: {res.status} {res.statusText}`);
             });
         }
         return res.json();
     }).then(data => {
-        console.log('Respuesta del servidor /responder_quiz:', data);
         const chatbox = getElement('#chatbox');
         const container = chatbox?.querySelector('.message-container');
         if (!container || !chatbox) return;
