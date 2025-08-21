@@ -6,8 +6,7 @@ import random
 import logging
 import socket
 import webbrowser
-from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session
-from flask_session import Session
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 from dotenv import load_dotenv
 from groq import Groq
 import psycopg2
@@ -18,16 +17,9 @@ from gtts import gTTS
 import io
 import retrying
 import re
-from datetime import datetime, timedelta
 
 app = Flask(__name__)
 load_dotenv()
-
-# Configuración de sesiones
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
-Session(app)
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Definir get_db_connection
@@ -77,8 +69,6 @@ def init_db():
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, es_correcta BOOLEAN, puntos INTEGER, tema TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS feedback
-                     (id SERIAL PRIMARY KEY, usuario TEXT, rating INTEGER, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         conn.commit()
         conn.close()
         logging.info("Base de datos inicializada correctamente")
@@ -129,7 +119,7 @@ def call_groq_api(client, messages, model, max_tokens, temperature):
             raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
 
-def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", modo_tutoria=False):
+def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     respuestas_simples = {
         "hola": "¡Hola! Estoy listo para ayudarte con Programación Avanzada. ¿Qué tema quieres explorar?",
@@ -137,7 +127,7 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", m
         "adiós": "¡Hasta pronto! Espero verte de nuevo para seguir aprendiendo."
     }
     if pregunta.lower().strip() in respuestas_simples:
-        return respuestas_simples[pregunta.lower().strip()], None
+        return respuestas_simples[pregunta.lower().strip()]
 
     tema_encontrado = None
     unidad_encontrada = None
@@ -158,25 +148,24 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", m
     if tema_encontrado and unidad_encontrada:
         definicion = temas[unidad_encontrada][tema_encontrado]["definición"]
         if nivel_explicacion == "basica":
-            return definicion, tema_encontrado
+            return definicion
         elif nivel_explicacion == "ejemplos":
             ejemplo_codigo = temas[unidad_encontrada][tema_encontrado].get("ejemplo", "")
-            return f"{definicion}\n\n**Ejemplo**:\n```java\n{ejemplo_codigo}\n```", tema_encontrado
+            return f"{definicion}\n\n**Ejemplo**:\n```java\n{ejemplo_codigo}\n```"
         else:  # avanzada
             ventajas = temas[unidad_encontrada][tema_encontrado].get("ventajas", [])
             ventajas_texto = "\n\n**Ventajas**:\n" + "\n".join(f"- {v}" for v in ventajas) if ventajas else ""
             ejemplo_codigo = temas[unidad_encontrada][tema_encontrado].get("ejemplo", "")
-            return f"{definicion}{ventajas_texto}\n\n**Ejemplo**:\n```java\n{ejemplo_codigo}\n```", tema_encontrado
+            return f"{definicion}{ventajas_texto}\n\n**Ejemplo**:\n```java\n{ejemplo_codigo}\n```"
     
     prompt = (
-        f"Eres YELIA, un asistente especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+        f"Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
         f"Proporciona una respuesta clara y precisa en español para la pregunta: '{pregunta}'. "
         f"Contexto: {contexto}\n"
         f"Nivel de explicación: {nivel_explicacion}. "
         f"Si es 'basica', explica solo el concepto sin ejemplos ni ventajas. "
         f"Si es 'ejemplos', incluye un ejemplo de código en Java. "
         f"Si es 'avanzada', incluye definición, ventajas y ejemplos. "
-        f"{'Usa un tono interactivo y guíame paso a paso con preguntas de seguimiento si estoy en modo tutoría.' if modo_tutoria else ''}"
         f"Timestamp: {int(time.time())}"
     )
 
@@ -201,10 +190,10 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", m
                 r'\n\s*\n\s*'
             ]:
                 respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
-        return respuesta.strip(), None
+        return respuesta.strip()
     except Exception as e:
         logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
-        return "Lo siento, no pude procesar tu pregunta. Intenta de nuevo.", None
+        return "Lo siento, no pude procesar tu pregunta. Intenta de nuevo."
 
 def validate_quiz_format(quiz_data):
     required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
@@ -216,43 +205,24 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
-def check_rate_limit(usuario):
-    session_key = f"rate_limit_{usuario}"
-    if session_key not in session:
-        session[session_key] = {"count": 0, "timestamp": datetime.now()}
-    rate_info = session[session_key]
-    if (datetime.now() - rate_info["timestamp"]).total_seconds() > 3600:
-        rate_info["count"] = 0
-        rate_info["timestamp"] = datetime.now()
-    if rate_info["count"] >= 100:
-        return False
-    rate_info["count"] += 1
-    session[session_key] = rate_info
-    return True
-
 @app.route("/")
 def index():
-    session["usuario"] = session.get("usuario", f"anonimo_{random.randint(1000, 9999)}")
     return render_template("index.html")
 
 @app.route("/ask", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def ask():
     try:
-        usuario = session.get("usuario", "anonimo")
-        if not check_rate_limit(usuario):
-            return jsonify({"error": "Límite de consultas por hora alcanzado. Intenta de nuevo más tarde."}), 429
-
         data = request.get_json()
         if not data:
             logging.error("Solicitud sin datos en /ask")
             return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
 
         pregunta = bleach.clean(data.get("pregunta", "")[:500])
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
         historial = data.get("historial", [])[:5]
-        modo_tutoria = data.get("modo_tutoria", False)
 
         if not pregunta:
             logging.error("Pregunta vacía en /ask")
@@ -262,7 +232,32 @@ def ask():
             logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
             nivel_explicacion = "basica"
 
-        respuesta, tema = buscar_respuesta_app(pregunta, historial, nivel_explicacion, modo_tutoria)
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        prompt = (
+            f"Eres YELIA, un asistente especializado en Programación Avanzada en Ingeniería en Telemática. "
+            f"Responde a la pregunta '{pregunta}' de manera clara, precisa y específica al concepto preguntado, "
+            f"evitando definiciones genéricas sobre Programación Orientada a Objetos (POO). "
+            f"Adapta la respuesta según el nivel de explicación: "
+            f"- 'basica': Explicación simple, breve y sin tecnicismos profundos, sin ejemplos. "
+            f"- 'ejemplos': Explicación clara con un ejemplo práctico en Java, relevante al concepto preguntado. "
+            f"- 'avanzada': Explicación técnica y detallada, con análisis teórico profundo, sin ejemplos a menos que se soliciten explícitamente. "
+            f"Si el nivel es 'ejemplos', incluye un bloque de código en Java con comentarios explicativos. "
+            f"Historial reciente: {json.dumps(historial, ensure_ascii=False)}. "
+            f"Devuelve solo el texto de la respuesta en formato Markdown, sin envolver en bloques de código JSON ni otros formatos"
+        )
+
+        completion = call_groq_api(
+            client,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": pregunta}
+            ],
+            model="llama3-70b-8192",
+            max_tokens=1000,
+            temperature=0.5
+        )
+
+        respuesta = completion.choices[0].message.content.strip()
 
         try:
             conn = get_db_connection()
@@ -277,124 +272,22 @@ def ask():
         except Exception as e:
             logging.error(f"Error al guardar log en la base de datos: {str(e)}")
 
-        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}, modo_tutoria={modo_tutoria}")
-        return jsonify({"respuesta": respuesta, "video_url": None, "subtitulo": respuesta})
+        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}")
+        return jsonify({"respuesta": respuesta, "video_url": None})
     except Exception as e:
         logging.error(f"Error en /ask: {str(e)}")
         return jsonify({"error": f"Error al obtener respuesta: {str(e)}"}), 500
-
-@app.route("/tutoria", methods=["POST"])
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
-def tutoria():
-    try:
-        usuario = session.get("usuario", "anonimo")
-        if not check_rate_limit(usuario):
-            return jsonify({"error": "Límite de consultas por hora alcanzado. Intenta de nuevo más tarde."}), 429
-
-        data = request.get_json()
-        if not data:
-            logging.error("Solicitud sin datos en /tutoria")
-            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
-
-        pregunta = bleach.clean(data.get("pregunta", "")[:500])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        historial = data.get("historial", [])[:5]
-
-        if not pregunta:
-            logging.error("Pregunta vacía en /tutoria")
-            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
-
-        if nivel_explicacion not in ["basica", "ejemplos", "avanzada"]:
-            logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
-            nivel_explicacion = "basica"
-
-        respuesta, tema = buscar_respuesta_app(pregunta, historial, nivel_explicacion, modo_tutoria=True)
-
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO logs (usuario, pregunta, respuesta, avatar_id, nivel_explicacion) VALUES (%s, %s, %s, %s, %s)",
-                (usuario, pregunta, respuesta, avatar_id, nivel_explicacion)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            logging.error(f"Error al guardar log en la base de datos: {str(e)}")
-
-        logging.info(f"Tutoría procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}")
-        return jsonify({"respuesta": respuesta, "video_url": None, "subtitulo": respuesta})
-    except Exception as e:
-        logging.error(f"Error en /tutoria: {str(e)}")
-        return jsonify({"error": f"Error al procesar tutoría: {str(e)}"}), 500
-
-@app.route("/metricas", methods=["GET"])
-def metricas():
-    try:
-        usuario = session.get("usuario", "anonimo")
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT tema, COUNT(*) as total, SUM(CASE WHEN es_correcta THEN 1 ELSE 0 END) as correctas, "
-            "SUM(puntos) as puntos_totales FROM quiz_logs WHERE usuario = %s GROUP BY tema",
-            (usuario,)
-        )
-        metricas = [
-            {"tema": row[0], "total": row[1], "correctas": row[2], "puntos_totales": row[3]}
-            for row in cursor.fetchall()
-        ]
-        cursor.close()
-        conn.close()
-        logging.info(f"Métricas obtenidas para usuario {usuario}: {metricas}")
-        return jsonify({"metricas": metricas})
-    except Exception as e:
-        logging.error(f"Error en /metricas: {str(e)}")
-        return jsonify({"error": f"Error al obtener métricas: {str(e)}"}), 500
-
-@app.route("/encuesta", methods=["POST"])
-def encuesta():
-    try:
-        usuario = session.get("usuario", "anonimo")
-        data = request.get_json()
-        if not data:
-            logging.error("Solicitud sin datos en /encuesta")
-            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
-
-        rating = data.get("rating")
-        if not isinstance(rating, int) or rating < 1 or rating > 5:
-            logging.error(f"Rating inválido: {rating}")
-            return jsonify({"error": "El rating debe ser un número entre 1 y 5"}), 400
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO feedback (usuario, rating) VALUES (%s, %s)",
-            (usuario, rating)
-        )
-        conn.commit()
-        cursor.close()
-        conn.close()
-        logging.info(f"Feedback guardado: usuario={usuario}, rating={rating}")
-        return jsonify({"mensaje": "Feedback recibido. ¡Gracias!"})
-    except Exception as e:
-        logging.error(f"Error en /encuesta: {str(e)}")
-        return jsonify({"error": f"Error al guardar feedback: {str(e)}"}), 500
 
 @app.route("/quiz", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def quiz():
     try:
-        usuario = session.get("usuario", "anonimo")
-        if not check_rate_limit(usuario):
-            return jsonify({"error": "Límite de consultas por hora alcanzado. Intenta de nuevo más tarde."}), 429
-
         data = request.get_json()
         if not data:
             logging.error("Solicitud sin datos en /quiz")
             return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
 
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones"))
 
         if tipo_quiz not in ["opciones", "verdadero_falso"]:
@@ -442,9 +335,42 @@ def quiz():
 
         try:
             quiz_data = json.loads(completion.choices[0].message.content.strip())
-            validate_quiz_format(quiz_data)
-        except (json.JSONDecodeError, ValueError) as e:
-            logging.error(f"Error en el formato del quiz: {str(e)}")
+            required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
+            if not isinstance(quiz_data, dict) or not all(key in quiz_data for key in required_keys):
+                logging.error(f"Formato de quiz inválido, claves faltantes: {quiz_data}")
+                raise ValueError("Formato de quiz inválido: faltan claves requeridas")
+            if tipo_quiz == "opciones" and len(quiz_data["opciones"]) != 4:
+                logging.error(f"Número incorrecto de opciones para tipo 'opciones': {len(quiz_data['opciones'])}")
+                quiz_data = {
+                    "pregunta": f"¿Qué es {tema} en Programación Avanzada?",
+                    "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"],
+                    "respuesta_correcta": "Ocultar datos",
+                    "tema": tema,
+                    "nivel": "basico"
+                }
+            if tipo_quiz == "verdadero_falso" and len(quiz_data["opciones"]) != 2:
+                logging.error(f"Número incorrecto de opciones para tipo 'verdadero_falso': {len(quiz_data['opciones'])}")
+                quiz_data = {
+                    "pregunta": f"{tema} permite ocultar datos en Programación Avanzada.",
+                    "opciones": ["Verdadero", "Falso"],
+                    "respuesta_correcta": "Verdadero",
+                    "tema": tema,
+                    "nivel": "basico"
+                }
+            if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
+                logging.error(f"Respuesta correcta no está en opciones: {quiz_data['respuesta_correcta']}")
+                raise ValueError("La respuesta correcta debe estar en la lista de opciones")
+        except json.JSONDecodeError:
+            logging.error(f"Respuesta de Groq no es un JSON válido: {completion.choices[0].message.content}")
+            quiz_data = {
+                "pregunta": f"¿Qué es {tema} en Programación Avanzada?" if tipo_quiz == "opciones" else f"{tema} permite ocultar datos en Programación Avanzada.",
+                "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
+                "respuesta_correcta": "Ocultar datos" if tipo_quiz == "opciones" else "Verdadero",
+                "tema": tema,
+                "nivel": "basico"
+            }
+        except ValueError as ve:
+            logging.error(f"Error en el formato del quiz: {str(ve)}")
             quiz_data = {
                 "pregunta": f"¿Qué es {tema} en Programación Avanzada?" if tipo_quiz == "opciones" else f"{tema} permite ocultar datos en Programación Avanzada.",
                 "opciones": ["Ocultar datos", "Herencia", "Polimorfismo", "Abstracción"] if tipo_quiz == "opciones" else ["Verdadero", "Falso"],
@@ -470,19 +396,17 @@ def quiz():
 @app.route("/responder_quiz", methods=["POST"])
 def responder_quiz():
     try:
-        usuario = session.get("usuario", "anonimo")
-        if not check_rate_limit(usuario):
-            return jsonify({"error": "Límite de consultas por hora alcanzado. Intenta de nuevo más tarde."}), 429
-
         data = request.get_json()
+        logging.info(f"Datos recibidos en /responder_quiz: {data}")
         if not data:
             logging.error("Solicitud sin datos en /responder_quiz")
             return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
 
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         respuesta = bleach.clean(data.get("respuesta", ""))
         respuesta_correcta = bleach.clean(data.get("respuesta_correcta", ""))
         tema = bleach.clean(data.get("tema", ""))
-        pregunta = bleach.clean(data.get("pregunta", "Pregunta de quiz")[:500])
+        pregunta = bleach.clean(data.get("pregunta", "Pregunta de quiz")[:500])  # Default si falta
 
         if not all([respuesta, respuesta_correcta, tema]):
             missing_fields = [field for field, value in [
@@ -490,7 +414,7 @@ def responder_quiz():
                 ("respuesta_correcta", respuesta_correcta),
                 ("tema", tema)
             ] if not value]
-            logging.error(f"Faltan datos en /responder_quiz: {missing_fields}")
+            logging.error(f"Faltan datos en /responder_quiz: {missing_fields}, datos recibidos: {data}")
             return jsonify({"error": f"Faltan datos requeridos: {', '.join(missing_fields)}"}), 400
 
         es_correcta = respuesta == respuesta_correcta
@@ -552,7 +476,7 @@ def responder_quiz():
         except Exception as e:
             logging.error(f"Error al actualizar progreso: {str(e)}")
 
-        logging.info(f"Respuesta procesada: usuario={usuario}, es_correcta={es_correcta}, puntos={puntos}, tema={tema}")
+        logging.info(f"Respuesta procesada: es_correcta={es_correcta}, puntos={puntos}, tema={tema}")
         return jsonify({
             "es_correcta": es_correcta,
             "respuesta": feedback,
@@ -565,10 +489,6 @@ def responder_quiz():
 @app.route("/tts", methods=["POST"])
 def tts():
     try:
-        usuario = session.get("usuario", "anonimo")
-        if not check_rate_limit(usuario):
-            return jsonify({"error": "Límite de consultas por hora alcanzado. Intenta de nuevo más tarde."}), 429
-
         data = request.get_json()
         text = bleach.clean(data.get("text", "")[:1000])
         if not text:
@@ -595,11 +515,8 @@ def tts():
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def recommend():
     try:
-        usuario = session.get("usuario", "anonimo")
-        if not check_rate_limit(usuario):
-            return jsonify({"error": "Límite de consultas por hora alcanzado. Intenta de nuevo más tarde."}), 429
-
         data = request.get_json()
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         historial = data.get("historial", [])
 
         progreso = cargar_progreso(usuario)

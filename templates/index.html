@@ -18,12 +18,12 @@
         <div class="title-container">
             <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i></button>
             <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i></button>
-            <button id="modo-btn" data-tooltip="Cambiar Modo" aria-label="Cambiar a modo oscuro o claro">
+            <button id="modo-btn" data-tooltip="Cambiar Modo" aria-label="Cambiar modo">
                 <i class="fas fa-moon"></i>
                 <span id="modo-text"></span>
             </button>
             <h1>🧠 YELIA 🤖</h1>
-            <button id="voice-btn" data-tooltip="Activar Audio" aria-label="Activar o desactivar audio">
+            <button id="voice-btn" data-tooltip="Activar Audio" aria-label="Activar/Desactivar audio">
                 <i class="fas fa-volume-up"></i>
                 <span id="voice-text"></span>
             </button>
@@ -38,17 +38,13 @@
         <aside class="left-section">
             <div class="sidebar-content">
                 <div class="sidebar-buttons">
-                    <button id="quiz-btn" data-tooltip="Iniciar Quiz" aria-label="Iniciar un quiz educativo">
+                    <button id="quiz-btn" data-tooltip="Iniciar Quiz" aria-label="Iniciar Quiz">
                         <i class="fas fa-question-circle"></i>
                         <span>Iniciar Quiz</span>
                     </button>
-                    <button id="recommend-btn" data-tooltip="Recomendar Tema" aria-label="Obtener recomendación de tema">
+                    <button id="recommend-btn" data-tooltip="Recomendar Tema" aria-label="Recomendar Tema">
                         <i class="fas fa-lightbulb"></i>
                         <span>Recomendar Tema</span>
-                    </button>
-                    <button id="tutoria-btn" data-tooltip="Modo Tutoría" aria-label="Iniciar modo tutoría interactiva">
-                        <i class="fas fa-book"></i>
-                        <span>Modo Tutoría</span>
                     </button>
                 </div>
 
@@ -62,50 +58,39 @@
         </aside>
 
         <section class="main-section">
-            <div id="chatbox" role="log" aria-live="polite">
+            <div id="chatbox">
                 <div class="message-container"></div>
             </div>
 
             <div class="input-group">
                 <div class="input-buttons left">
-                    <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Iniciar una nueva conversación">
+                    <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
                         <i class="fas fa-plus"></i>
                     </button>
-                    <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar la conversación actual">
+                    <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
                         <i class="fas fa-trash-alt"></i>
-                    </button>
-                    <button id="metricas-btn" data-tooltip="Ver Métricas" aria-label="Ver métricas de rendimiento en quizzes">
-                        <i class="fas fa-chart-bar"></i>
                     </button>
                 </div>
 
                 <div class="dropdown-container">
                     <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">Explicación Básica</button>
                     <div class="dropdown-menu">
-                        <button onclick="selectNivel('basica')" aria-label="Seleccionar explicación básica">Explicación Básica</button>
-                        <button onclick="selectNivel('ejemplos')" aria-label="Seleccionar explicación con ejemplos de código">Con Ejemplos de Código</button>
-                        <button onclick="selectNivel('avanzada')" aria-label="Seleccionar explicación avanzada/teórica">Avanzada/Teórica</button>
+                        <button onclick="selectNivel('basica')">Explicación Básica</button>
+                        <button onclick="selectNivel('ejemplos')">Con Ejemplos de Código</button>
+                        <button onclick="selectNivel('avanzada')">Avanzada/Teórica</button>
                     </div>
                 </div>
 
-                <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta al asistente">
+                <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
 
                 <div class="input-buttons right">
-                    <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje al asistente">
+                    <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
                         <i class="fas fa-paper-plane"></i>
                     </button>
-                    <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar o detener reconocimiento de voz">
+                    <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
                         <i class="fas fa-microphone"></i>
                     </button>
-                    <button id="encuesta-btn" data-tooltip="Dar Feedback" aria-label="Abrir formulario de feedback">
-                        <i class="fas fa-star"></i>
-                    </button>
                 </div>
-            </div>
-            <div id="encuesta-form" style="display: none;">
-                <p>¿Cómo calificarías al asistente? (1-5)</p>
-                <input type="number" id="encuesta-rating" min="1" max="5" aria-label="Calificación del asistente de 1 a 5">
-                <button onclick="enviarEncuesta()" aria-label="Enviar calificación del asistente">Enviar</button>
             </div>
         </section>
 
