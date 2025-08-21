@@ -648,10 +648,14 @@ const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
         speakText(respuestaSanitizada);
         guardarMensaje(`Respuesta al quiz sobre ${tema}`, respuestaSanitizada);
         addCopyButtonListeners();
+        // Generar un nuevo quiz automáticamente
+        setTimeout(() => obtenerQuiz('opciones').then(mostrarQuizEnChat), 1000);
     }).catch(error => {
         const errorMsg = `Error al responder quiz: ${error.message.includes('503') ? 'Servicio no disponible. Revisa https://groqstatus.com/' : error.message}`;
         console.error('Error en fetch /responder_quiz:', error);
         mostrarNotificacion(errorMsg, 'error');
+        // Intentar generar un nuevo quiz incluso si hay error
+        setTimeout(() => obtenerQuiz('opciones').then(mostrarQuizEnChat), 1000);
     });
 };
 

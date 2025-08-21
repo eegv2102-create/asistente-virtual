@@ -68,25 +68,34 @@ def init_db():
     try:
         conn = get_db_connection()
         c = conn.cursor()
+        # Crear tabla progreso
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
+        # Crear tabla logs
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Crear tabla avatars
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
+        # Crear tabla quiz_logs
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
                      (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, es_correcta BOOLEAN, puntos INTEGER, tema TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Crear índices
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
         conn.commit()
         conn.close()
-        logging.info("Base de datos inicializada correctamente")
+        logging.info("Base de datos inicializada correctamente: tablas creadas (progreso, logs, avatars, quiz_logs)")
+        return True
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
         return False
-    return True
+    except Exception as e:
+        logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
+        return False
 
 def cargar_progreso(usuario):
     try:
@@ -354,7 +363,7 @@ def responder_quiz():
         # Validar estrictamente la respuesta
         es_correcta = respuesta.strip().lower() == respuesta_correcta.strip().lower()
 
-        # Guardar en la base de datos
+        # Intentar guardar en la base de datos, pero no fallar si no se puede
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -366,9 +375,10 @@ def responder_quiz():
             conn.commit()
             cursor.close()
             conn.close()
-        except Exception as e:
+            logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}")
+        except PsycopgError as e:
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
-            return jsonify({'error': 'Error al guardar en la base de datos'}), 500
+            # Continuar sin fallar la respuesta al usuario
 
         # Generar explicación con Groq
         try:
@@ -381,7 +391,6 @@ def responder_quiz():
                 f"Proporciona una explicación clara y concisa (máximo 100 palabras) sobre por qué la respuesta es correcta o incorrecta. "
                 f"Si es correcta, refuerza el concepto con una breve explicación. "
                 f"Si es incorrecta, explica por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada. "
-                f"Evita ambigüedades; por ejemplo, si la pregunta es '¿Qué permite que una clase herede atributos y métodos?', la respuesta correcta es 'Herencia', porque permite a una clase hija adquirir propiedades de una clase padre. "
                 f"Usa un tono amigable y educativo, enfocado en Programación Avanzada. "
                 f"Responde en español, en formato Markdown."
             )
