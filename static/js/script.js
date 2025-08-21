@@ -796,11 +796,42 @@ const selectNivel = (nivel) => {
     }
 };
 
+// Añadir función para verificar si es móvil
+const isMobile = () => window.innerWidth < 768;
+
+// Función para cerrar menús al tocar fuera
+document.addEventListener('click', (event) => {
+    if (isMobile()) {
+        const leftSection = getElement('.left-section');
+        const rightSection = getElement('.right-section');
+        const dropdownMenu = getElement('.dropdown-menu');
+
+        if (leftSection && leftSection.classList.contains('active') && !leftSection.contains(event.target) && !getElement('.menu-toggle').contains(event.target)) {
+            toggleMenu();
+        }
+        if (rightSection && rightSection.classList.contains('active') && !rightSection.contains(event.target) && !getElement('.menu-toggle-right').contains(event.target)) {
+            toggleRightMenu();
+        }
+        if (dropdownMenu && dropdownMenu.classList.contains('active') && !dropdownMenu.contains(event.target) && !getElement('#nivel-btn').contains(event.target)) {
+            toggleDropdown();
+        }
+    }
+});
+
+// Actualizar toggleMenu para cambiar icono en móvil
 const toggleMenu = () => {
     const leftSection = getElement('.left-section');
     const rightSection = getElement('.right-section');
     if (!leftSection) return;
     leftSection.classList.toggle('active');
+    if (isMobile()) {
+        const menuToggle = getElement('.menu-toggle');
+        if (leftSection.classList.contains('active')) {
+            menuToggle.innerHTML = '<i class="fas fa-times"></i>';  // Cambiar a X
+        } else {
+            menuToggle.innerHTML = '<i class="fas fa-bars"></i>';  // Volver a barras
+        }
+    }
     if (rightSection && rightSection.classList.contains('active')) {
         rightSection.classList.remove('active');
     }
@@ -810,11 +841,20 @@ const toggleMenu = () => {
     }
 };
 
+// Actualizar toggleRightMenu para cambiar icono en móvil
 const toggleRightMenu = () => {
     const rightSection = getElement('.right-section');
     const leftSection = getElement('.left-section');
     if (!rightSection) return;
     rightSection.classList.toggle('active');
+    if (isMobile()) {
+        const menuToggleRight = getElement('.menu-toggle-right');
+        if (rightSection.classList.contains('active')) {
+            menuToggleRight.innerHTML = '<i class="fas fa-times"></i>';  // Cambiar a X
+        } else {
+            menuToggleRight.innerHTML = '<i class="fas fa-bars"></i>';  // Volver a barras
+        }
+    }
     if (leftSection && leftSection.classList.contains('active')) {
         leftSection.classList.remove('active');
     }
@@ -823,6 +863,8 @@ const toggleRightMenu = () => {
         voiceHint.classList.add('hidden');
     }
 };
+
+
 
 const mostrarMensajeBienvenida = () => {
     const chatbox = getElement('#chatbox');
