@@ -358,6 +358,7 @@ def quiz():
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
 
+
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
     try:
@@ -376,9 +377,10 @@ def responder_quiz():
             return jsonify({'error': 'Faltan respuesta o respuesta_correcta'}), 400
 
         # Normalizar respuestas para comparación robusta
-        respuesta_norm = ' '.join(respuesta.strip().lower().split())
-        respuesta_correcta_norm = ' '.join(respuesta_correcta.strip().lower().split())
+        respuesta_norm = ''.join(respuesta.strip().lower().split())
+        respuesta_correcta_norm = ''.join(respuesta_correcta.strip().lower().split())
         es_correcta = respuesta_norm == respuesta_correcta_norm
+        logging.info(f"Comparando respuesta: '{respuesta_norm}' con correcta: '{respuesta_correcta_norm}', es_correcta: {es_correcta}")
 
         # Guardar en base de datos
         try:
@@ -396,7 +398,7 @@ def responder_quiz():
         except PsycopgError as e:
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
 
-        # Generar explicación con Grok
+        # Generar explicación con Groq
         try:
             prompt = (
                 f"Eres YELIA, un tutor educativo de Programación Avanzada para Ingeniería en Telemática. "
@@ -405,8 +407,8 @@ def responder_quiz():
                 f"La respuesta correcta es: '{respuesta_correcta}'. "
                 f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
                 f"Sigue estrictamente este formato en Markdown: "
-                f"- Si es correcta: '**¡Felicidades, está bien!** [Explicación breve de por qué la respuesta es correcta, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
-                f"- Si es incorrecta: '**Incorrecto. La respuesta correcta es: {respuesta_correcta}.** [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
+                f"- Si es correcta: '**¡Felicidades, está bien! Seleccionaste: {respuesta}.** [Explicación breve de por qué la respuesta es correcta, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
+                f"- Si es incorrecta: '**Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.** [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
                 f"No uses términos fuera de las opciones proporcionadas ni digas 'parcialmente correcta' o 'no completa'. "
                 f"Usa solo el contexto de la pregunta y las opciones. "
                 f"Responde en español, en formato Markdown."
@@ -415,13 +417,13 @@ def responder_quiz():
                 messages=[{"role": "system", "content": prompt}],
                 model="llama3-70b-8192",
                 max_tokens=100,
-                temperature=0.2  # Reducida para mayor precisión
+                temperature=0.2
             )
             explicacion = response.choices[0].message.content.strip()
         except Exception as e:
             logging.error(f"Error al generar explicación con Groq: {str(e)}")
             explicacion = (
-                f"**{'¡Felicidades, está bien!' if es_correcta else f'Incorrecto. La respuesta correcta es: {respuesta_correcta}.'}** "
+                f"**{'¡Felicidades, está bien! Seleccionaste: ' + respuesta + '.' if es_correcta else f'Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.'}** "
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
                 f"¿Deseas saber más del tema o de otro tema?"
             )
@@ -433,6 +435,7 @@ def responder_quiz():
     except Exception as e:
         logging.error(f"Error en /responder_quiz: {str(e)}")
         return jsonify({'error': f"Error al procesar la respuesta: {str(e)}"}), 500
+
 
 @app.route("/tts", methods=["POST"])
 def tts():
