@@ -306,13 +306,14 @@ def quiz():
         prompt = (
             f"Genera una sola pregunta de quiz de tipo {tipo_quiz} sobre el tema '{tema}' en Programación Avanzada. "
             "Devuelve un JSON válido con las siguientes claves: "
-            "'pregunta' (texto de la pregunta), "
-            "'opciones' (lista de opciones), "
-            "'respuesta_correcta' (texto exacto de la opción correcta), "
-            "'tema' (el tema), "
+            "'pregunta' (texto de la pregunta, máximo 200 caracteres), "
+            "'opciones' (lista de opciones, cada una máximo 100 caracteres), "
+            "'respuesta_correcta' (texto exacto de una de las opciones), "
+            "'tema' (el tema, máximo 50 caracteres), "
             "'nivel' (siempre 'basico'). "
-            f"Para tipo 'opciones', incluye exactamente 4 opciones. "
-            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones (Verdadero, Falso). "
+            f"Para tipo 'opciones', incluye exactamente 4 opciones únicas. "
+            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones ('Verdadero', 'Falso'). "
+            "Asegúrate de que 'respuesta_correcta' coincide exactamente con una de las opciones en 'opciones'. "
             "Ejemplo de formato: "
             "{\"pregunta\": \"¿Qué es la encapsulación en POO?\", "
             "\"opciones\": [\"Ocultar datos\", \"Herencia\", \"Polimorfismo\", \"Abstracción\"], "
@@ -405,25 +406,59 @@ def responder_quiz():
         respuesta = bleach.clean(data.get("respuesta", ""))
         respuesta_correcta = bleach.clean(data.get("respuesta_correcta", ""))
         tema = bleach.clean(data.get("tema", ""))
-        pregunta = bleach.clean(data.get("pregunta", "Pregunta de quiz")[:500])
+        pregunta = bleach.clean(data.get("pregunta", "")[:500])
 
         if not all([respuesta, respuesta_correcta, tema, pregunta]):
-            logging.error(f"Faltan datos en /responder_quiz: respuesta={respuesta}, respuesta_correcta={respuesta_correcta}, tema={tema}, pregunta={pregunta}")
-            return jsonify({"error": "Faltan datos requeridos (respuesta, respuesta_correcta, tema o pregunta)"}), 400
+            missing_fields = [field for field, value in [
+                ("respuesta", respuesta),
+                ("respuesta_correcta", respuesta_correcta),
+                ("tema", tema),
+                ("pregunta", pregunta)
+            ] if not value]
+            logging.error(f"Faltan datos en /responder_quiz: {missing_fields}")
+            return jsonify({"error": f"Faltan datos requeridos: {', '.join(missing_fields)}"}), 400
 
         es_correcta = respuesta == respuesta_correcta
         puntos = 10 if es_correcta else 0
-        mensaje = (
-            f"{'✅ ¡Correcto!' if es_correcta else f'❌ Incorrecto. La respuesta correcta era: {respuesta_correcta}.'} "
-            f"{'Has ganado 10 puntos.' if es_correcta else 'No has ganado puntos.'} "
-            f"Tema: {tema}. ¿Deseas saber más?"
+
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        prompt = (
+            f"Eres un tutor de Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+            f"El usuario respondió a la pregunta '{pregunta}' con la respuesta '{respuesta}'. "
+            f"La respuesta correcta es '{respuesta_correcta}'. "
+            f"El tema es '{tema}'. "
+            f"Proporciona una retroalimentación clara, educativa y concisa en español (máximo 200 palabras). "
+            f"Si la respuesta es correcta, explica brevemente por qué es correcta. "
+            f"Si es incorrecta, explica por qué la respuesta del usuario es incorrecta y por qué la respuesta correcta es la adecuada. "
+            f"Termina con '¿Deseas saber más?'"
         )
+
+        try:
+            completion = call_groq_api(
+                client,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": "Proporciona la retroalimentación."}
+                ],
+                model="llama3-70b-8192",
+                max_tokens=300,
+                temperature=0.7
+            )
+            feedback = completion.choices[0].message.content.strip()
+        except Exception as e:
+            logging.error(f"Error al obtener retroalimentación de Groq: {str(e)}")
+            feedback = (
+                f"{'✅ ¡Correcto!' if es_correcta else f'❌ Incorrecto. La respuesta correcta era: {respuesta_correcta}.'} "
+                f"{'Has ganado 10 puntos.' if es_correcta else 'No has ganado puntos.'} "
+                f"Tema: {tema}. ¿Deseas saber más?"
+            )
 
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, puntos, tema) VALUES (%s, %s, %s, %s, %s, %s)",
+                "INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, puntos, tema) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
                 (usuario, pregunta, respuesta, es_correcta, puntos, tema)
             )
             conn.commit()
@@ -432,10 +467,20 @@ def responder_quiz():
         except Exception as e:
             logging.error(f"Error al guardar log en la base de datos: {str(e)}")
 
+        try:
+            progreso = cargar_progreso(usuario)
+            puntos_totales = progreso["puntos"] + puntos
+            temas_aprendidos = progreso["temas_aprendidos"]
+            if es_correcta and tema not in temas_aprendidos.split(","):
+                temas_aprendidos = temas_aprendidos + f",{tema}" if temas_aprendidos else tema
+            guardar_progreso(usuario, puntos_totales, temas_aprendidos)
+        except Exception as e:
+            logging.error(f"Error al actualizar progreso: {str(e)}")
+
         logging.info(f"Respuesta procesada: es_correcta={es_correcta}, puntos={puntos}, tema={tema}")
         return jsonify({
             "es_correcta": es_correcta,
-            "respuesta": mensaje,
+            "respuesta": feedback,
             "puntos": puntos
         })
     except Exception as e:
