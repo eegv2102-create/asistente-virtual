@@ -516,26 +516,53 @@ const obtenerQuiz = async (tipoQuiz = 'opciones') => {
     }
 };
 
+const sanitizeHTML = (str) => {
+    if (!str) return '';
+    return str.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, ' ');
+};
+
 const mostrarQuizEnChat = (quizData) => {
+    console.log('mostrarQuizEnChat recibido:', JSON.stringify(quizData, null, 2));
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) return;
+    if (!container || !chatbox) {
+        console.error('Contenedor de chat no encontrado');
+        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
+        return;
+    }
+    // Validar datos del quiz
+    if (!quizData.pregunta || !Array.isArray(quizData.opciones) || !quizData.respuesta_correcta || !quizData.tema || !quizData.nivel) {
+        console.error('Datos de quiz incompletos:', quizData);
+        mostrarNotificacion('Error: Datos de quiz incompletos', 'error');
+        return;
+    }
     const botDiv = document.createElement('div');
     botDiv.classList.add('bot');
-    const opcionesHtml = quizData.opciones.map((opcion, i) => `
-        <button class="quiz-option" data-opcion="${opcion}" data-respuesta-correcta="${quizData.respuesta_correcta}" data-tema="${quizData.tema}" data-pregunta="${quizData.pregunta}">
-            ${quizData.tipo_quiz === 'verdadero_falso' ? opcion : `${i + 1}. ${opcion}`}
-        </button>
-    `).join('');
+    // Sanitizar valores para evitar problemas en atributos data-*
+    const preguntaSanitizada = sanitizeHTML(quizData.pregunta);
+    const temaSanitizado = sanitizeHTML(quizData.tema);
+    const respuestaCorrectaSanitizada = sanitizeHTML(quizData.respuesta_correcta);
+    const opcionesHtml = quizData.opciones.map((opcion, i) => {
+        const opcionSanitizada = sanitizeHTML(opcion);
+        return `
+            <button class="quiz-option" 
+                    data-opcion="${opcionSanitizada}" 
+                    data-respuesta-correcta="${respuestaCorrectaSanitizada}" 
+                    data-tema="${temaSanitizado}" 
+                    data-pregunta="${preguntaSanitizada}">
+                ${quizData.tipo_quiz === 'verdadero_falso' ? opcionSanitizada : `${i + 1}. ${opcionSanitizada}`}
+            </button>
+        `;
+    }).join('');
     botDiv.innerHTML = `
-        ${typeof marked !== 'undefined' ? marked.parse(quizData.pregunta) : quizData.pregunta}
+        ${typeof marked !== 'undefined' ? marked.parse(preguntaSanitizada) : preguntaSanitizada}
         <div class="quiz-options">${opcionesHtml}</div>
-        <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
+        <button class="copy-btn" data-text="${preguntaSanitizada}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
     container.appendChild(botDiv);
     scrollToBottom();
     if (window.Prism) Prism.highlightAllUnder(botDiv);
-    guardarMensaje('Quiz', `${quizData.pregunta}\nOpciones: ${quizData.opciones.join(', ')}`, null, quizData.tema);
+    guardarMensaje('Quiz', `${preguntaSanitizada}\nOpciones: ${quizData.opciones.join(', ')}`, null, temaSanitizado);
     getElements('.quiz-option').forEach(btn => {
         btn.addEventListener('click', () => {
             getElements('.quiz-option').forEach(opt => opt.classList.remove('selected'));
@@ -544,6 +571,7 @@ const mostrarQuizEnChat = (quizData) => {
             const respuestaCorrecta = btn.dataset.respuesta_correcta;
             const tema = btn.dataset.tema;
             const pregunta = btn.dataset.pregunta;
+            console.log('Botón clicado:', { opcion, respuestaCorrecta, tema, pregunta });
             responderQuiz(opcion, respuestaCorrecta, tema, pregunta);
             getElements('.quiz-option').forEach(opt => opt.disabled = true);
         });
@@ -554,15 +582,23 @@ const mostrarQuizEnChat = (quizData) => {
         tema: btn.dataset.tema,
         pregunta: btn.dataset.pregunta
     })));
-    speakText(quizData.pregunta);
+    speakText(preguntaSanitizada);
 };
-
 
 const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
     console.log('Enviando respuesta del quiz:', { opcion, respuestaCorrecta, tema, pregunta });
-    if (!opcion || !respuestaCorrecta || !tema || !pregunta) {
-        console.error('Faltan datos en responderQuiz:', { opcion, respuestaCorrecta, tema, pregunta });
-        mostrarNotificacion('Error: Faltan datos para responder el quiz', 'error');
+    // Fallback para valores vacíos
+    opcion = opcion || 'Opción no especificada';
+    respuestaCorrecta = respuestaCorrecta || 'Respuesta correcta no especificada';
+    tema = tema || 'Tema no especificado';
+    pregunta = pregunta || 'Pregunta no especificada';
+    if (!opcion || !respuestaCorrecta || !tema) {
+        console.error('Faltan datos críticos en responderQuiz:', { opcion, respuestaCorrecta, tema, pregunta });
+        mostrarNotificacion(`Error: Faltan datos críticos para responder el quiz. Faltan: ${[
+            !opcion && 'opción',
+            !respuestaCorrecta && 'respuesta_correcta',
+            !tema && 'tema'
+        ].filter(Boolean).join(', ')}`, 'error');
         return;
     }
     fetch('/responder_quiz', {
@@ -573,29 +609,31 @@ const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
             respuesta: opcion,
             respuesta_correcta: respuestaCorrecta,
             tema: tema,
-            pregunta: pregunta  // Ahora se envía la pregunta
+            pregunta: pregunta
         })
     }).then(res => {
         if (!res.ok) {
             return res.json().then(err => {
-                throw new Error(err.error || `Error en /responder_quiz: {res.status} {res.statusText}`);
+                throw new Error(err.error || `Error en /responder_quiz: ${res.status} ${res.statusText}`);
             });
         }
         return res.json();
     }).then(data => {
+        console.log('Respuesta recibida de /responder_quiz:', data);
         const chatbox = getElement('#chatbox');
         const container = chatbox?.querySelector('.message-container');
         if (!container || !chatbox) return;
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         const icono = data.es_correcta ? '<span class="quiz-feedback correct">✅</span>' : '<span class="quiz-feedback incorrect">❌</span>';
-        botDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        const respuestaSanitizada = sanitizeHTML(data.respuesta);
+        botDiv.innerHTML = icono + (typeof marked !== 'undefined' ? marked.parse(respuestaSanitizada) : respuestaSanitizada) +
+            `<button class="copy-btn" data-text="${respuestaSanitizada}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAllUnder(botDiv);
-        speakText(data.respuesta);
-        guardarMensaje(`Respuesta al quiz sobre ${tema}`, data.respuesta);
+        speakText(respuestaSanitizada);
+        guardarMensaje(`Respuesta al quiz sobre ${tema}`, respuestaSanitizada);
         addCopyButtonListeners();
     }).catch(error => {
         const errorMsg = `Error al responder quiz: ${error.message.includes('503') ? 'Servicio no disponible. Revisa https://groqstatus.com/' : error.message}`;

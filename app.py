@@ -409,8 +409,13 @@ def responder_quiz():
         pregunta = bleach.clean(data.get("pregunta", "Pregunta de quiz")[:500])  # Default si falta
 
         if not all([respuesta, respuesta_correcta, tema]):
-            logging.error(f"Faltan datos en /responder_quiz: respuesta={respuesta}, respuesta_correcta={respuesta_correcta}, tema={tema}, pregunta={pregunta}")
-            return jsonify({"error": "Faltan datos requeridos (respuesta, respuesta_correcta o tema)"}), 400
+            missing_fields = [field for field, value in [
+                ("respuesta", respuesta),
+                ("respuesta_correcta", respuesta_correcta),
+                ("tema", tema)
+            ] if not value]
+            logging.error(f"Faltan datos en /responder_quiz: {missing_fields}, datos recibidos: {data}")
+            return jsonify({"error": f"Faltan datos requeridos: {', '.join(missing_fields)}"}), 400
 
         es_correcta = respuesta == respuesta_correcta
         puntos = 10 if es_correcta else 0
