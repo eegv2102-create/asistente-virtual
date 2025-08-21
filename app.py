@@ -67,6 +67,8 @@ def init_db():
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
+        c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
+                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, es_correcta BOOLEAN, puntos INTEGER, tema TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         conn.commit()
         conn.close()
         logging.info("Base de datos inicializada correctamente")
@@ -203,6 +205,10 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
 @app.route("/ask", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def ask():
@@ -237,7 +243,7 @@ def ask():
             f"- 'avanzada': Explicación técnica y detallada, con análisis teórico profundo, sin ejemplos a menos que se soliciten explícitamente. "
             f"Si el nivel es 'ejemplos', incluye un bloque de código en Java con comentarios explicativos. "
             f"Historial reciente: {json.dumps(historial, ensure_ascii=False)}. "
-            f"Devuelve solo el texto de la respuesta en formato Markdown, sin envolver en bloques de código JSON ni otros formatos."
+            f"Devuelve solo el texto de la respuesta en formato Markdown, sin envolver en bloques de código JSON ni otros formatos"
         )
 
         completion = call_groq_api(
@@ -265,7 +271,6 @@ def ask():
             conn.close()
         except Exception as e:
             logging.error(f"Error al guardar log en la base de datos: {str(e)}")
-            # Continúa incluso si falla la base de datos
 
         logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}")
         return jsonify({"respuesta": respuesta, "video_url": None})
@@ -289,7 +294,6 @@ def quiz():
             logging.error(f"Tipo de quiz inválido: {tipo_quiz}")
             return jsonify({"error": "Tipo de quiz inválido"}), 400
 
-        # Seleccionar un tema aleatorio de temas.json
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
