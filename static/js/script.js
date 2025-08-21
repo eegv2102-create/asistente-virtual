@@ -587,7 +587,6 @@ const mostrarQuizEnChat = (quizData) => {
 
 const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
     console.log('Enviando respuesta del quiz:', { opcion, respuestaCorrecta, tema, pregunta });
-    // Fallback para valores vacíos
     opcion = opcion || 'Opción no especificada';
     respuestaCorrecta = respuestaCorrecta || 'Respuesta correcta no especificada';
     tema = tema || 'Tema no especificado';
@@ -605,7 +604,6 @@ const responderQuiz = (opcion, respuestaCorrecta, tema, pregunta) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            usuario: 'anonimo',
             respuesta: opcion,
             respuesta_correcta: respuestaCorrecta,
             tema: tema,
