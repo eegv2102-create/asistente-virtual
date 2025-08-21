@@ -86,7 +86,7 @@ body {
   color: var(--text-primary);
 }
 
-#modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn, #voice-toggle-btn {
+#modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn, #voice-toggle-btn, #tutoria-btn, #metricas-btn, #encuesta-btn {
   background: var(--button-bg);
   border: none;
   color: var(--button-text);
@@ -105,20 +105,24 @@ body {
 
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
 #send-btn:hover, #new-chat-btn:hover, #btn-clear:hover, #nivel-btn:hover,
-#voice-toggle-btn:hover,
+#voice-toggle-btn:hover, #tutoria-btn:hover, #metricas-btn:hover, #encuesta-btn:hover,
 #modo-btn:focus, #voice-btn:focus, #quiz-btn:focus, #recommend-btn:focus,
 #send-btn:focus, #new-chat-btn:focus, #btn-clear:focus, #nivel-btn:focus,
-#voice-toggle-btn:focus {
+#voice-toggle-btn:focus, #tutoria-btn:focus, #metricas-btn:focus, #encuesta-btn:focus {
   background-color: var(--button-hover);
   transform: scale(1.05);
 }
 
-#new-chat-btn[data-tooltip], #btn-clear[data-tooltip], #send-btn[data-tooltip], #voice-toggle-btn[data-tooltip] {
+#new-chat-btn[data-tooltip], #btn-clear[data-tooltip], #send-btn[data-tooltip], 
+#voice-toggle-btn[data-tooltip], #tutoria-btn[data-tooltip], #metricas-btn[data-tooltip], 
+#encuesta-btn[data-tooltip] {
   position: relative;
 }
 
 #new-chat-btn[data-tooltip]::after, #btn-clear[data-tooltip]::after, 
-#send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
+#send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after,
+#tutoria-btn[data-tooltip]::after, #metricas-btn[data-tooltip]::after, 
+#encuesta-btn[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
   bottom: 100%;
@@ -139,8 +143,12 @@ body {
 
 #new-chat-btn:hover::after, #btn-clear:hover::after, 
 #send-btn:hover::after, #voice-toggle-btn:hover::after,
+#tutoria-btn:hover::after, #metricas-btn:hover::after, 
+#encuesta-btn:hover::after,
 #new-chat-btn:focus::after, #btn-clear:focus::after, 
-#send-btn:focus::after, #voice-toggle-btn:focus::after {
+#send-btn:focus::after, #voice-toggle-btn:focus::after,
+#tutoria-btn:focus::after, #metricas-btn:focus::after, 
+#encuesta-btn:focus::after {
   opacity: 1;
   visibility: visible;
 }
@@ -165,6 +173,47 @@ body {
 .voice-hint.hidden {
   opacity: 0;
   visibility: hidden;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 5px;
+  text-align: center;
+}
+
+#encuesta-form {
+  background-color: var(--bg-secondary);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px var(--shadow);
+  margin: 10px 0;
+  width: 100%;
+  max-width: 300px;
+}
+
+#encuesta-form p {
+  margin-bottom: 8px;
+}
+
+#encuesta-form input {
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  width: 60px;
+}
+
+#encuesta-form button {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#encuesta-form button:hover, #encuesta-form button:focus {
+  background: var(--button-hover);
 }
 
 .container {
@@ -777,7 +826,7 @@ body.modo-oscuro .bot code {
     border-radius: 16px;
   }
 
-  #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn, #voice-toggle-btn {
+  #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #nivel-btn, #voice-toggle-btn, #tutoria-btn, #metricas-btn, #encuesta-btn {
     padding: 4px 8px;
     font-size: 0.75rem;
     min-width: 60px;
