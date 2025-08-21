@@ -72,18 +72,17 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, video_url TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, es_correcta BOOLEAN, puntos INTEGER, tema TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
         conn.commit()
-        conn.close()
         logging.info("Base de datos inicializada correctamente: tablas creadas (progreso, logs, avatars, quiz_logs)")
         return True
     except PsycopgError as e:
@@ -92,6 +91,32 @@ def init_db():
     except Exception as e:
         logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
         return False
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+def cargar_temas():
+    global temas
+    try:
+        with open('temas.json', 'r', encoding='utf-8') as f:
+            temas = json.load(f)
+        temas_disponibles = []
+        for unidad, subtemas in temas.items():
+            temas_disponibles.extend(subtemas.keys())
+        logging.info(f"Temas cargados: {temas_disponibles}")
+        return temas_disponibles
+    except FileNotFoundError:
+        logging.error("Archivo temas.json no encontrado")
+        temas = {}
+        return [
+            'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
+            'Polimorfismo', 'Clases Abstractas e Interfaces', 'Lenguaje de Modelado Unificado (UML)',
+            'Diagramas UML', 'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
+            'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
+        ]
+
+temas = {}
+TEMAS_DISPONIBLES = cargar_temas()
 
 def cargar_progreso(usuario):
     try:
@@ -232,7 +257,7 @@ def ask():
         pregunta = bleach.clean(data.get("pregunta", "")[:500])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
+        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])  # Se recibe pero no se usa
         historial = data.get("historial", [])[:5]
 
         if not pregunta:
@@ -249,13 +274,13 @@ def ask():
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO logs (usuario, pregunta, respuesta, avatar_id, nivel_explicacion) VALUES (%s, %s, %s, %s, %s)",
-                (usuario, pregunta, respuesta, avatar_id, nivel_explicacion)
+                "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion) VALUES (%s, %s, %s, %s)",
+                (usuario, pregunta, respuesta, nivel_explicacion)
             )
             conn.commit()
             cursor.close()
             conn.close()
-        except Exception as e:
+        except PsycopgError as e:
             logging.error(f"Error al guardar log en la base de datos: {str(e)}")
 
         logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}")
@@ -561,5 +586,7 @@ def get_temas():
         return jsonify({"error": "Error al obtener temas"}), 500
 
 if __name__ == "__main__":
-    init_db()
+    if not init_db():
+        logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
+        exit(1)
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))

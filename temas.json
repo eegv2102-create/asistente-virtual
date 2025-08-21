@@ -62,6 +62,10 @@
     "Pruebas y Buenas Prácticas": {
       "definición": "Se recomienda aplicar pruebas unitarias, integración continua y patrones de diseño para garantizar calidad del software.",
       "ejemplo": "Uso de JUnit:\nimport org.junit.*;\nclass TestSuma {\n  @Test\n  public void testSumar(){\n    Calculadora c = new Calculadora();\n    assertEquals(5, c.sumar(2,3));\n  }\n}"
+    },
+    "Concurrencia": {
+      "definición": "La concurrencia permite ejecutar múltiples tareas simultáneamente en un programa, usando hilos o procesos.",
+      "ejemplo": "class HiloEjemplo extends Thread {\n  public void run() {\n    System.out.println(\"Hilo ejecutándose\");\n  }\n}\n\nHiloEjemplo hilo = new HiloEjemplo();\nhilo.start();"
     }
   }
 }
