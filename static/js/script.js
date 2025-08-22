@@ -562,6 +562,18 @@ const toggleDropdown = (event) => {
     if (dropdownMenu) {
         dropdownMenu.classList.toggle('active');
         console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado'); // Depuración
+        // Verificar visibilidad
+        if (dropdownMenu.classList.contains('active')) {
+            const computedStyle = window.getComputedStyle(dropdownMenu);
+            console.log('Estilos computados de .dropdown-menu:', {
+                display: computedStyle.display,
+                visibility: computedStyle.visibility,
+                position: computedStyle.position,
+                top: computedStyle.top,
+                left: computedStyle.left,
+                zIndex: computedStyle.zIndex
+            });
+        }
         if (event) event.stopPropagation(); // Evita que el clic global cierre el menú
     } else {
         console.error('Elemento .dropdown-menu no encontrado');
@@ -955,7 +967,7 @@ const init = () => {
             getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
             scrollToBottom();
             speakText(mensaje);
-            // Nota: guardarMensaje no está definido en el código proporcionado, comentado para evitar errores
+            // Nota: guardarMensaje no está definido, comentado para evitar errores
             // guardarMensaje('Recomendación', mensaje);
             addCopyButtonListeners();
         }));
