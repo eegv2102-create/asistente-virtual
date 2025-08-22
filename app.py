@@ -170,11 +170,11 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
     # Respuestas para cortesías
     respuestas_simples = {
         r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos)(.*por favor.*)?$": 
-            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy? ¿Tienes alguna pregunta adicional sobre este tema?",
+            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?" ,
         r"^(gracias|muchas gracias|gracias por.*|thank you|te agradezco)$": 
-            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada? ¿Tienes alguna pregunta adicional sobre este tema?",
+            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada? ",
         r"^(adiós|bye|hasta luego|nos vemos|chau)$": 
-            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses. ¿Tienes alguna pregunta adicional sobre este tema?"
+            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses. "
     }
 
     # Verificar si es solo una cortesía
