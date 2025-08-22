@@ -360,32 +360,7 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
-@app.route("/", endpoint="index_endpoint")
-def index():
-    # Reiniciar historial y generar un nuevo chat_id al cargar la página
-    session['chat_id'] = str(uuid.uuid4())  # Generar un nuevo chat_id único
-    session['historial'] = []
-    saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
-    
-    # Guardar el nuevo chat en la base de datos
-    usuario = session.get('usuario', 'anonimo')
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
-            "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
-            (session['chat_id'], usuario, json.dumps([]), json.dumps([]))
-        )
-        conn.commit()
-        logging.info(f"Nuevo chat inicial creado al cargar página: chat_id={session['chat_id']}, usuario={usuario}")
-    except PsycopgError as e:
-        logging.error(f"Error al guardar chat inicial en /: {str(e)}")
-    finally:
-        if 'conn' in locals():
-            conn.close()
 
-    return render_template("index.html", saludo_inicial=saludo_inicial)
 
 @app.route("/new_chat", methods=["POST"], endpoint="new_chat_endpoint")
 def new_chat():
