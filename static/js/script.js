@@ -337,17 +337,28 @@ const cargarConversaciones = async () => {
 const cargarMensajes = async (convId) => {
     currentConvId = convId;
     try {
-        const res = await fetch(`/messages/${convId}`);
+        const res = await fetch('/conversations');
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Error al cargar historial');
+        }
         const data = await res.json();
+
+        // Buscar la conversación por ID
+        const conversation = data.conversations.find(conv => conv.id === convId);
         const container = getElement('#chatbox').querySelector('.message-container');
         container.innerHTML = '';
-        data.messages.forEach(msg => {
-            const div = document.createElement('div');
-            div.classList.add(msg.role === 'user' ? 'user' : 'bot');
-            div.innerHTML = (typeof marked !== 'undefined' ? marked.parse(msg.content) : msg.content) +
-                `<button class="copy-btn" data-text="${msg.content.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-            container.appendChild(div);
-        });
+
+        if (conversation && conversation.messages) {
+            conversation.messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.classList.add(msg.role === 'user' ? 'user' : 'bot');
+                div.innerHTML = (typeof marked !== 'undefined' ? marked.parse(msg.content) : msg.content) +
+                    `<button class="copy-btn" data-text="${msg.content.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+                container.appendChild(div);
+            });
+        }
+
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
     } catch (error) {
