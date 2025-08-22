@@ -58,29 +58,30 @@ def init_db():
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        # Crear tablas (mantiene IF NOT EXISTS para seguridad)
+        # Crear tablas (ajustadas a usar 'timestamp' en vez de 'created_at')
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS conversations
-                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, nombre TEXT DEFAULT 'Nuevo Chat', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, nombre TEXT DEFAULT 'Nuevo Chat', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS messages
                      (id SERIAL PRIMARY KEY, conv_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
-                      role TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                      role TEXT NOT NULL, content TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Índices actualizados
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, created_at)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, created_at)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_conversations ON conversations(usuario, created_at)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, created_at)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_conversations ON conversations(usuario, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, timestamp)')
         conn.commit()
-        logging.info("Base de datos inicializada correctamente: tablas creadas")
+        logging.info("Base de datos inicializada correctamente: tablas creadas/ajustadas")
         conn.close()
         return True
     except PsycopgError as e:
@@ -88,14 +89,10 @@ def init_db():
         if conn:
             conn.rollback()
         raise
-    except Exception as e:
-        logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
-        if conn:
-            conn.rollback()
-        raise
     finally:
         if 'conn' in locals() and conn:
             conn.close()
+
 
 def migrate_columns():
     try:
