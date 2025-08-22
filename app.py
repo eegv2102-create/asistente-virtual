@@ -322,16 +322,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
             f"¿Tienes alguna pregunta adicional sobre este tema?"
         )
 
-def validate_quiz_format(quiz_data):
-    required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
-    for key in required_keys:
-        if key not in quiz_data:
-            raise ValueError(f"Falta la clave {key} en el quiz")
-    if not isinstance(quiz_data["opciones"], list) or len(quiz_data["opciones"]) < 2:
-        raise ValueError("El quiz debe tener al menos 2 opciones")
-    if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
-        raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
-
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -446,7 +436,7 @@ def quiz():
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.2
+            temperature=0.2  # Reducida para mayor precisión
         )
 
         try:
@@ -467,19 +457,6 @@ def quiz():
         except ValueError as e:
             logging.error(f"Formato de quiz inválido: {str(e)}")
             return jsonify({"error": str(e)}), 400
-
-        # Guardar quiz en logs con chat_id
-        try:
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute(
-                "INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, tema, puntos, chat_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (usuario, quiz_data["pregunta"], "", False, quiz_data["tema"], 0, session.get('chat_id'))
-            )
-            conn.commit()
-            conn.close()
-        except PsycopgError as e:
-            logging.error(f"Error al guardar quiz en quiz_logs: {str(e)}")
 
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {quiz_data['tema']}: {quiz_data}")
         return jsonify(quiz_data)
@@ -517,13 +494,13 @@ def responder_quiz():
             cursor = conn.cursor()
             puntos = 10 if es_correcta else 0
             cursor.execute(
-                'INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, tema, puntos, chat_id) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                (session.get('usuario', 'anonimo'), pregunta, respuesta, es_correcta, tema, puntos, session.get('chat_id'))
+                'INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, tema, puntos) VALUES (%s, %s, %s, %s, %s, %s)',
+                (session.get('usuario', 'anonimo'), pregunta, respuesta, es_correcta, tema, puntos)
             )
             conn.commit()
             cursor.close()
             conn.close()
-            logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}, chat_id={session.get('chat_id')}")
+            logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}")
         except PsycopgError as e:
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
 
@@ -565,6 +542,7 @@ def responder_quiz():
         logging.error(f"Error en /responder_quiz: {str(e)}")
         return jsonify({'error': f"Error al procesar la respuesta: {str(e)}"}), 500
 
+
 @app.route("/tts", methods=["POST"])
 def tts():
     try:
@@ -596,7 +574,7 @@ def recommend():
     try:
         data = request.get_json()
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        historial = session.get("historial", [])[:5]
+        historial = data.get("historial", [])
 
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
