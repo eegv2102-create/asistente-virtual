@@ -295,6 +295,10 @@ const cargarAvatares = async () => {
 const cargarConversaciones = async () => {
     try {
         const res = await fetch('/conversations');
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Error al cargar historial');
+        }
         const data = await res.json();
         const chatList = getElement('#chat-list');
         chatList.innerHTML = '';
@@ -325,7 +329,7 @@ const cargarConversaciones = async () => {
         }
     } catch (error) {
         console.error('Error cargando conversaciones:', error);
-        mostrarNotificacion('Error al cargar historial', 'error');
+        mostrarNotificacion(`Error al cargar historial: ${error.message}`, 'error');
     }
 };
 
@@ -409,14 +413,24 @@ const sendMessage = async () => {
     scrollToBottom();
 
     if (!currentConvId) {
-        const res = await fetch('/conversations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        });
-        const data = await res.json();
-        currentConvId = data.id;
-        await cargarConversaciones();
+        try {
+            const res = await fetch('/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Error al crear nueva conversación');
+            }
+            const data = await res.json();
+            currentConvId = data.id;
+            await cargarConversaciones();
+        } catch (error) {
+            console.error('Error creando conversación:', error);
+            mostrarNotificacion(`Error al crear nueva conversación: ${error.message}`, 'error');
+            return;
+        }
     }
 
     try {
@@ -426,9 +440,14 @@ const sendMessage = async () => {
             body: JSON.stringify({
                 pregunta,
                 historial: [],
-                nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica'
+                nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
+                conv_id: currentConvId
             })
         });
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Error al enviar mensaje');
+        }
         const data = await res.json();
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -440,7 +459,7 @@ const sendMessage = async () => {
         speakText(data.respuesta);
     } catch (error) {
         console.error('Error enviando mensaje:', error);
-        mostrarNotificacion('Error al enviar mensaje', 'error');
+        mostrarNotificacion(`Error al enviar mensaje: ${error.message}`, 'error');
     }
 };
 
