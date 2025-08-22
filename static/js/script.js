@@ -339,54 +339,97 @@ const guardarMensaje = (pregunta, respuesta, video_url = null, tema = null) => {
     scrollToBottom();
 };
 
-const actualizarListaChats = () => {
+const actualizarListaChats = async () => {
     const chatList = getElement('#chat-list');
     if (!chatList) {
         console.error('Elemento #chat-list no encontrado');
         return;
     }
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
-    console.log('Historial de chats:', historial);
-    chatList.innerHTML = '';
-    historial.forEach((chat, index) => {
-        if (!chat.id && chat.id !== 0) {
-            console.warn(`Chat en índice ${index} no tiene id válido`, chat);
-            return;
+    try {
+        const response = await fetch('/chat_history?usuario=anonimo');
+        if (!response.ok) throw new Error('Error en /chat_history');
+        const data = await response.json();
+        const historial = data.chats || [];
+        localStorage.setItem('chatHistory', JSON.stringify(historial.map((chat, index) => ({
+            id: index,
+            nombre: `Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
+            timestamp: new Date(chat.timestamp).getTime(),
+            mensajes: chat.historial
+        }))));
+        chatList.innerHTML = '';
+        historial.forEach((chat, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="chat-name">${`Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
+                <div class="chat-actions">
+                    <button class="rename-btn" data-tooltip="Renombrar" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn" data-tooltip="Eliminar" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
+                </div>`;
+            li.dataset.index = index;
+            li.setAttribute('aria-label', `Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
+            li.tabIndex = 0;
+            chatList.appendChild(li);
+            li.addEventListener('click', e => {
+                if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
+                    cargarChat(index);
+                }
+            });
+            li.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    cargarChat(index);
+                }
+            });
+            li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
+            li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
+        });
+        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+        if (currentConversation.id || currentConversation.id === 0) {
+            const selectedLi = getElement(`#chat-list li[data-index="${currentConversation.id}"]`);
+            if (selectedLi) selectedLi.classList.add('selected');
         }
-        const li = document.createElement('li');
-        li.innerHTML = `
-            <span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
-            <div class="chat-actions">
-                <button class="rename-btn" data-tooltip="Renombrar" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
-                <button class="delete-btn" data-tooltip="Eliminar" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
-            </div>`;
-        li.dataset.index = index;
-        li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
-        li.tabIndex = 0;
-        chatList.appendChild(li);
-        li.addEventListener('click', e => {
-            if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
-                console.log('Cargando chat:', index);
-                cargarChat(index);
-            }
+        requestAnimationFrame(() => {
+            chatList.scrollTop = chatList.scrollHeight;
         });
-        li.addEventListener('keydown', e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                console.log('Cargando chat por tecla:', index);
-                cargarChat(index);
-            }
+    } catch (error) {
+        console.error('Error en /chat_history:', error);
+        mostrarNotificacion('Error al cargar historial de chats', 'error');
+        // Fallback a localStorage
+        const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
+        chatList.innerHTML = '';
+        historial.forEach((chat, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
+                <div class="chat-actions">
+                    <button class="rename-btn" data-tooltip="Renombrar" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn" data-tooltip="Eliminar" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
+                </div>`;
+            li.dataset.index = index;
+            li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
+            li.tabIndex = 0;
+            chatList.appendChild(li);
+            li.addEventListener('click', e => {
+                if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
+                    cargarChat(index);
+                }
+            });
+            li.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    cargarChat(index);
+                }
+            });
+            li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
+            li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
         });
-        li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
-        li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
-    });
-    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-    if (currentConversation.id || currentConversation.id === 0) {
-        const selectedLi = getElement(`#chat-list li[data-index="${currentConversation.id}"]`);
-        if (selectedLi) selectedLi.classList.add('selected');
+        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+        if (currentConversation.id || currentConversation.id === 0) {
+            const selectedLi = getElement(`#chat-list li[data-index="${currentConversation.id}"]`);
+            if (selectedLi) selectedLi.classList.add('selected');
+        }
+        requestAnimationFrame(() => {
+            chatList.scrollTop = chatList.scrollHeight;
+        });
     }
-    requestAnimationFrame(() => {
-        chatList.scrollTop = chatList.scrollHeight;
-    });
 };
 
 const cargarChat = index => {
@@ -406,9 +449,9 @@ const cargarChat = index => {
         return;
     }
     container.innerHTML = chat.mensajes.map(msg => `
-        <div class="user">${msg.pregunta}</div>
-        <div class="bot">${typeof marked !== 'undefined' ? marked.parse(msg.respuesta, { breaks: true, gfm: true }) : msg.respuesta}
-            <button class="copy-btn" data-text="${msg.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+        <div class="user">${sanitizeHTML(msg.pregunta)}</div>
+        <div class="bot">${typeof marked !== 'undefined' ? marked.parse(msg.respuesta, { breaks: true, gfm: true }) : sanitizeHTML(msg.respuesta)}
+            <button class="copy-btn" data-text="${sanitizeHTML(msg.respuesta)}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
         </div>
     `).join('');
     scrollToBottom();
@@ -784,24 +827,51 @@ const sendMessage = () => {
     });
 };
 
-const nuevaConversacion = () => {
+const nuevaConversacion = async () => {
     stopSpeech();
-    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
-    const newId = historial.length;
-    const newConversation = {
-        id: newId,
-        nombre: `Chat ${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
-        timestamp: Date.now(),
-        mensajes: []
-    };
-    historial.push(newConversation);
-    localStorage.setItem('chatHistory', JSON.stringify(historial));
-    localStorage.setItem('currentConversation', JSON.stringify(newConversation));
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (container) container.innerHTML = '';
-    actualizarListaChats();
-    mostrarNotificacion('Nueva conversación iniciada', 'success');
+    try {
+        const response = await fetch('/new_chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: 'anonimo' })
+        });
+        if (!response.ok) throw new Error('Error en /new_chat');
+        const data = await response.json();
+        const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
+        const newId = historial.length;
+        const newConversation = {
+            id: newId,
+            nombre: `Chat ${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
+            timestamp: Date.now(),
+            mensajes: []
+        };
+        historial.push(newConversation);
+        localStorage.setItem('chatHistory', JSON.stringify(historial));
+        localStorage.setItem('currentConversation', JSON.stringify(newConversation));
+        const chatbox = getElement('#chatbox');
+        const container = chatbox?.querySelector('.message-container');
+        if (container) {
+            container.innerHTML = '';
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('bot');
+            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.saludo_inicial, { breaks: true, gfm: true }) : data.saludo_inicial) +
+                `<button class="copy-btn" data-text="${data.saludo_inicial.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            container.appendChild(botDiv);
+            scrollToBottom();
+            if (window.Prism) Prism.highlightAll();
+            if (vozActiva && userHasInteracted) {
+                speakText(data.saludo_inicial);
+            } else if (vozActiva) {
+                pendingWelcomeMessage = data.saludo_inicial;
+            }
+            addCopyButtonListeners();
+        }
+        actualizarListaChats();
+        mostrarNotificacion('Nueva conversación iniciada', 'success');
+    } catch (error) {
+        console.error('Error en /new_chat:', error);
+        mostrarNotificacion('Error al iniciar nueva conversación', 'error');
+    }
 };
 
 const addCopyButtonListeners = () => {
@@ -929,12 +999,13 @@ const mostrarMensajeBienvenida = () => {
     container.appendChild(botDiv);
     scrollToBottom();
     if (window.Prism) Prism.highlightAll();
-    guardarMensaje('Bienvenida', mensaje);
     if (vozActiva && userHasInteracted) {
         speakText(mensaje);
     } else if (vozActiva) {
         pendingWelcomeMessage = mensaje;
     }
+    // No llamar a guardarMensaje para evitar guardar el saludo en localStorage
+    addCopyButtonListeners();
 };
 
 const init = () => {
