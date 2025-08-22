@@ -94,6 +94,11 @@ def init_db():
                       avatar_id TEXT DEFAULT 'default',
                       temas_recomendados TEXT DEFAULT '')''')
 
+        # Migración: Añadir temas_recomendados si no existe
+        if not _col_exists(c, 'progreso', 'temas_recomendados'):
+            c.execute("ALTER TABLE progreso ADD COLUMN temas_recomendados TEXT DEFAULT ''")
+            logging.info("[migración] Añadido temas_recomendados en progreso")
+
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                      (id SERIAL PRIMARY KEY,
                       usuario TEXT,
@@ -143,7 +148,7 @@ def init_db():
         # Índices
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, created_at)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, tema, created_at)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_conversations ON conversations(usuario, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, created_at)')
 
@@ -154,12 +159,12 @@ def init_db():
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
         if conn:
             conn.rollback()
-        return jsonify({"error": f"Error de base de datos: {str(e)}"}), 500
+        raise
     except Exception as e:
         logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
         if conn:
             conn.rollback()
-        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
+        raise
     finally:
         if conn:
             conn.close()
@@ -555,7 +560,7 @@ def quiz():
 
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         historial = data.get("historial", [])
-        nivel = data.get("nivel", "basico")[:20]
+        nivel = bleach.clean(data.get("nivel", "basica")[:20]).lower()  # Normalizar a minúsculas
         tema_seleccionado = bleach.clean(data.get("tema", random.choice(TEMAS_DISPONIBLES))[:100])
         if tema_seleccionado not in TEMAS_DISPONIBLES:
             logging.warning(f"Tema no válido: {tema_seleccionado}. Usando tema por defecto.")
@@ -571,7 +576,7 @@ def quiz():
                 raise ValueError("Respuesta correcta no está en las opciones")
             if quiz_data["tema"] not in TEMAS_DISPONIBLES:
                 raise ValueError(f"Tema {quiz_data['tema']} no es válido")
-            if quiz_data["nivel"] not in ["basico", "intermedio", "avanzada"]:
+            if quiz_data["nivel"].lower() not in ["basica", "basico", "intermedio", "avanzada"]:
                 raise ValueError(f"Nivel {quiz_data['nivel']} no es válido")
 
         contexto = ""
@@ -584,21 +589,21 @@ def quiz():
             f"para el nivel '{nivel}'. Devuelve un objeto JSON con las claves: "
             f"'pregunta' (máximo 100 caracteres), 'opciones' (lista de 4 strings, máximo 50 caracteres cada una), "
             f"'respuesta_correcta' (string, debe coincidir con una opción), 'tema' (string), 'nivel' (string). "
-            f"Asegúrate de que la respuesta_correcta sea precisa y esté incluida en las opciones. "
-            f"No uses Markdown, emojis, ni texto adicional. "
+            f"No uses Markdown, emojis, ni texto adicional. Usa 'nivel': '{nivel}' exactamente. "
             f"Contexto: {contexto}\nTemas disponibles: {', '.join(TEMAS_DISPONIBLES)}"
         )
 
+        completion = call_groq_api(
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": "Genera una pregunta de quiz."}
+            ],
+            model="llama3-70b-8192",
+            max_tokens=300,
+            temperature=0.2
+        )
+
         try:
-            completion = call_groq_api(
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": "Genera una pregunta de quiz."}
-                ],
-                model="llama3-70b-8192",
-                max_tokens=300,
-                temperature=0.2
-            )
             quiz_data = json.loads(completion.choices[0].message.content.strip())
             validate_quiz_format(quiz_data)
         except (json.JSONDecodeError, ValueError) as e:
@@ -621,10 +626,8 @@ def quiz():
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
         if '503' in str(e):
-            return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde"}), 503
-        if isinstance(e, httpx.ConnectTimeout):
-            return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
-        return jsonify({"error": f"No se pudo generar el quiz: {str(e)}"}), 500
+            return jsonify({"error": "Groq API unavailable (503). Check https://groqstatus.com/"}), 503
+        return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
 
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
@@ -792,7 +795,7 @@ def recommend():
             "Eres YELIA, un tutor de Programación Avanzada para Ingeniería en Telemática. "
             "Recomienda UN SOLO tema de Programación Avanzada (ej. POO, UML, patrones de diseño, concurrencia) basado en el historial. "
             "Elige un tema que no esté en los últimos 3 recomendados. "
-            "Devuelve un objeto JSON con una clave 'recommendation' (ej. {'recommendation': 'Polimorfismo'}). "
+            "Devuelve un objeto JSON válido con una clave 'recommendation' (ej. {\"recommendation\": \"Polimorfismo\"}). "
             "NO incluyas explicaciones adicionales. "
             f"Contexto: {contexto}\nTemas aprendidos: {','.join(temas_aprendidos)}\nTemas disponibles: {','.join(temas_disponibles_para_recomendar)}\nTimestamp: {int(time.time())}"
         )
@@ -808,8 +811,10 @@ def recommend():
         )
 
         try:
-            recomendacion_data = json.loads(completion.choices[0].message.content)
+            recomendacion_data = json.loads(completion.choices[0].message.content.strip())
             recomendacion = recomendacion_data.get("recommendation", "")
+            if not recomendacion:
+                raise json.JSONDecodeError("Recommendation vacía", "", 0)
         except json.JSONDecodeError as je:
             logging.error(f"Error al decodificar JSON de Groq en /recommend: {str(je)}")
             recomendacion = random.choice(temas_disponibles_para_recomendar) if temas_disponibles_para_recomendar else random.choice(temas_disponibles)
