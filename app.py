@@ -73,11 +73,13 @@ def init_db():
         # Tabla progreso
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                     (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
-        # Tabla logs
+        # Tabla logs con chat_id como UUID
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                    (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                    (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id UUID, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # Añadir columna nivel_explicacion si no existe
         c.execute('''ALTER TABLE logs ADD COLUMN IF NOT EXISTS nivel_explicacion TEXT''')
+        # Añadir columna chat_id como UUID si no existe
+        c.execute('''ALTER TABLE logs ADD COLUMN IF NOT EXISTS chat_id UUID''')
         # Tabla avatars
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                     (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
@@ -85,10 +87,10 @@ def init_db():
                   ("default", "Avatar Predeterminado", "https://via.placeholder.com/50", ""))
         # Tabla quiz_logs
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                    (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                    (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id UUID, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # Tabla chats
         c.execute('''CREATE TABLE IF NOT EXISTS chats
-                    (chat_id TEXT PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                    (chat_id UUID PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # Índices
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
