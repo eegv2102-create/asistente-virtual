@@ -86,14 +86,14 @@ def init_db():
         exists = c.fetchone()[0]
         if not exists:
             logging.error("La tabla 'conversations' no se creó correctamente")
-            return False
+            raise PsycopgError("Tabla 'conversations' no creada")
         return True
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
-        return False
+        raise
     except Exception as e:
         logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
-        return False
+        raise
     finally:
         if 'conn' in locals():
             conn.close()
@@ -664,14 +664,18 @@ def get_avatars():
         return jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]}), 200
 
 if __name__ == "__main__":
-    for attempt in range(3):
-        if init_db():
-            logging.info("Base de datos inicializada con éxito")
-            break
-        else:
-            logging.warning(f"Intento {attempt + 1} fallido al inicializar la base de datos. Reintentando...")
-            time.sleep(5)
+    for attempt in range(5):
+        try:
+            if init_db():
+                logging.info("Base de datos inicializada con éxito")
+                break
+            else:
+                logging.warning(f"Intento {attempt + 1} fallido al inicializar la base de datos. Reintentando...")
+                time.sleep(10)
+        except Exception as e:
+            logging.error(f"Error en intento {attempt + 1}: {str(e)}")
+            time.sleep(10)
     else:
-        logging.error("No se pudo inicializar la base de datos tras 3 intentos. Verifica DATABASE_URL.")
+        logging.error("No se pudo inicializar la base de datos tras 5 intentos. Verifica DATABASE_URL.")
         exit(1)
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))

@@ -429,7 +429,7 @@ const sendMessage = async () => {
             await cargarConversaciones();
         } catch (error) {
             console.error('Error creando conversación:', error);
-            mostrarNotificacion(`Error al crear nueva conversación: ${error.message}`, 'error');
+            mostrarNotificacion(`Error al crear nueva conversación: ${error.message}. Intenta de nuevo.`, 'error');
             return;
         }
     }
@@ -460,7 +460,7 @@ const sendMessage = async () => {
         speakText(data.respuesta);
     } catch (error) {
         console.error('Error enviando mensaje:', error);
-        mostrarNotificacion(`Error al enviar mensaje: ${error.message}`, 'error');
+        mostrarNotificacion(`Error al enviar mensaje: ${error.message}. Intenta de nuevo.`, 'error');
     }
 };
 
