@@ -109,7 +109,7 @@ def init_db():
         if 'conn' in locals():
             conn.close()
 
-@app.route("/avatars", methods=["GET"], endpoint="get_avatars")
+@app.route("/avatars", methods=["GET"])
 def avatars():
     try:
         conn = get_db_connection()
@@ -360,9 +360,34 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
+@app.route("/")
+def index():
+    # Reiniciar historial y generar un nuevo chat_id al cargar la página
+    session['chat_id'] = str(uuid.uuid4())  # Generar un nuevo chat_id único
+    session['historial'] = []
+    saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
+    
+    # Guardar el nuevo chat en la base de datos
+    usuario = session.get('usuario', 'anonimo')
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute(
+            "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
+            "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
+            (session['chat_id'], usuario, json.dumps([]), json.dumps([]))
+        )
+        conn.commit()
+        logging.info(f"Nuevo chat inicial creado al cargar página: chat_id={session['chat_id']}, usuario={usuario}")
+    except PsycopgError as e:
+        logging.error(f"Error al guardar chat inicial en /: {str(e)}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
+    return render_template("index.html", saludo_inicial=saludo_inicial)
 
-@app.route("/new_chat", methods=["POST"], endpoint="new_chat_endpoint")
+@app.route("/new_chat", methods=["POST"])
 def new_chat():
     try:
         data = request.get_json()
@@ -391,7 +416,7 @@ def new_chat():
         logging.error(f"Error en /new_chat: {str(e)}")
         return jsonify({"error": f"Error al iniciar nuevo chat: {str(e)}"}), 500
 
-@app.route("/chat_history", methods=["GET"], endpoint="chat_history_endpoint")
+@app.route("/chat_history", methods=["GET"])
 def chat_history():
     try:
         usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
@@ -406,7 +431,7 @@ def chat_history():
         logging.error(f"Error al recuperar historial de chats: {str(e)}")
         return jsonify({"error": "Error al recuperar historial de chats"}), 500
 
-@app.route("/ask", methods=["POST"], endpoint="ask_endpoint")
+@app.route("/ask", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def ask():
     try:
@@ -488,7 +513,7 @@ def ask():
         logging.error(f"Error en /ask: {str(e)}")
         return jsonify({"error": f"Error al obtener respuesta: {str(e)}"}), 500
 
-@app.route("/quiz", methods=["POST"], endpoint="quiz_endpoint")
+@app.route("/quiz", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def quiz():
     try:
@@ -595,7 +620,7 @@ def quiz():
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
 
-@app.route('/responder_quiz', methods=['POST'], endpoint="responder_quiz_endpoint")
+@app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
     try:
         data = request.get_json()
@@ -672,7 +697,7 @@ def responder_quiz():
         logging.error(f"Error en /responder_quiz: {str(e)}")
         return jsonify({'error': f"Error al procesar la respuesta: {str(e)}"}), 500
 
-@app.route("/tts", methods=["POST"], endpoint="tts_endpoint")
+@app.route("/tts", methods=["POST"])
 def tts():
     try:
         data = request.get_json()
@@ -697,7 +722,7 @@ def tts():
         logging.error(f"Error en /tts: {str(e)}")
         return jsonify({"error": f"Error al procesar la solicitud: {str(e)}"}), 500
 
-@app.route("/recommend", methods=["POST"], endpoint="recommend_endpoint")
+@app.route("/recommend", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def recommend():
     try:
@@ -783,7 +808,7 @@ def recommend():
         logging.warning(f"Usando recomendación de fallback por error: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
 
-@app.route("/temas", methods=["GET"], endpoint="temas_endpoint")
+@app.route("/temas", methods=["GET"])
 def get_temas():
     try:
         temas_disponibles = []
