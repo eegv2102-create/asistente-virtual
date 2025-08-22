@@ -947,169 +947,81 @@ const init = () => {
         .then(data => {
             if (data.temas && Array.isArray(data.temas)) {
                 TEMAS_DISPONIBLES = data.temas;
-                console.log('Temas cargados:', TEMAS_DISPONIBLES);
+                console.log('Temas cargados: %s', TEMAS_DISPONIBLES);
             } else {
                 console.warn('No se pudieron cargar temas, usando lista por defecto');
                 TEMAS_DISPONIBLES = [
-                    'Introducción a la POO',
-                    'Clases y Objetos',
-                    'Encapsulamiento',
-                    'Herencia',
-                    'Polimorfismo',
-                    'Clases Abstractas e Interfaces',
-                    'UML',
-                    'Diagramas UML',
-                    'Patrones de Diseño en POO',
-                    'Patrón MVC',
-                    'Acceso a Archivos',
-                    'Bases de Datos y ORM',
-                    'Integración POO + MVC + BD',
-                    'Pruebas y Buenas Prácticas',
-                    'Concurrencia'
+                    'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
+                    'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
+                    'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
+                    'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
                 ];
             }
         })
         .catch(error => {
             console.error('Error al cargar temas:', error);
             TEMAS_DISPONIBLES = [
-                'Introducción a la POO',
-                'Clases y Objetos',
-                'Encapsulamiento',
-                'Herencia',
-                'Polimorfismo',
-                'Clases Abstractas e Interfaces',
-                'UML',
-                'Diagramas UML',
-                'Patrones de Diseño en POO',
-                'Patrón MVC',
-                'Acceso a Archivos',
-                'Bases de Datos y ORM',
-                'Integración POO + MVC + BD',
-                'Pruebas y Buenas Prácticas',
-                'Concurrencia'
-            ];
+                    'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
+                    'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
+                    'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
+                    'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
+                ];
         });
 
-    // Resto de la función init (sin cambios)
+    // Configurar eventos para botones y elementos
     const menuToggle = getElement('.menu-toggle');
-    const menuToggleRight = getElement('.menu-toggle-right');
-    const modoBtn = getElement('#modo-btn');
-    const voiceBtn = getElement('#voice-btn');
-    const quizBtn = getElement('#quiz-btn');
-    const recommendBtn = getElement('#recommend-btn');
-    const sendBtn = getElement('#send-btn');
-    const newChatBtn = getElement('#new-chat-btn');
-    const clearBtn = getElement('#btn-clear');
-    const nivelBtn = getElement('#nivel-btn');
-    const voiceToggleBtn = getElement('#voice-toggle-btn');
+    if (menuToggle) menuToggle.addEventListener('click', toggleMenu);
 
-    if (menuToggle) {
-        menuToggle.addEventListener('click', toggleMenu);
-        menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
-        menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
-    }
-    if (menuToggleRight) {
-        menuToggleRight.addEventListener('click', toggleRightMenu);
-        menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
-        menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
-    }
-    if (modoBtn) {
-        const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
-        modoBtn.setAttribute('data-tooltip', modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
-        modoBtn.setAttribute('aria-label', modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
-        modoBtn.innerHTML = `
-            <i class="fas ${modoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
-            <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
-        `;
-        modoBtn.addEventListener('click', () => {
-            document.body.classList.toggle('modo-oscuro');
-            const isModoOscuro = document.body.classList.contains('modo-oscuro');
-            localStorage.setItem('modoOscuro', isModoOscuro);
-            modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
-            modoBtn.setAttribute('aria-label', isModoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
-            modoBtn.innerHTML = `
-                <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
-                <span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
-            `;
-            mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
-        });
-    }
-    if (voiceBtn) {
-        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
-        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
-        voiceBtn.innerHTML = `
-            <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
-            <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
-        `;
-        voiceBtn.addEventListener('click', () => {
-            vozActiva = !vozActiva;
-            localStorage.setItem('vozActiva', vozActiva);
-            voiceBtn.innerHTML = `
-                <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
-                <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
-            `;
-            voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
-            voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
-            mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
-            if (!vozActiva) stopSpeech();
-            if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
-        });
-    }
-    if (quizBtn) {
-        quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
-        quizBtn.setAttribute('aria-label', 'Generar un quiz');
-        quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
-    }
-    if (recommendBtn) {
-        recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
-        recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
-        recommendBtn.addEventListener('click', () => obtenerRecomendacion().then(data => {
-            const mensaje = `Recomendación: ${data.recommendation}`;
-            const botDiv = document.createElement('div');
-            botDiv.classList.add('bot');
-            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
-                `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-            getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
-            scrollToBottom();
-            speakText(mensaje);
-            guardarMensaje('Recomendación', mensaje);
-            addCopyButtonListeners();
-        }));
-    }
-    if (sendBtn) {
-        sendBtn.setAttribute('data-tooltip', 'Enviar');
-        sendBtn.setAttribute('aria-label', 'Enviar mensaje');
-        sendBtn.addEventListener('click', sendMessage);
-    }
-    if (newChatBtn) {
-        newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
-        newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
-        newChatBtn.addEventListener('click', nuevaConversacion);
-    }
-    if (clearBtn) {
-        clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
-        clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
-        clearBtn.addEventListener('click', nuevaConversacion);
-    }
-    if (nivelBtn) {
-        nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
-        nivelBtn.setAttribute('aria-label', 'Cambiar nivel de explicación');
-        nivelBtn.addEventListener('click', toggleDropdown);
-    }
-    if (voiceToggleBtn) {
-        voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
-        voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
-        voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
-    }
-    const inputElement = getElement('#input');
-    if (inputElement) {
-        inputElement.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        });
-    }
+    const menuToggleRight = getElement('.menu-toggle-right');
+    if (menuToggleRight) menuToggle.addEventListener('click', toggleRightMenu);
+
+    const modoBtn = getElement('#modo-btn');
+    if (modoBtn) modoBtn.addEventListener('click', () => {
+        document.body.classList.toggle('modo-oscuro');
+        const isModoOscuro = document.body.classList.contains('modo-oscuro');
+        localStorage.setItem('modoOscuro', isModoOscuro);
+        modoBtn.textContent = isModoOscuro ? 'Modo Claro' : 'Modo Oscuro';
+        mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
+    });
+
+    const voiceBtn = getElement('#voice-btn');
+    if (voiceBtn) voiceBtn.addEventListener('click', () => {
+        vozActiva = !vozActiva;
+        localStorage.setItem('vozActiva', vozActiva);
+        voiceBtn.textContent = vozActiva ? 'Desactivar Audio' : 'Activar Audio';
+        mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
+        if (!vozActiva) stopSpeech();
+    });
+
+    const quizBtn = getElement('#quiz-btn');
+    if (quizBtn) quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
+
+    const recommendBtn = getElement('#recommend-btn');
+    if (recommendBtn) recommendBtn.addEventListener('click', obtenerRecomendacion);
+
+    const sendBtn = getElement('#send-btn');
+    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+
+    const newChatBtn = getElement('#new-chat-btn');
+    if (newChatBtn) newChatBtn.addEventListener('click', nuevaConversacion);
+
+    const clearBtn = getElement('#btn-clear');
+    if (clearBtn) clearBtn.addEventListener('click', nuevaConversacion);
+
+    const nivelBtn = getElement('#nivel-btn');
+    if (nivelBtn) nivelBtn.addEventListener('click', toggleDropdown);
+
+    const voiceToggleBtn = getElement('#voice-toggle-btn');
+    if (voiceToggleBtn) voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
+
+    const input = getElement('#input');
+    if (input) input.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+
     // Mostrar mensaje de bienvenida y mensaje de interacción para audio
     setTimeout(() => {
         mostrarMensajeBienvenida();

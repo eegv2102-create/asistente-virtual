@@ -160,7 +160,31 @@ def call_groq_api(messages, model, max_tokens, temperature):
             raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
 
-def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
+def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", usuario="anonimo"):
+    # Normalizar la pregunta para comparaciones
+    pregunta_norm = pregunta.lower().strip()
+
+    # Respuestas para cortesías
+    respuestas_simples = {
+        r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi)(.*por favor.*)?$": 
+            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?",
+        r"^(gracias|muchas gracias|gracias por.*|thank you|gracias por la ayuda)$": 
+            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada?",
+        r"^(adiós|bye|hasta luego|nos vemos)$": 
+            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses."
+    }
+
+    # Verificar si es solo una cortesía
+    for patron, respuesta in respuestas_simples.items():
+        if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre)", pregunta_norm):
+            return respuesta
+
+    # Si contiene una consulta técnica después de una cortesía, procesar solo la parte técnica
+    consulta_tecnica = re.sub(r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|por favor)\s*", "", pregunta_norm, flags=re.IGNORECASE)
+    if consulta_tecnica != pregunta_norm:
+        pregunta = consulta_tecnica  # Actualizar la pregunta para procesar solo la parte técnica
+
+    # Verificar relevancia de la pregunta
     prompt_relevancia = (
         f"Determina si la pregunta '{pregunta}' es sobre Programación Avanzada en Ingeniería en Telemática. "
         "Responde solo 'Sí' o 'No'."
@@ -177,19 +201,12 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
         )
         es_relevante = completion.choices[0].message.content.strip().lower() == 'sí'
         if not es_relevante:
-            return "Lo siento, solo puedo responder preguntas sobre Programación Avanzada en Ingeniería en Telemática. ¿Qué deseas saber de la materia?"
+            return f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo puedo responder preguntas sobre Programación Avanzada en Ingeniería en Telemática. ¿Qué deseas saber de la materia?"
     except Exception as e:
         logging.error(f"Error al verificar relevancia: {str(e)}")
-        return "Lo siento, no pude procesar tu pregunta. Intenta con una pregunta sobre Programación Avanzada."
+        return f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. Intenta con una pregunta sobre Programación Avanzada."
 
-    respuestas_simples = {
-        "hola": "¡Hola! Estoy listo para ayudarte con Programación Avanzada. ¿Qué tema quieres explorar?",
-        "gracias": "¡De nada! Sigue aprendiendo, estoy aquí para apoyarte.",
-        "adiós": "¡Hasta pronto! Espero verte de nuevo para seguir aprendiendo."
-    }
-    if pregunta.lower().strip() in respuestas_simples:
-        return respuestas_simples[pregunta.lower().strip()]
-
+    # Procesar pregunta técnica
     contexto = ""
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
@@ -226,10 +243,13 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica"):
                 r'\n\s*\n\s*'
             ]:
                 respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
+        # Agregar prefijo amigable si la pregunta original contenía una cortesía
+        if consulta_tecnica != pregunta_norm:
+            respuesta = f"¡Gracias por la cortesía, {usuario if usuario != 'anonimo' else 'amigo'}! Aquí tienes tu respuesta:\n\n{respuesta.strip()}"
         return respuesta.strip()
     except Exception as e:
         logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
-        return "Lo siento, no pude procesar tu pregunta. Intenta con otra sobre Programación Avanzada."
+        return f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. Intenta con otra sobre Programación Avanzada."
 
 def validate_quiz_format(quiz_data):
     required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
@@ -257,7 +277,7 @@ def ask():
         pregunta = bleach.clean(data.get("pregunta", "")[:500])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])  # Se recibe pero no se usa
+        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
         historial = data.get("historial", [])[:5]
 
         if not pregunta:
@@ -268,7 +288,7 @@ def ask():
             logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
             nivel_explicacion = "basica"
 
-        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
+        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion, usuario)
 
         try:
             conn = get_db_connection()
@@ -355,7 +375,7 @@ def quiz():
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.2  # Reducida para mayor precisión
+            temperature=0.2
         )
 
         try:
@@ -382,7 +402,6 @@ def quiz():
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
-
 
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
@@ -460,7 +479,6 @@ def responder_quiz():
     except Exception as e:
         logging.error(f"Error en /responder_quiz: {str(e)}")
         return jsonify({'error': f"Error al procesar la respuesta: {str(e)}"}), 500
-
 
 @app.route("/tts", methods=["POST"])
 def tts():
@@ -572,7 +590,7 @@ def recommend():
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         logging.warning(f"Usando recomendación de fallback por error: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
-    
+
 @app.route("/temas", methods=["GET"])
 def get_temas():
     try:
