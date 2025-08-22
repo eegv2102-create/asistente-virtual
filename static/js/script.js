@@ -72,7 +72,10 @@ const scrollToBottom = () => {
 
 const updateAvatarDisplay = () => {
     const avatarImg = getElement('#avatar-img');
-    if (!avatarImg) return;
+    if (!avatarImg) {
+        console.warn('Elemento #avatar-img no encontrado, omitiendo actualización');
+        return;
+    }
     const avatars = JSON.parse(localStorage.getItem('avatars') || '[]');
     const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: '/static/img/default-avatar.png' };
     avatarImg.src = selected.url;
@@ -562,17 +565,24 @@ const toggleDropdown = (event) => {
     if (dropdownMenu) {
         dropdownMenu.classList.toggle('active');
         console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado'); // Depuración
-        // Verificar visibilidad
+        // Verificar visibilidad y posición
         if (dropdownMenu.classList.contains('active')) {
             const computedStyle = window.getComputedStyle(dropdownMenu);
+            const rect = dropdownMenu.getBoundingClientRect();
             console.log('Estilos computados de .dropdown-menu:', {
                 display: computedStyle.display,
                 visibility: computedStyle.visibility,
                 position: computedStyle.position,
                 top: computedStyle.top,
                 left: computedStyle.left,
-                zIndex: computedStyle.zIndex
+                zIndex: computedStyle.zIndex,
+                width: computedStyle.width,
+                height: computedStyle.height,
+                boundingClientRect: rect // Coordenadas en la ventana
             });
+            // Verificar botones del menú
+            const buttons = dropdownMenu.querySelectorAll('button');
+            console.log('Botones en .dropdown-menu:', buttons.length, Array.from(buttons).map(b => b.textContent));
         }
         if (event) event.stopPropagation(); // Evita que el clic global cierre el menú
     } else {
@@ -710,7 +720,7 @@ const toggleRightMenu = () => {
 
 // --- Estado inicial (recuperar nivel guardado) ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Forzar nivel inicial a 'basica' si no está definido
+    // Forzar nivel inicial a 'basica' si no está definido o es inválido
     let nivelGuardado = localStorage.getItem('nivelExplicacion');
     if (!['basica', 'ejemplos', 'avanzada'].includes(nivelGuardado)) {
         nivelGuardado = 'basica';
@@ -885,7 +895,7 @@ const init = () => {
             ];
         });
 
-    // Resto de la función init
+    // Resto de la función init (sin cambios)
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
@@ -967,8 +977,7 @@ const init = () => {
             getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
             scrollToBottom();
             speakText(mensaje);
-            // Nota: guardarMensaje no está definido, comentado para evitar errores
-            // guardarMensaje('Recomendación', mensaje);
+            guardarMensaje('Recomendación', mensaje);
             addCopyButtonListeners();
         }));
     }
@@ -1012,7 +1021,7 @@ const init = () => {
         if (vozActiva && !userHasInteracted) {
             toggleVoiceHint(true);
         }
-    }, 100);
+    }, 100); // Retraso para asegurar que el DOM esté cargado
     document.addEventListener('click', () => {
         if (!userHasInteracted) {
             userHasInteracted = true;
