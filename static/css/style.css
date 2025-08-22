@@ -189,7 +189,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
+  overflow-y: hidden; /* Evita scrollbar en la sección izquierda completa */
 }
 
 .right-section {
@@ -229,7 +229,7 @@ body {
 
 .chat-history {
   flex: 1;
-  overflow-y: auto;  /* Mantiene scrollbar en la sección */
+  overflow: hidden; /* Evita scrollbar en el contenedor de historial, delega a #chat-list */
   overflow-x: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -243,12 +243,8 @@ body {
   padding: 8px;
   margin: 0;
   width: 100%;
-  overflow-y: auto;  /* Scrollbar solo aquí */
-  max-height: 100%;  /* Limita altura para scrollbar */
-}
-
-.left-section {
-  overflow-y: hidden;  /* Quita scrollbar de toda la sección izquierda */
+  overflow-y: auto; /* Scrollbar solo en la lista de chats */
+  max-height: 100%; /* Limita la altura al contenedor padre (.chat-history) */
 }
 
 #chat-list::-webkit-scrollbar,
@@ -424,25 +420,17 @@ body {
   font-family: "Font Awesome 5 Free";
   font-weight: 900;
   margin-right: 8px;
-  font-size: 0.9rem;
-}
-
-.bot:before {
-  content: "\f544";
-  font-family: "Font Awesome 5 Free";
-  font-weight: 900;
-  margin-right: 8px;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .copy-btn {
   background: none;
   border: none;
-  cursor: pointer;
-  margin-left: 8px;
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  pointer-events: auto;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: 8px;
+  float: right;
 }
 
 .copy-btn:hover, .copy-btn:focus {
@@ -716,6 +704,35 @@ body.modo-oscuro .bot code {
   transform: scale(1.1);
 }
 
+.loading {
+  opacity: 0.7;
+  animation: pulse 1.5s infinite ease-in-out;
+  background-color: var(--message-bot-bg);
+  color: var(--message-bot-text);
+  border-radius: 16px 16px 16px 0;
+  padding: 12px 16px;
+  max-width: 70%;
+  align-self: flex-start;
+  margin-right: 10%;
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+@keyframes pulse {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+.bot ul {
+  padding-left: 20px;
+  margin: 10px 0;
+}
+
+.bot li {
+  margin-bottom: 5px;
+}
+
+/* Media queries para móvil (max-width: 768px) - Estilos específicos para dispositivos móviles */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -917,6 +934,7 @@ body.modo-oscuro .bot code {
   }
 }
 
+/* Media queries para PC (min-width: 769px) - Estilos específicos para escritorios */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
@@ -925,32 +943,4 @@ body.modo-oscuro .bot code {
   .dropdown-container {
     display: block;
   }
-}
-
-.loading {
-  opacity: 0.7;
-  animation: pulse 1.5s infinite ease-in-out;
-  background-color: var(--message-bot-bg);
-  color: var(--message-bot-text);
-  border-radius: 16px 16px 16px 0;
-  padding: 12px 16px;
-  max-width: 70%;
-  align-self: flex-start;
-  margin-right: 10%;
-  box-shadow: 0 2px 4px var(--shadow);
-}
-
-@keyframes pulse {
-  0% { opacity: 0.7; }
-  50% { opacity: 1; }
-  100% { opacity: 0.7; }
-}
-
-.bot ul {
-  padding-left: 20px;
-  margin: 10px 0;
-}
-
-.bot li {
-  margin-bottom: 5px;
 }
