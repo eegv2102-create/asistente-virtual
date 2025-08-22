@@ -596,17 +596,23 @@ document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
 
-    // 👉 Si clic en una opción del dropdown → dejar que setNivelExplicacion maneje
-    if (dropdownMenu && dropdownMenu.contains(event.target)) return;
+    // ✅ Si clic en el botón de nivel → alternar menú
+    if (nivelBtn && nivelBtn.contains(event.target)) {
+        toggleDropdown();
+        return;
+    }
 
-    // Cerrar si se hace clic fuera
-    if (dropdownMenu && dropdownMenu.classList.contains('active') &&
-        !dropdownMenu.contains(event.target) &&
-        !nivelBtn.contains(event.target)) {
+    // ✅ Si clic en una opción del menú → dejar que setNivelExplicacion maneje (no cerrar antes)
+    if (dropdownMenu && dropdownMenu.contains(event.target)) {
+        return;
+    }
+
+    // ✅ Si menú abierto y clic fuera → cerrarlo
+    if (dropdownMenu && dropdownMenu.classList.contains('active')) {
         dropdownMenu.classList.remove('active');
     }
 
-    // --- Mobile menus ---
+    // --- Menús móviles ---
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
@@ -616,6 +622,7 @@ document.addEventListener('click', (event) => {
             !getElement('.menu-toggle').contains(event.target)) {
             toggleMenu();
         }
+
         if (rightSection && rightSection.classList.contains('active') &&
             !rightSection.contains(event.target) &&
             !getElement('.menu-toggle-right').contains(event.target)) {
@@ -623,6 +630,7 @@ document.addEventListener('click', (event) => {
         }
     }
 });
+
 
 // --- TOGGLE MENÚS ---
 const toggleMenu = () => {
