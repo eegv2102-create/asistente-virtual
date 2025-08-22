@@ -87,15 +87,20 @@ def init_db():
         if not exists:
             logging.error("La tabla 'conversations' no se creó correctamente")
             raise PsycopgError("Tabla 'conversations' no creada")
+        conn.close()
         return True
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
+        if conn:
+            conn.rollback()
         raise
     except Exception as e:
         logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
+        if conn:
+            conn.rollback()
         raise
     finally:
-        if 'conn' in locals():
+        if 'conn' in locals() and conn:
             conn.close()
 
 def cargar_temas():
