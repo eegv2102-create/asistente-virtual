@@ -649,8 +649,29 @@ def index():
         logging.error(f"Error al renderizar index.html: {str(e)}")
         return jsonify({'error': 'Error al cargar la página principal'}), 500
     
+@app.route('/avatars', methods=['GET'])
+def get_avatars():
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
+        avatars = [{'avatar_id': row[0], 'nombre': row[1], 'url': row[2], 'animation_url': row[3]} for row in c.fetchall()]
+        conn.close()
+        logging.info("Avatares enviados: %s", [avatar['nombre'] for avatar in avatars])
+        return jsonify({'avatars': avatars})
+    except Exception as e:
+        logging.error(f"Error al obtener avatares: {str(e)}")
+        return jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]}), 200
+
 if __name__ == "__main__":
-    if not init_db():
-        logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
+    for attempt in range(3):
+        if init_db():
+            logging.info("Base de datos inicializada con éxito")
+            break
+        else:
+            logging.warning(f"Intento {attempt + 1} fallido al inicializar la base de datos. Reintentando...")
+            time.sleep(5)
+    else:
+        logging.error("No se pudo inicializar la base de datos tras 3 intentos. Verifica DATABASE_URL.")
         exit(1)
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))

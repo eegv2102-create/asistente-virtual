@@ -261,7 +261,8 @@ const cargarAvatares = async () => {
         const response = await fetch('/avatars', { cache: 'no-store' });
         let avatares = [];
         if (response.ok) {
-            avatares = await response.json();
+            const data = await response.json();
+            avatares = data.avatars || [];
         } else {
             avatares = [{ avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png', animation_url: '' }];
         }
