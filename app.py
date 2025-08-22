@@ -191,7 +191,7 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
     if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
         tema_sugerido = random.choice(temas_validos)
         return (
-            f"¡Qué buena pregunta, {usuario if usuario != 'anonimo' else 'amigo'}! Te recomiendo explorar **{tema_sugerido}**. "
+            f"¡Qué buena pregunta, {usuario if usuario != 'anonimo' else 'amigo'}! Te recomiendo explorar {tema_sugerido}. "
             f"Es un tema clave en Programación Avanzada que te ayudará a entender mejor cómo estructurar y optimizar tu código. "
             f"¿Quieres que te explique más sobre {tema_sugerido}? ¿Tienes alguna pregunta adicional sobre este tema?"
         )
@@ -238,16 +238,17 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
         f"Sigue estrictamente estas reglas:\n"
         f"1. Responde solo sobre los temas: {', '.join(temas_validos)}.\n"
         f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
-        f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras). Prohibido incluir ejemplos, listas, ventajas, comparaciones o bloques de código.\n"
-        f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones.\n"
-        f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras).\n"
+        f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
+        f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
+        f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
         f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
-        f"4. Usa Markdown para estructurar la respuesta (títulos con ##, listas con -, bloques de código con ```java).\n"
+        f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, listas con -, bloques de código con ```java).\n"
         f"5. Contexto: {contexto}\n"
-        f"6. Al final, escribe únicamente: '¿Tienes alguna pregunta adicional sobre este tema?' en una línea nueva.\n"
+        f"6. Al final, escribe únicamente: '¿Tienes alguna pregunta adicional sobre este tema?' en una línea nueva, sin Markdown.\n"
         f"7. Si detectas un saludo inicial, ya fue manejado; enfócate en la parte técnica.\n"
         f"8. Asegúrate de que el ejemplo en Java sea funcional, relevante y no exceda 10 líneas.\n"
-        f"9. En 'avanzada', las ventajas deben ser específicas y concisas, en formato de lista.\n"
+        f"9. En 'avanzada', las ventajas deben ser específicas, concisas, en formato de lista con '-'. La comparación, si se incluye, debe ser breve y relevante.\n"
+        f"10. En 'basica', la respuesta debe ser texto plano puro, sin ningún formato Markdown, negritas, cursivas, listas ni encabezados.\n"
         f"Timestamp: {int(time.time())}"
     )
 
@@ -265,30 +266,37 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
 
         # Limpiar respuesta según nivel de explicación
         if nivel_explicacion == "basica":
+            # Eliminar cualquier formato Markdown, negritas, listas, bloques de código, etc.
             for pattern in [
+                r'\*\*.*?\*\*',  # Negritas
+                r'\*.*?\*',  # Cursivas
                 r'```[\s\S]*?```',  # Bloques de código
                 r'- .+?(?=\n|$)',  # Listas
-                r'##\s*(Ejemplo|Ventajas|Comparación|Prerequisitos)[\s\S]*?(?=(?:^##|\Z))',  # Secciones de ejemplo, ventajas, etc.
+                r'##\s*.*?[\s\S]*?(?=(?:^##|\Z))',  # Secciones con títulos
+                r'#.*?(?=\n|$)',  # Encabezados
                 r'\n\s*\n\s*',  # Espacios dobles
-                r'(\*\*Ejemplo\*\*|\*\*Ventajas\*\*|\*\*Comparación\*\*)[\s\S]*?(?=(?:^##|\Z))'  # Títulos en negrita
+                r'\[.*?\]\(.*?\)',  # Enlaces Markdown
+                r'^\s*Clase\s*',  # Título "Clase" al inicio
             ]:
                 respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
-            # Limitar a 70 palabras
+            # Limitar a 70 palabras y asegurar texto plano
             palabras = respuesta.split()
             if len(palabras) > 70:
                 respuesta = ' '.join(palabras[:70]).strip() + '...'
+            # Eliminar cualquier residuo de formato
+            respuesta = re.sub(r'[\*\-#`]', '', respuesta).strip()
 
         # Validar que 'ejemplos' tenga un ejemplo en Java
         if nivel_explicacion == "ejemplos" and not re.search(r'```java[\s\S]*?```', respuesta):
             respuesta += (
-                f"\n\n## Ejemplo en Java\n```java\n// Ejemplo genérico para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo básico\"); }}\n}}\n```"
+                f"\n\n## Ejemplo en Java\n```java\n// Ejemplo para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo básico\"); }}\n}}\n```"
             )
 
         # Validar que 'avanzada' tenga ventajas y ejemplo en Java
         if nivel_explicacion == "avanzada":
             if not re.search(r'```java[\s\S]*?```', respuesta):
                 respuesta += (
-                    f"\n\n## Ejemplo en Java\n```java\n// Ejemplo genérico para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo avanzado\"); }}\n}}\n```"
+                    f"\n\n## Ejemplo en Java\n```java\n// Ejemplo para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo avanzado\"); }}\n}}\n```"
                 )
             if not re.search(r'##\s*Ventajas[\s\S]*?-', respuesta):
                 respuesta += (
