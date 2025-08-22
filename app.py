@@ -354,6 +354,30 @@ def manage_conversation(conv_id):
             logging.error(f"Error renombrando conversación: {str(e)}")
             return jsonify({'error': f"No se pudo renombrar la conversación: {str(e)}"}), 500
 
+@app.route('/conversations', methods=['POST'])
+def create_conversation():
+    usuario = session.get('usuario', 'anonimo')
+    try:
+        data = request.get_json(silent=True) or {}
+        nombre = bleach.clean(data.get("nombre", "Nuevo Chat")[:100])
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id, created_at",
+                  (usuario, nombre))
+        row = c.fetchone()
+        conv_id = row[0]
+        conn.commit()
+        conn.close()
+
+        # Guardar en sesión como conversación activa
+        session['current_conv_id'] = conv_id
+
+        return jsonify({"id": conv_id, "nombre": nombre, "created_at": row[1].isoformat()}), 201
+    except Exception as e:
+        logging.error(f"Error creando conversación: {str(e)}")
+        return jsonify({"error": "No se pudo crear la conversación"}), 500
+    
 @app.route('/buscar_respuesta', methods=['POST'])
 def buscar_respuesta():
     data = request.get_json()
