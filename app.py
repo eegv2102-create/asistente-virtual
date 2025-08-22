@@ -190,7 +190,7 @@ def handle_conversations():
             return jsonify({'id': conv_id, 'nombre': nombre})
         except Exception as e:
             logging.error(f"Error creando conversación: {str(e)}")
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'error': f"No se pudo crear la conversación: {str(e)}"}), 500
     else:
         try:
             conn = get_db_connection()
@@ -203,30 +203,43 @@ def handle_conversations():
             return jsonify({'conversations': convs})
         except Exception as e:
             logging.error(f"Error listando conversaciones: {str(e)}")
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'error': f"No se pudo listar conversaciones: {str(e)}"}), 500
 
-@app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
-def handle_messages(conv_id):
+@app.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
+def manage_conversation(conv_id):
     usuario = session.get('usuario', 'anonimo')
-    if request.method == 'POST':
-        data = request.get_json()
-        role = data.get('role')
-        content = bleach.clean(data.get('content', '')[:2000])
-        if not role or not content:
-            return jsonify({'error': 'Faltan role o content'}), 400
-        guardar_mensaje(usuario, conv_id, role, content)
-        return jsonify({'success': True})
-    else:
+    if request.method == 'DELETE':
         try:
             conn = get_db_connection()
             c = conn.cursor()
-            c.execute("SELECT role, content FROM messages WHERE conv_id = %s ORDER BY timestamp ASC", (conv_id,))
-            messages = [{'role': row[0], 'content': row[1]} for row in c.fetchall()]
+            c.execute("DELETE FROM conversations WHERE id = %s AND usuario = %s", (conv_id, usuario))
+            if c.rowcount == 0:
+                conn.close()
+                return jsonify({'error': 'Conversación no encontrada o no autorizada'}), 404
+            conn.commit()
             conn.close()
-            return jsonify({'messages': messages})
+            if session.get('current_conv_id') == conv_id:
+                session.pop('current_conv_id', None)
+            return jsonify({'success': True})
         except Exception as e:
-            logging.error(f"Error listando mensajes: {str(e)}")
-            return jsonify({'error': str(e)}), 500
+            logging.error(f"Error eliminando conversación: {str(e)}")
+            return jsonify({'error': f"No se pudo eliminar la conversación: {str(e)}"}), 500
+    elif request.method == 'PUT':
+        try:
+            data = request.get_json()
+            nuevo_nombre = bleach.clean(data.get('nombre', 'Nuevo Chat')[:100])
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("UPDATE conversations SET nombre = %s WHERE id = %s AND usuario = %s", (nuevo_nombre, conv_id, usuario))
+            if c.rowcount == 0:
+                conn.close()
+                return jsonify({'error': 'Conversación no encontrada o no autorizada'}), 404
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'nombre': nuevo_nombre})
+        except Exception as e:
+            logging.error(f"Error renombrando conversación: {str(e)}")
+            return jsonify({'error': f"No se pudo renombrar la conversación: {str(e)}"}), 500
 
 @app.route('/buscar_respuesta', methods=['POST'])
 def buscar_respuesta():
