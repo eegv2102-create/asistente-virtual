@@ -360,7 +360,6 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
-# Modificado para incluir saludo inicial y reiniciar historial
 @app.route("/")
 def index():
     # Reiniciar historial y generar un nuevo chat_id al cargar la página
@@ -387,6 +386,50 @@ def index():
             conn.close()
 
     return render_template("index.html", saludo_inicial=saludo_inicial)
+
+@app.route("/new_chat", methods=["POST"])
+def new_chat():
+    try:
+        data = request.get_json()
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        # Guardar el chat actual en la base de datos si existe
+        if session.get('chat_id') and session.get('historial'):
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute(
+                    "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
+                    "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
+                    (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
+                )
+                conn.commit()
+                conn.close()
+                logging.info(f"Chat guardado: chat_id={session['chat_id']}, usuario={usuario}")
+            except PsycopgError as e:
+                logging.error(f"Error al guardar chat: {str(e)}")
+        # Reiniciar sesión para nuevo chat
+        session['chat_id'] = str(uuid.uuid4())
+        session['historial'] = []
+        saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
+        return jsonify({"saludo_inicial": saludo_inicial, "historial": []})
+    except Exception as e:
+        logging.error(f"Error en /new_chat: {str(e)}")
+        return jsonify({"error": f"Error al iniciar nuevo chat: {str(e)}"}), 500
+
+@app.route("/chat_history", methods=["GET"])
+def chat_history():
+    try:
+        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT chat_id, timestamp, historial FROM chats WHERE usuario = %s ORDER BY timestamp DESC", (usuario,))
+        chats = [{"chat_id": row[0], "timestamp": row[1].strftime("%Y-%m-%d %H:%M:%S"), "historial": row[2]} for row in c.fetchall()]
+        conn.close()
+        logging.info(f"Historial de chats recuperado para usuario {usuario}: {len(chats)} chats")
+        return jsonify({"chats": chats})
+    except PsycopgError as e:
+        logging.error(f"Error al recuperar historial de chats: {str(e)}")
+        return jsonify({"error": "Error al recuperar historial de chats"}), 500
 
 @app.route("/ask", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
@@ -461,83 +504,6 @@ def ask():
             if 'conn' in locals():
                 cursor.close()
                 conn.close()
-
-        session.modified = True
-        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}, chat_id={session['chat_id']}")
-
-        return jsonify({"respuesta": respuesta, "video_url": None, "historial": session['historial']})
-    except Exception as e:
-        logging.error(f"Error en /ask: {str(e)}")
-        return jsonify({"error": f"Error al obtener respuesta: {str(e)}"}), 500
-
-# Nuevo endpoint para obtener historial de chats
-@app.route("/chat_history", methods=["GET"])
-def chat_history():
-    try:
-        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT chat_id, timestamp, historial FROM chats WHERE usuario = %s ORDER BY timestamp DESC", (usuario,))
-        chats = [{"chat_id": row[0], "timestamp": row[1].strftime("%Y-%m-%d %H:%M:%S"), "historial": row[2]} for row in c.fetchall()]
-        conn.close()
-        logging.info(f"Historial de chats recuperado para usuario {usuario}: {len(chats)} chats")
-        return jsonify({"chats": chats})
-    except PsycopgError as e:
-        logging.error(f"Error al recuperar historial de chats: {str(e)}")
-        return jsonify({"error": "Error al recuperar historial de chats"}), 500
-
-@app.route("/ask", methods=["POST"])
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
-def ask():
-    try:
-        data = request.get_json()
-        if not data:
-            logging.error("Solicitud sin datos en /ask")
-            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
-
-        pregunta = bleach.clean(data.get("pregunta", "")[:500])
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        historial = session.get("historial", [])[:5]
-
-        if not pregunta:
-            logging.error("Pregunta vacía en /ask")
-            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
-
-        if nivel_explicacion not in ["basica", "ejemplos", "avanzada"]:
-            logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
-            nivel_explicacion = "basica"
-
-        # Generar chat_id si es el primer mensaje
-        if not session.get('chat_id'):
-            session['chat_id'] = str(uuid.uuid4())
-            session['historial'] = []
-            logging.info(f"Nuevo chat iniciado: chat_id={session['chat_id']}, usuario={usuario}")
-
-        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion, usuario)
-
-        # Guardar en logs con chat_id
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion, chat_id) VALUES (%s, %s, %s, %s, %s)",
-                (usuario, pregunta, respuesta, nivel_explicacion, session['chat_id'])
-            )
-            # Guardar o actualizar historial en la tabla chats
-            session['historial'] = session['historial'] + [{"pregunta": pregunta, "respuesta": respuesta}]
-            cursor.execute(
-                "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
-                "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
-                (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
-            logging.info(f"Historial guardado en chats: chat_id={session['chat_id']}, usuario={usuario}")
-        except PsycopgError as e:
-            logging.error(f"Error al guardar en logs o chats: {str(e)}")
 
         session.modified = True
         logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}, chat_id={session['chat_id']}")
