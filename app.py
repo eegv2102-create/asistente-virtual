@@ -17,6 +17,7 @@ from gtts import gTTS
 import io
 import retrying
 import re
+import uuid
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -69,21 +70,30 @@ def init_db():
     try:
         conn = get_db_connection()
         c = conn.cursor()
+        # Tabla progreso
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
+        # Tabla logs para interacciones individuales
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Tabla avatars
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
+        # Tabla quiz_logs
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Nueva tabla chats para almacenar historial de chats
+        c.execute('''CREATE TABLE IF NOT EXISTS chats
+                     (chat_id TEXT PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Índices para mejorar rendimiento
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_chats ON chats(usuario, timestamp)')
         conn.commit()
-        logging.info("Base de datos inicializada correctamente: tablas creadas (progreso, logs, avatars, quiz_logs)")
+        logging.info("Base de datos inicializada correctamente: tablas creadas (progreso, logs, avatars, quiz_logs, chats)")
         return True
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
@@ -247,7 +257,7 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
         f"6. Al final, escribe únicamente: '¿Tienes alguna pregunta adicional sobre este tema?' en una línea nueva, sin Markdown.\n"
         f"7. Si detectas un saludo inicial, ya fue manejado; enfócate en la parte técnica.\n"
         f"8. Asegúrate de que el ejemplo en Java sea funcional, relevante y no exceda 10 líneas.\n"
-        f"9. En 'avanzada', las ventajas deben ser específicas, concisas, en formato de lista con '-'. La comparación, si se incluye, debe ser breve y relevante.\n"
+        f"9. En 'avanzada', las ventajas deben be específicas, concisas, en formato de lista con '-'. La comparación, si se incluye, debe ser breve y relevante.\n"
         f"10. En 'basica', la respuesta debe ser texto plano puro, sin ningún formato Markdown, negritas, cursivas, listas ni encabezados.\n"
         f"Timestamp: {int(time.time())}"
     )
@@ -322,69 +332,6 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
             f"¿Tienes alguna pregunta adicional sobre este tema?"
         )
 
-    # Procesar pregunta técnica
-    contexto = ""
-    if historial:
-        contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
-
-    prompt = (
-        f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-        f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta_procesar}'. "
-        f"Sigue estas reglas estrictamente:\n"
-        f"1. Responde solo sobre los temas: {', '.join(temas_validos)}.\n"
-        f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
-        f"   - 'basica': Solo definición clara y concisa (máximo 100 palabras), sin ejemplos ni ventajas.\n"
-        f"   - 'ejemplos': Definición (máximo 100 palabras) + un ejemplo breve en Java (máximo 10 líneas).\n"
-        f"   - 'avanzada': Definición (máximo 100 palabras) + ventajas (máximo 50 palabras) + ejemplo en Java (máximo 10 líneas).\n"
-        f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
-        f"4. Usa Markdown para estructurar la respuesta (títulos, listas, bloques de código).\n"
-        f"5. Contexto: {contexto}\n"
-        f"6. Al final, escribe únicamente: '¿Tienes alguna pregunta adicional sobre este tema?'\n"
-        f"7. Si detectas un saludo inicial, ya fue manejado; enfócate en la parte técnica.\n"
-        f"Timestamp: {int(time.time())}"
-    )
-
-    try:
-        completion = call_groq_api(
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": pregunta_procesar}
-            ],
-            model="llama3-70b-8192",
-            max_tokens=2000,
-            temperature=0.7
-        )
-        respuesta = completion.choices[0].message.content.strip()
-
-        # Limpiar respuesta según nivel de explicación
-        if nivel_explicacion == "basica":
-            for pattern in [
-                r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
-                r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
-                r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-                r'\n\s*\n\s*'
-            ]:
-                respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
-
-        # Agregar prefijo de cortesía si aplica
-        if es_cortesia:
-            respuesta = (
-                f"¡Gracias por la cortesía, {usuario if usuario != 'anonimo' else 'amigo'}! Aquí tienes tu respuesta:\n\n{respuesta.strip()}"
-            )
-
-        # Asegurar que la respuesta termine con la pregunta adicional
-        if not respuesta.endswith("¿Tienes alguna pregunta adicional sobre este tema?"):
-            respuesta = f"{respuesta.strip()}\n\n¿Tienes alguna pregunta adicional sobre este tema?"
-
-        return respuesta.strip()
-    except Exception as e:
-        logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
-        return (
-            f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-            f"Intenta con una pregunta sobre Programación Avanzada, como {temas_validos[0]}. "
-            f"¿Tienes alguna pregunta adicional sobre este tema?"
-        )
-
 def validate_quiz_format(quiz_data):
     required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
     for key in required_keys:
@@ -395,9 +342,60 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
+# Modificado para incluir saludo inicial y reiniciar historial
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # Reiniciar historial y chat_id en la sesión al cargar la página
+    session['chat_id'] = None
+    session['historial'] = []
+    saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
+    return render_template("index.html", saludo_inicial=saludo_inicial)
+
+# Nuevo endpoint para iniciar un nuevo chat
+@app.route("/new_chat", methods=["POST"])
+def new_chat():
+    try:
+        data = request.get_json()
+        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
+        # Guardar el chat actual en la base de datos si existe
+        if session.get('chat_id') and session.get('historial'):
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute(
+                    "INSERT INTO chats (chat_id, usuario, historial) VALUES (%s, %s, %s) "
+                    "ON CONFLICT (chat_id) DO UPDATE SET historial = %s",
+                    (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
+                )
+                conn.commit()
+                conn.close()
+                logging.info(f"Chat guardado: chat_id={session['chat_id']}, usuario={usuario}")
+            except PsycopgError as e:
+                logging.error(f"Error al guardar chat: {str(e)}")
+        # Reiniciar sesión para nuevo chat
+        session['chat_id'] = str(uuid.uuid4())
+        session['historial'] = []
+        saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
+        return jsonify({"saludo_inicial": saludo_inicial, "historial": []})
+    except Exception as e:
+        logging.error(f"Error en /new_chat: {str(e)}")
+        return jsonify({"error": f"Error al iniciar nuevo chat: {str(e)}"}), 500
+
+# Nuevo endpoint para obtener historial de chats
+@app.route("/chat_history", methods=["GET"])
+def chat_history():
+    try:
+        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT chat_id, timestamp, historial FROM chats WHERE usuario = %s ORDER BY timestamp DESC", (usuario,))
+        chats = [{"chat_id": row[0], "timestamp": row[1].strftime("%Y-%m-%d %H:%M:%S"), "historial": row[2]} for row in c.fetchall()]
+        conn.close()
+        logging.info(f"Historial de chats recuperado para usuario {usuario}: {len(chats)} chats")
+        return jsonify({"chats": chats})
+    except PsycopgError as e:
+        logging.error(f"Error al recuperar historial de chats: {str(e)}")
+        return jsonify({"error": "Error al recuperar historial de chats"}), 500
 
 @app.route("/ask", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
@@ -412,7 +410,7 @@ def ask():
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
         avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        historial = data.get("historial", [])[:5]
+        historial = session.get("historial", [])[:5]
 
         if not pregunta:
             logging.error("Pregunta vacía en /ask")
@@ -422,14 +420,21 @@ def ask():
             logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
             nivel_explicacion = "basica"
 
+        # Generar chat_id si es el primer mensaje
+        if not session.get('chat_id'):
+            session['chat_id'] = str(uuid.uuid4())
+            session['historial'] = []
+            logging.info(f"Nuevo chat iniciado: chat_id={session['chat_id']}, usuario={usuario}")
+
         respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion, usuario)
 
+        # Guardar en logs con chat_id
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion) VALUES (%s, %s, %s, %s)",
-                (usuario, pregunta, respuesta, nivel_explicacion)
+                "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion, chat_id) VALUES (%s, %s, %s, %s, %s)",
+                (usuario, pregunta, respuesta, nivel_explicacion, session['chat_id'])
             )
             conn.commit()
             cursor.close()
@@ -437,8 +442,12 @@ def ask():
         except PsycopgError as e:
             logging.error(f"Error al guardar log en la base de datos: {str(e)}")
 
-        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}")
-        return jsonify({"respuesta": respuesta, "video_url": None})
+        # Actualizar historial en la sesión
+        session['historial'] = session['historial'] + [{"pregunta": pregunta, "respuesta": respuesta}]
+        session.modified = True
+        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}, chat_id={session['chat_id']}")
+
+        return jsonify({"respuesta": respuesta, "video_url": None, "historial": session['historial']})
     except Exception as e:
         logging.error(f"Error en /ask: {str(e)}")
         return jsonify({"error": f"Error al obtener respuesta: {str(e)}"}), 500
@@ -531,6 +540,19 @@ def quiz():
             logging.error(f"Formato de quiz inválido: {str(e)}")
             return jsonify({"error": str(e)}), 400
 
+        # Guardar quiz en logs con chat_id
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, tema, puntos, chat_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (usuario, quiz_data["pregunta"], "", False, quiz_data["tema"], 0, session.get('chat_id'))
+            )
+            conn.commit()
+            conn.close()
+        except PsycopgError as e:
+            logging.error(f"Error al guardar quiz en quiz_logs: {str(e)}")
+
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {quiz_data['tema']}: {quiz_data}")
         return jsonify(quiz_data)
     except Exception as e:
@@ -566,13 +588,13 @@ def responder_quiz():
             cursor = conn.cursor()
             puntos = 10 if es_correcta else 0
             cursor.execute(
-                'INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, tema, puntos) VALUES (%s, %s, %s, %s, %s, %s)',
-                (session.get('usuario', 'anonimo'), pregunta, respuesta, es_correcta, tema, puntos)
+                'INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, tema, puntos, chat_id) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                (session.get('usuario', 'anonimo'), pregunta, respuesta, es_correcta, tema, puntos, session.get('chat_id'))
             )
             conn.commit()
             cursor.close()
             conn.close()
-            logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}")
+            logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}, chat_id={session.get('chat_id')}")
         except PsycopgError as e:
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
 
@@ -645,7 +667,7 @@ def recommend():
     try:
         data = request.get_json()
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        historial = data.get("historial", [])
+        historial = session.get("historial", [])[:5]
 
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
