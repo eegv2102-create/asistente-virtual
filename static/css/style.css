@@ -229,7 +229,7 @@ body {
 
 .chat-history {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto;  /* Mantiene scrollbar en la sección */
   overflow-x: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -243,6 +243,12 @@ body {
   padding: 8px;
   margin: 0;
   width: 100%;
+  overflow-y: auto;  /* Scrollbar solo aquí */
+  max-height: 100%;  /* Limita altura para scrollbar */
+}
+
+.left-section {
+  overflow-y: hidden;  /* Quita scrollbar de toda la sección izquierda */
 }
 
 #chat-list::-webkit-scrollbar,

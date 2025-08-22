@@ -17,6 +17,7 @@ from gtts import gTTS
 import io
 import retrying
 import re
+import uuid  # Agregado para IDs únicos
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -79,11 +80,18 @@ def init_db():
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
                      (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS conversations
+                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, nombre TEXT DEFAULT 'Nuevo Chat', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS messages
+                     (id SERIAL PRIMARY KEY, conv_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
+                      role TEXT NOT NULL, content TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_conversations ON conversations(usuario, created_at)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, timestamp)')
         conn.commit()
-        logging.info("Base de datos inicializada correctamente: tablas creadas (progreso, logs, avatars, quiz_logs)")
+        logging.info("Base de datos inicializada correctamente: tablas creadas")
         return True
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
@@ -145,6 +153,17 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logging.error(f"Error al guardar progreso: {str(e)}")
 
+def guardar_mensaje(usuario, conv_id, role, content):
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO messages (conv_id, role, content) VALUES (%s, %s, %s)", (conv_id, role, content))
+        conn.commit()
+        conn.close()
+        logging.info(f"Mensaje guardado: usuario={usuario}, conv_id={conv_id}, role={role}")
+    except PsycopgError as e:
+        logging.error(f"Error al guardar mensaje: {str(e)}")
+
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def call_groq_api(messages, model, max_tokens, temperature):
     try:
@@ -160,53 +179,117 @@ def call_groq_api(messages, model, max_tokens, temperature):
             raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
 
-def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", usuario="anonimo"):
-    # Normalizar la pregunta para comparaciones
+@app.route('/conversations', methods=['GET', 'POST'])
+def handle_conversations():
+    usuario = session.get('usuario', 'anonimo')
+    if request.method == 'POST':
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            nombre = request.json.get('nombre', 'Nuevo Chat')
+            c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id", (usuario, nombre))
+            conv_id = c.fetchone()[0]
+            conn.commit()
+            conn.close()
+            session['current_conv_id'] = conv_id
+            return jsonify({'id': conv_id, 'nombre': nombre})
+        except Exception as e:
+            logging.error(f"Error creando conversación: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    else:
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT id, nombre, created_at FROM conversations WHERE usuario = %s ORDER BY created_at DESC", (usuario,))
+            convs = [{'id': row[0], 'nombre': row[1], 'created_at': row[2].isoformat()} for row in c.fetchall()]
+            conn.close()
+            if not session.get('current_conv_id') and convs:
+                session['current_conv_id'] = convs[0]['id']
+            return jsonify({'conversations': convs})
+        except Exception as e:
+            logging.error(f"Error listando conversaciones: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
+def handle_messages(conv_id):
+    usuario = session.get('usuario', 'anonimo')
+    if request.method == 'POST':
+        data = request.get_json()
+        role = data.get('role')
+        content = bleach.clean(data.get('content', '')[:2000])
+        if not role or not content:
+            return jsonify({'error': 'Faltan role o content'}), 400
+        guardar_mensaje(usuario, conv_id, role, content)
+        return jsonify({'success': True})
+    else:
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT role, content FROM messages WHERE conv_id = %s ORDER BY timestamp ASC", (conv_id,))
+            messages = [{'role': row[0], 'content': row[1]} for row in c.fetchall()]
+            conn.close()
+            return jsonify({'messages': messages})
+        except Exception as e:
+            logging.error(f"Error listando mensajes: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/buscar_respuesta', methods=['POST'])
+def buscar_respuesta():
+    data = request.get_json()
+    pregunta = bleach.clean(data.get('pregunta', '')[:500])
+    historial = data.get('historial', [])
+    nivel_explicacion = data.get('nivel_explicacion', 'basica')
+    usuario = session.get('usuario', 'anonimo')
+
+    conv_id = session.get('current_conv_id')
+    if not conv_id and pregunta:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
+        conv_id = c.fetchone()[0]
+        conn.commit()
+        conn.close()
+        session['current_conv_id'] = conv_id
+
     pregunta_norm = pregunta.lower().strip()
-
-    # Lista de temas válidos
-    temas_validos = TEMAS_DISPONIBLES
-
-    # Respuestas para cortesías
     respuestas_simples = {
         r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos)(.*por favor.*)?$": 
-            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?" ,
+            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?",
         r"^(gracias|muchas gracias|gracias por.*|thank you|te agradezco)$": 
-            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada? ",
+            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada?",
         r"^(adiós|bye|hasta luego|nos vemos|chau)$": 
-            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses. "
+            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses."
     }
 
-    # Verificar si es solo una cortesía
     for patron, respuesta in respuestas_simples.items():
         if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre|quiero aprender|saber más)", pregunta_norm):
-            return respuesta
+            if pregunta:
+                guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-    # Si contiene una consulta técnica después de una cortesía, procesar solo la parte técnica
-    consulta_tecnica = re.sub(r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos|por favor)\s*", "", pregunta_norm, flags=re.IGNORECASE)
-    es_cortesia = consulta_tecnica != pregunta_norm
-    pregunta_procesar = consulta_tecnica if es_cortesia else pregunta
-
-    # Manejo de preguntas generales como "qué puedo aprender"
     if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
-        tema_sugerido = random.choice(temas_validos)
-        return (
+        tema_sugerido = random.choice(TEMAS_DISPONIBLES)
+        respuesta = (
             f"¡Qué buena pregunta, {usuario if usuario != 'anonimo' else 'amigo'}! Te recomiendo explorar {tema_sugerido}. "
             f"Es un tema clave en Programación Avanzada que te ayudará a entender mejor cómo estructurar y optimizar tu código. "
             f"¿Quieres que te explique más sobre {tema_sugerido}? ¿Tienes alguna pregunta adicional sobre este tema?"
         )
+        if pregunta:
+            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-    # Verificar relevancia de la pregunta
     prompt_relevancia = (
         f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
-        f"Determina si la pregunta '{pregunta_procesar}' está relacionada con los siguientes temas de Programación Avanzada: {', '.join(temas_validos)}. "
+        f"Determina si la pregunta '{pregunta}' está relacionada con los siguientes temas de Programación Avanzada: {', '.join(TEMAS_DISPONIBLES)}. "
         f"Responde solo 'Sí' o 'No'."
     )
     try:
         completion = call_groq_api(
             messages=[
                 {"role": "system", "content": prompt_relevancia},
-                {"role": "user", "content": pregunta_procesar}
+                {"role": "user", "content": pregunta}
             ],
             model="llama3-70b-8192",
             max_tokens=10,
@@ -214,164 +297,76 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
         )
         es_relevante = completion.choices[0].message.content.strip().lower() == 'sí'
         if not es_relevante:
-            return (
+            respuesta = (
                 f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo puedo ayudarte con Programación Avanzada en Ingeniería en Telemática. "
-                f"Algunos temas que puedo explicarte son: {', '.join(temas_validos[:3])}. ¿Qué deseas saber de la materia? "
+                f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. ¿Qué deseas saber de la materia? "
                 f"¿Tienes alguna pregunta adicional sobre este tema?"
             )
+            if pregunta:
+                guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
     except Exception as e:
         logging.error(f"Error al verificar relevancia: {str(e)}")
-        return (
+        respuesta = (
             f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-            f"Intenta con una pregunta sobre Programación Avanzada, como {temas_validos[0]}. "
+            f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
             f"¿Tienes alguna pregunta adicional sobre este tema?"
         )
+        if pregunta:
+            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-    # Procesar pregunta técnica
     contexto = ""
     if historial:
         contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
     prompt = (
         f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-        f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta_procesar}'. "
+        f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta}'. "
         f"Sigue estrictamente estas reglas:\n"
-        f"1. Responde solo sobre los temas: {', '.join(temas_validos)}.\n"
+        f"1. Responde solo sobre los temas: {', '.join(TEMAS_DISPONIBLES)}.\n"
         f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
         f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
         f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
         f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
         f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
-        f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, listas con -, bloques de código con ```java).\n"
-        f"5. Contexto: {contexto}\n"
-        f"6. Al final, escribe únicamente: '¿Tienes alguna pregunta adicional sobre este tema?' en una línea nueva, sin Markdown.\n"
-        f"7. Si detectas un saludo inicial, ya fue manejado; enfócate en la parte técnica.\n"
-        f"8. Asegúrate de que el ejemplo en Java sea funcional, relevante y no exceda 10 líneas.\n"
-        f"9. En 'avanzada', las ventajas deben be específicas, concisas, en formato de lista con '-'. La comparación, si se incluye, debe ser breve y relevante.\n"
-        f"10. En 'basica', la respuesta debe ser texto plano puro, sin ningún formato Markdown, negritas, cursivas, listas ni encabezados.\n"
-        f"Timestamp: {int(time.time())}"
+        f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
+        f"5. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+        f"6. No uses emoticones ni emojis.\n"
+        f"7. Si no se puede responder, sugiere un tema de la lista.\n"
+        f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
     )
 
     try:
         completion = call_groq_api(
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": pregunta_procesar}
+                {"role": "user", "content": pregunta}
             ],
             model="llama3-70b-8192",
-            max_tokens=2000,
-            temperature=0.7
+            max_tokens=300,
+            temperature=0.2
         )
         respuesta = completion.choices[0].message.content.strip()
-
-        # Limpiar respuesta según nivel de explicación
-        if nivel_explicacion == "basica":
-            # Eliminar cualquier formato Markdown, negritas, listas, bloques de código, etc.
-            for pattern in [
-                r'\*\*.*?\*\*',  # Negritas
-                r'\*.*?\*',  # Cursivas
-                r'```[\s\S]*?```',  # Bloques de código
-                r'- .+?(?=\n|$)',  # Listas
-                r'##\s*.*?[\s\S]*?(?=(?:^##|\Z))',  # Secciones con títulos
-                r'#.*?(?=\n|$)',  # Encabezados
-                r'\n\s*\n\s*',  # Espacios dobles
-                r'\[.*?\]\(.*?\)',  # Enlaces Markdown
-                r'^\s*Clase\s*',  # Título "Clase" al inicio
-            ]:
-                respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
-            # Limitar a 70 palabras y asegurar texto plano
-            palabras = respuesta.split()
-            if len(palabras) > 70:
-                respuesta = ' '.join(palabras[:70]).strip() + '...'
-            # Eliminar cualquier residuo de formato
-            respuesta = re.sub(r'[\*\-#`]', '', respuesta).strip()
-
-        # Validar que 'ejemplos' tenga un ejemplo en Java
-        if nivel_explicacion == "ejemplos" and not re.search(r'```java[\s\S]*?```', respuesta):
-            respuesta += (
-                f"\n\n## Ejemplo en Java\n```java\n// Ejemplo para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo básico\"); }}\n}}\n```"
-            )
-
-        # Validar que 'avanzada' tenga ventajas y ejemplo en Java
-        if nivel_explicacion == "avanzada":
-            if not re.search(r'```java[\s\S]*?```', respuesta):
-                respuesta += (
-                    f"\n\n## Ejemplo en Java\n```java\n// Ejemplo para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo avanzado\"); }}\n}}\n```"
-                )
-            if not re.search(r'##\s*Ventajas[\s\S]*?-', respuesta):
-                respuesta += (
-                    f"\n\n## Ventajas\n- Mejora la comprensión del tema.\n- Facilita la aplicación práctica.\n- Optimiza el diseño de software."
-                )
-
-        # Agregar prefijo de cortesía si aplica
-        if es_cortesia:
-            respuesta = (
-                f"¡Gracias por la cortesía, {usuario if usuario != 'anonimo' else 'amigo'}! Aquí tienes tu respuesta:\n\n{respuesta.strip()}"
-            )
-
-        # Asegurar que la respuesta termine con la pregunta adicional
-        if not respuesta.endswith("¿Tienes alguna pregunta adicional sobre este tema?"):
-            respuesta = f"{respuesta.strip()}\n\n¿Tienes alguna pregunta adicional sobre este tema?"
-
-        return respuesta.strip()
+        if pregunta:
+            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
     except Exception as e:
-        logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
-        return (
+        logging.error(f"Error al procesar respuesta: {str(e)}")
+        respuesta = (
             f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-            f"Intenta con una pregunta sobre Programación Avanzada, como {temas_validos[0]}. "
+            f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
             f"¿Tienes alguna pregunta adicional sobre este tema?"
         )
+        if pregunta:
+            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/ask", methods=["POST"])
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
-def ask():
-    try:
-        data = request.get_json()
-        if not data:
-            logging.error("Solicitud sin datos en /ask")
-            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
-
-        pregunta = bleach.clean(data.get("pregunta", "")[:500])
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])  # Se recibe pero no se usa
-        historial = data.get("historial", [])[:5]
-
-        if not pregunta:
-            logging.error("Pregunta vacía en /ask")
-            return jsonify({"error": "La pregunta no puede estar vacía"}), 400
-
-        if nivel_explicacion not in ["basica", "ejemplos", "avanzada"]:
-            logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
-            nivel_explicacion = "basica"
-
-        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
-
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion) VALUES (%s, %s, %s, %s)",
-                (usuario, pregunta, respuesta, nivel_explicacion)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except PsycopgError as e:
-            logging.error(f"Error al guardar log en la base de datos: {str(e)}")
-
-        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}")
-        return jsonify({"respuesta": respuesta, "video_url": None})
-    except Exception as e:
-        logging.error(f"Error en /ask: {str(e)}")
-        return jsonify({"error": f"Error al obtener respuesta: {str(e)}"}), 500
-
-@app.route("/quiz", methods=["POST"])
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
+@app.route('/quiz', methods=['POST'])
 def quiz():
     try:
         data = request.get_json()
@@ -380,63 +375,48 @@ def quiz():
             return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
 
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        tipo_quiz = bleach.clean(data.get("tipo_quiz", "opciones"))
+        historial = data.get("historial", [])
+        nivel = data.get("nivel", "basico")[:20]
+        tema_seleccionado = bleach.clean(data.get("tema", random.choice(TEMAS_DISPONIBLES))[:100])
+        if tema_seleccionado not in TEMAS_DISPONIBLES:
+            logging.warning(f"Tema no válido: {tema_seleccionado}. Usando tema por defecto.")
+            tema_seleccionado = random.choice(TEMAS_DISPONIBLES)
 
-        if tipo_quiz not in ["opciones", "verdadero_falso"]:
-            logging.error(f"Tipo de quiz inválido: {tipo_quiz}")
-            return jsonify({"error": "Tipo de quiz inválido"}), 400
+        def validate_quiz_format(quiz_data):
+            required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
+            if not all(key in quiz_data for key in required_keys):
+                raise ValueError("Faltan claves requeridas en quiz_data")
+            if not isinstance(quiz_data["opciones"], list) or len(quiz_data["opciones"]) != 4:
+                raise ValueError("Opciones deben ser una lista de exactamente 4 elementos")
+            if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
+                raise ValueError("Respuesta correcta no está en las opciones")
+            if quiz_data["tema"] not in TEMAS_DISPONIBLES:
+                raise ValueError(f"Tema {quiz_data['tema']} no es válido")
+            if quiz_data["nivel"] not in ["basico", "intermedio", "avanzado"]:
+                raise ValueError(f"Nivel {quiz_data['nivel']} no es válido")
 
-        temas_disponibles = []
-        for unidad, subtemas in temas.items():
-            temas_disponibles.extend(subtemas.keys())
-        if not temas_disponibles:
-            temas_disponibles = [
-                "Introducción a la POO", "Clases y Objetos", "Encapsulamiento", "Herencia",
-                "Polimorfismo", "Clases Abstractas e Interfaces", "UML", "Diagramas UML",
-                "Patrones de Diseño en POO", "Patrón MVC", "Acceso a Archivos",
-                "Bases de Datos y ORM", "Integración POO + MVC + BD", "Pruebas y Buenas Prácticas"
-            ]
-
-        progreso = cargar_progreso(usuario)
-        temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
-        temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
-        if not temas_no_aprendidos:
-            temas_no_aprendidos = temas_disponibles
-
-        tema_seleccionado = random.choice(temas_no_aprendidos if temas_no_aprendidos else temas_disponibles)
+        contexto = ""
+        if historial:
+            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
         prompt = (
-            f"Eres YELIA, un tutor de Programación Avanzada para Ingeniería en Telemática. "
-            f"Genera una sola pregunta de quiz de tipo '{tipo_quiz}' sobre el tema '{tema_seleccionado}'. "
-            f"La pregunta debe ser clara, precisa, con una única respuesta correcta que coincida exactamente con una de las opciones, "
-            f"y diferente a cualquier pregunta generada previamente. "
-            f"Devuelve un JSON válido con las claves: "
-            f"'pregunta' (máximo 200 caracteres), "
-            f"'opciones' (lista de opciones, cada una máximo 100 caracteres), "
-            f"'respuesta_correcta' (texto exacto de una opción), "
-            f"'tema' (el tema, máximo 50 caracteres), "
-            f"'nivel' (siempre 'basico'). "
-            f"Para tipo 'opciones', incluye exactamente 4 opciones únicas, con una sola correcta. "
-            f"Para tipo 'verdadero_falso', incluye exactamente 2 opciones ('Verdadero', 'Falso'). "
-            f"Asegúrate de que 'respuesta_correcta' sea idéntica a una de las opciones (sin espacios adicionales ni variaciones). "
-            f"Evita términos ambiguos; por ejemplo, para herencia, usa 'Herencia', no 'Generalización'. "
-            f"Usa el timestamp {int(time.time())} como semilla para unicidad. "
-            f"Ejemplo: "
-            f"{{\"pregunta\": \"¿Qué permite ocultar los detalles internos de una clase?\", "
-            f"\"opciones\": [\"Encapsulamiento\", \"Herencia\", \"Polimorfismo\", \"Abstracción\"], "
-            f"\"respuesta_correcta\": \"Encapsulamiento\", "
-            f"\"tema\": \"Encapsulamiento\", "
-            f"\"nivel\": \"basico\"}}"
+            f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
+            f"Genera una pregunta de opción múltiple (4 opciones, 1 correcta) sobre el tema '{tema_seleccionado}' "
+            f"para el nivel '{nivel}'. Devuelve un objeto JSON con las claves: "
+            f"'pregunta' (máximo 100 caracteres), 'opciones' (lista de 4 strings, máximo 50 caracteres cada una), "
+            f"'respuesta_correcta' (string, debe coincidir con una opción), 'tema' (string), 'nivel' (string). "
+            f"No uses Markdown, emojis, ni texto adicional. "
+            f"Contexto: {contexto}\nTemas disponibles: {', '.join(TEMAS_DISPONIBLES)}"
         )
 
         completion = call_groq_api(
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Genera la pregunta del quiz en formato JSON válido."}
+                {"role": "user", "content": "Genera una pregunta de quiz."}
             ],
             model="llama3-70b-8192",
             max_tokens=300,
-            temperature=0.2  # Reducida para mayor precisión
+            temperature=0.2
         )
 
         try:
@@ -464,7 +444,6 @@ def quiz():
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
 
-
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
     try:
@@ -482,13 +461,11 @@ def responder_quiz():
             logging.error("Faltan respuesta o respuesta_correcta en /responder_quiz")
             return jsonify({'error': 'Faltan respuesta o respuesta_correcta'}), 400
 
-        # Normalizar respuestas para comparación robusta
         respuesta_norm = ''.join(respuesta.strip().lower().split())
         respuesta_correcta_norm = ''.join(respuesta_correcta.strip().lower().split())
         es_correcta = respuesta_norm == respuesta_correcta_norm
         logging.info(f"Comparando respuesta: '{respuesta_norm}' con correcta: '{respuesta_correcta_norm}', es_correcta: {es_correcta}")
 
-        # Guardar en base de datos
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -504,7 +481,6 @@ def responder_quiz():
         except PsycopgError as e:
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
 
-        # Generar explicación con Groq
         try:
             prompt = (
                 f"Eres YELIA, un tutor educativo de Programación Avanzada para Ingeniería en Telemática. "
@@ -541,7 +517,6 @@ def responder_quiz():
     except Exception as e:
         logging.error(f"Error en /responder_quiz: {str(e)}")
         return jsonify({'error': f"Error al procesar la respuesta: {str(e)}"}), 500
-
 
 @app.route("/tts", methods=["POST"])
 def tts():
@@ -645,15 +620,18 @@ def recommend():
             logging.error(f"Error al guardar temas recomendados: {str(e)}")
 
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
+        conv_id = session.get('current_conv_id')
+        if conv_id:
+            guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto)
         logging.info(f"Recomendación para usuario {usuario}: {recomendacion_texto}")
-        return jsonify({"recommendation": recomendacion_texto})
+        return jsonify({"recommendation": recomendacion_texto, 'conv_id': conv_id if conv_id else None})
     except Exception as e:
         logging.error(f"Error en /recommend: {str(e)}")
         recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         logging.warning(f"Usando recomendación de fallback por error: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
-    
+
 @app.route("/temas", methods=["GET"])
 def get_temas():
     try:
