@@ -82,12 +82,9 @@ const scrollToBottom = () => {
 
 const updateAvatarDisplay = () => {
     const avatarImg = getElement('#avatar-img');
-    if (!avatarImg) {
-        console.warn('Elemento #avatar-img no encontrado, omitiendo actualización');
-        return;
-    }
+    if (!avatarImg) return;
     const avatars = JSON.parse(localStorage.getItem('avatars') || '[]');
-    const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: 'https://via.placeholder.com/50' };
+    const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: '/static/img/default-avatar.png' };
     avatarImg.src = selected.url;
     avatarImg.classList.add('animate-avatar');
     setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
@@ -267,7 +264,6 @@ const toggleVoiceRecognition = () => {
     }
 };
 
-const defaultAvatar = 'https://via.placeholder.com/50'; // Imagen de respaldo
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
     if (!avatarContainer) return;
@@ -277,8 +273,7 @@ const cargarAvatares = async () => {
         if (response.ok) {
             avatares = await response.json();
         } else {
-            console.warn('Endpoint /avatars no disponible, usando avatares por defecto');
-            avatares = [{ avatar_id: 'default', nombre: 'Default', url: defaultAvatar, animation_url: '' }];
+            avatares = [{ avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png', animation_url: '' }];
         }
         localStorage.setItem('avatars', JSON.stringify(avatares));
         avatarContainer.innerHTML = '';
@@ -304,28 +299,6 @@ const cargarAvatares = async () => {
     } catch (error) {
         console.error('Error al cargar avatares:', error);
         mostrarNotificacion('Error al cargar avatares', 'error');
-        const avatares = [{ avatar_id: 'default', nombre: 'Default', url: defaultAvatar, animation_url: '' }];
-        localStorage.setItem('avatars', JSON.stringify(avatares));
-        avatarContainer.innerHTML = '';
-        avatares.forEach(avatar => {
-            const img = document.createElement('img');
-            img.src = avatar.url;
-            img.classList.add('avatar-option');
-            img.dataset.avatar = avatar.avatar_id;
-            img.alt = `Avatar ${avatar.nombre}`;
-            img.title = avatar.nombre;
-            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
-            avatarContainer.appendChild(img);
-            img.addEventListener('click', () => {
-                getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-                img.classList.add('selected');
-                selectedAvatar = avatar.avatar_id;
-                localStorage.setItem('selectedAvatar', selectedAvatar);
-                updateAvatarDisplay();
-                mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
-            });
-        });
-        updateAvatarDisplay();
     }
 };
 
@@ -366,108 +339,54 @@ const guardarMensaje = (pregunta, respuesta, video_url = null, tema = null) => {
     scrollToBottom();
 };
 
-const actualizarListaChats = async () => {
+const actualizarListaChats = () => {
     const chatList = getElement('#chat-list');
     if (!chatList) {
         console.error('Elemento #chat-list no encontrado');
-        mostrarNotificacion('Error: Lista de chats no encontrada', 'error');
         return;
     }
-    try {
-        const response = await fetch('/chat_history?usuario=anonimo');
-        if (!response.ok) throw new Error(`Error en /chat_history: ${response.statusText}`);
-        const data = await response.json();
-        const historial = data.chats || [];
-        localStorage.setItem('chatHistory', JSON.stringify(historial.map((chat, index) => ({
-            id: index,
-            nombre: `Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
-            timestamp: new Date(chat.timestamp).getTime(),
-            mensajes: chat.historial
-        }))));
-        chatList.innerHTML = '';
-        historial.forEach((chat, index) => {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <span class="chat-name">${`Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
-                <div class="chat-actions">
-                    <button class="rename-btn" data-tooltip="Renombrar" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
-                    <button class="delete-btn" data-tooltip="Eliminar" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
-                </div>`;
-            li.dataset.index = index;
-            li.setAttribute('aria-label', `Chat ${new Date(chat.timestamp).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
-            li.tabIndex = 0;
-            chatList.appendChild(li);
-            li.addEventListener('click', e => {
-                if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
-                    cargarChat(index);
-                }
-            });
-            li.addEventListener('keydown', e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    cargarChat(index);
-                }
-            });
-            li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
-            li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
-        });
-        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-        if (currentConversation.id || currentConversation.id === 0) {
-            const selectedLi = getElement(`#chat-list li[data-index="${currentConversation.id}"]`);
-            if (selectedLi) selectedLi.classList.add('selected');
+    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
+    console.log('Historial de chats:', historial);
+    chatList.innerHTML = '';
+    historial.forEach((chat, index) => {
+        if (!chat.id && chat.id !== 0) {
+            console.warn(`Chat en índice ${index} no tiene id válido`, chat);
+            return;
         }
-        requestAnimationFrame(() => {
-            chatList.scrollTop = chatList.scrollHeight;
-        });
-    } catch (error) {
-        console.error('Error en /chat_history:', error);
-        mostrarNotificacion('Error al cargar historial de chats desde el servidor', 'error');
-        // Fallback a localStorage
-        let historial = [];
-        try {
-            const chatHistoryRaw = localStorage.getItem('chatHistory');
-            if (chatHistoryRaw) {
-                historial = JSON.parse(chatHistoryRaw).filter(chat => chat && typeof chat === 'object' && chat.id !== undefined);
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
+            <div class="chat-actions">
+                <button class="rename-btn" data-tooltip="Renombrar" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
+                <button class="delete-btn" data-tooltip="Eliminar" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
+            </div>`;
+        li.dataset.index = index;
+        li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
+        li.tabIndex = 0;
+        chatList.appendChild(li);
+        li.addEventListener('click', e => {
+            if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
+                console.log('Cargando chat:', index);
+                cargarChat(index);
             }
-        } catch (localError) {
-            console.error('Error al parsear chatHistory:', localError);
-            localStorage.setItem('chatHistory', JSON.stringify([]));
-            mostrarNotificacion('Historial local corrupto, reiniciado', 'warning');
-        }
-        chatList.innerHTML = '';
-        historial.forEach((chat, index) => {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <span class="chat-name">${chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`}</span>
-                <div class="chat-actions">
-                    <button class="rename-btn" data-tooltip="Renombrar" aria-label="Renombrar chat"><i class="fas fa-edit"></i></button>
-                    <button class="delete-btn" data-tooltip="Eliminar" aria-label="Eliminar chat"><i class="fas fa-trash"></i></button>
-                </div>`;
-            li.dataset.index = index;
-            li.setAttribute('aria-label', chat.nombre || `Chat ${new Date(chat.timestamp || Date.now()).toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`);
-            li.tabIndex = 0;
-            chatList.appendChild(li);
-            li.addEventListener('click', e => {
-                if (e.target.tagName !== 'BUTTON' && !e.target.closest('.chat-actions')) {
-                    cargarChat(index);
-                }
-            });
-            li.addEventListener('keydown', e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    cargarChat(index);
-                }
-            });
-            li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
-            li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
         });
-        const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
-        if (currentConversation.id || currentConversation.id === 0) {
-            const selectedLi = getElement(`#chat-list li[data-index="${currentConversation.id}"]`);
-            if (selectedLi) selectedLi.classList.add('selected');
-        }
-        requestAnimationFrame(() => {
-            chatList.scrollTop = chatList.scrollHeight;
+        li.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                console.log('Cargando chat por tecla:', index);
+                cargarChat(index);
+            }
         });
+        li.querySelector('.rename-btn').addEventListener('click', () => renombrarChat(index));
+        li.querySelector('.delete-btn').addEventListener('click', () => eliminarChat(index));
+    });
+    const currentConversation = JSON.parse(localStorage.getItem('currentConversation') || '{}');
+    if (currentConversation.id || currentConversation.id === 0) {
+        const selectedLi = getElement(`#chat-list li[data-index="${currentConversation.id}"]`);
+        if (selectedLi) selectedLi.classList.add('selected');
     }
+    requestAnimationFrame(() => {
+        chatList.scrollTop = chatList.scrollHeight;
+    });
 };
 
 const cargarChat = index => {
@@ -487,9 +406,9 @@ const cargarChat = index => {
         return;
     }
     container.innerHTML = chat.mensajes.map(msg => `
-        <div class="user">${sanitizeHTML(msg.pregunta)}</div>
-        <div class="bot">${typeof marked !== 'undefined' ? marked.parse(msg.respuesta, { breaks: true, gfm: true }) : sanitizeHTML(msg.respuesta)}
-            <button class="copy-btn" data-text="${sanitizeHTML(msg.respuesta)}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
+        <div class="user">${msg.pregunta}</div>
+        <div class="bot">${typeof marked !== 'undefined' ? marked.parse(msg.respuesta, { breaks: true, gfm: true }) : msg.respuesta}
+            <button class="copy-btn" data-text="${msg.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>
         </div>
     `).join('');
     scrollToBottom();
@@ -865,51 +784,24 @@ const sendMessage = () => {
     });
 };
 
-const nuevaConversacion = async () => {
+const nuevaConversacion = () => {
     stopSpeech();
-    try {
-        const response = await fetch('/new_chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo' })
-        });
-        if (!response.ok) throw new Error('Error en /new_chat');
-        const data = await response.json();
-        const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
-        const newId = historial.length;
-        const newConversation = {
-            id: newId,
-            nombre: `Chat ${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
-            timestamp: Date.now(),
-            mensajes: []
-        };
-        historial.push(newConversation);
-        localStorage.setItem('chatHistory', JSON.stringify(historial));
-        localStorage.setItem('currentConversation', JSON.stringify(newConversation));
-        const chatbox = getElement('#chatbox');
-        const container = chatbox?.querySelector('.message-container');
-        if (container) {
-            container.innerHTML = '';
-            const botDiv = document.createElement('div');
-            botDiv.classList.add('bot');
-            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.saludo_inicial, { breaks: true, gfm: true }) : data.saludo_inicial) +
-                `<button class="copy-btn" data-text="${data.saludo_inicial.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-            container.appendChild(botDiv);
-            scrollToBottom();
-            if (window.Prism) Prism.highlightAll();
-            if (vozActiva && userHasInteracted) {
-                speakText(data.saludo_inicial);
-            } else if (vozActiva) {
-                pendingWelcomeMessage = data.saludo_inicial;
-            }
-            addCopyButtonListeners();
-        }
-        actualizarListaChats();
-        mostrarNotificacion('Nueva conversación iniciada', 'success');
-    } catch (error) {
-        console.error('Error en /new_chat:', error);
-        mostrarNotificacion('Error al iniciar nueva conversación', 'error');
-    }
+    const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
+    const newId = historial.length;
+    const newConversation = {
+        id: newId,
+        nombre: `Chat ${new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' })}`,
+        timestamp: Date.now(),
+        mensajes: []
+    };
+    historial.push(newConversation);
+    localStorage.setItem('chatHistory', JSON.stringify(historial));
+    localStorage.setItem('currentConversation', JSON.stringify(newConversation));
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (container) container.innerHTML = '';
+    actualizarListaChats();
+    mostrarNotificacion('Nueva conversación iniciada', 'success');
 };
 
 const addCopyButtonListeners = () => {
@@ -1037,13 +929,12 @@ const mostrarMensajeBienvenida = () => {
     container.appendChild(botDiv);
     scrollToBottom();
     if (window.Prism) Prism.highlightAll();
+    guardarMensaje('Bienvenida', mensaje);
     if (vozActiva && userHasInteracted) {
         speakText(mensaje);
     } else if (vozActiva) {
         pendingWelcomeMessage = mensaje;
     }
-    // No llamar a guardarMensaje para evitar guardar el saludo en localStorage
-    addCopyButtonListeners();
 };
 
 const init = () => {
@@ -1056,81 +947,169 @@ const init = () => {
         .then(data => {
             if (data.temas && Array.isArray(data.temas)) {
                 TEMAS_DISPONIBLES = data.temas;
-                console.log('Temas cargados: %s', TEMAS_DISPONIBLES);
+                console.log('Temas cargados:', TEMAS_DISPONIBLES);
             } else {
                 console.warn('No se pudieron cargar temas, usando lista por defecto');
                 TEMAS_DISPONIBLES = [
-                    'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
-                    'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
-                    'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
-                    'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
+                    'Introducción a la POO',
+                    'Clases y Objetos',
+                    'Encapsulamiento',
+                    'Herencia',
+                    'Polimorfismo',
+                    'Clases Abstractas e Interfaces',
+                    'UML',
+                    'Diagramas UML',
+                    'Patrones de Diseño en POO',
+                    'Patrón MVC',
+                    'Acceso a Archivos',
+                    'Bases de Datos y ORM',
+                    'Integración POO + MVC + BD',
+                    'Pruebas y Buenas Prácticas',
+                    'Concurrencia'
                 ];
             }
         })
         .catch(error => {
             console.error('Error al cargar temas:', error);
             TEMAS_DISPONIBLES = [
-                    'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
-                    'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
-                    'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
-                    'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
-                ];
+                'Introducción a la POO',
+                'Clases y Objetos',
+                'Encapsulamiento',
+                'Herencia',
+                'Polimorfismo',
+                'Clases Abstractas e Interfaces',
+                'UML',
+                'Diagramas UML',
+                'Patrones de Diseño en POO',
+                'Patrón MVC',
+                'Acceso a Archivos',
+                'Bases de Datos y ORM',
+                'Integración POO + MVC + BD',
+                'Pruebas y Buenas Prácticas',
+                'Concurrencia'
+            ];
         });
 
-    // Configurar eventos para botones y elementos
+    // Resto de la función init (sin cambios)
     const menuToggle = getElement('.menu-toggle');
-    if (menuToggle) menuToggle.addEventListener('click', toggleMenu);
-
     const menuToggleRight = getElement('.menu-toggle-right');
-    if (menuToggleRight) menuToggle.addEventListener('click', toggleRightMenu);
-
     const modoBtn = getElement('#modo-btn');
-    if (modoBtn) modoBtn.addEventListener('click', () => {
-        document.body.classList.toggle('modo-oscuro');
-        const isModoOscuro = document.body.classList.contains('modo-oscuro');
-        localStorage.setItem('modoOscuro', isModoOscuro);
-        modoBtn.textContent = isModoOscuro ? 'Modo Claro' : 'Modo Oscuro';
-        mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
-    });
-
     const voiceBtn = getElement('#voice-btn');
-    if (voiceBtn) voiceBtn.addEventListener('click', () => {
-        vozActiva = !vozActiva;
-        localStorage.setItem('vozActiva', vozActiva);
-        voiceBtn.textContent = vozActiva ? 'Desactivar Audio' : 'Activar Audio';
-        mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
-        if (!vozActiva) stopSpeech();
-    });
-
     const quizBtn = getElement('#quiz-btn');
-    if (quizBtn) quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
-
     const recommendBtn = getElement('#recommend-btn');
-    if (recommendBtn) recommendBtn.addEventListener('click', obtenerRecomendacion);
-
     const sendBtn = getElement('#send-btn');
-    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-
     const newChatBtn = getElement('#new-chat-btn');
-    if (newChatBtn) newChatBtn.addEventListener('click', nuevaConversacion);
-
     const clearBtn = getElement('#btn-clear');
-    if (clearBtn) clearBtn.addEventListener('click', nuevaConversacion);
-
     const nivelBtn = getElement('#nivel-btn');
-    if (nivelBtn) nivelBtn.addEventListener('click', toggleDropdown);
-
     const voiceToggleBtn = getElement('#voice-toggle-btn');
-    if (voiceToggleBtn) voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
 
-    const input = getElement('#input');
-    if (input) input.addEventListener('keydown', event => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            sendMessage();
-        }
-    });
-
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleMenu);
+        menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
+        menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
+    }
+    if (menuToggleRight) {
+        menuToggleRight.addEventListener('click', toggleRightMenu);
+        menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
+        menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
+    }
+    if (modoBtn) {
+        const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
+        modoBtn.setAttribute('data-tooltip', modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+        modoBtn.setAttribute('aria-label', modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+        modoBtn.innerHTML = `
+            <i class="fas ${modoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+            <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+        `;
+        modoBtn.addEventListener('click', () => {
+            document.body.classList.toggle('modo-oscuro');
+            const isModoOscuro = document.body.classList.contains('modo-oscuro');
+            localStorage.setItem('modoOscuro', isModoOscuro);
+            modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+            modoBtn.setAttribute('aria-label', isModoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+            modoBtn.innerHTML = `
+                <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+                <span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            `;
+            mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
+        });
+    }
+    if (voiceBtn) {
+        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+        voiceBtn.innerHTML = `
+            <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+            <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+        `;
+        voiceBtn.addEventListener('click', () => {
+            vozActiva = !vozActiva;
+            localStorage.setItem('vozActiva', vozActiva);
+            voiceBtn.innerHTML = `
+                <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+                <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+            `;
+            voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+            voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+            mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
+            if (!vozActiva) stopSpeech();
+            if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
+        });
+    }
+    if (quizBtn) {
+        quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
+        quizBtn.setAttribute('aria-label', 'Generar un quiz');
+        quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
+    }
+    if (recommendBtn) {
+        recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
+        recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
+        recommendBtn.addEventListener('click', () => obtenerRecomendacion().then(data => {
+            const mensaje = `Recomendación: ${data.recommendation}`;
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('bot');
+            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
+                `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
+            scrollToBottom();
+            speakText(mensaje);
+            guardarMensaje('Recomendación', mensaje);
+            addCopyButtonListeners();
+        }));
+    }
+    if (sendBtn) {
+        sendBtn.setAttribute('data-tooltip', 'Enviar');
+        sendBtn.setAttribute('aria-label', 'Enviar mensaje');
+        sendBtn.addEventListener('click', sendMessage);
+    }
+    if (newChatBtn) {
+        newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
+        newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
+        newChatBtn.addEventListener('click', nuevaConversacion);
+    }
+    if (clearBtn) {
+        clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
+        clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
+        clearBtn.addEventListener('click', nuevaConversacion);
+    }
+    if (nivelBtn) {
+        nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
+        nivelBtn.setAttribute('aria-label', 'Cambiar nivel de explicación');
+        nivelBtn.addEventListener('click', toggleDropdown);
+    }
+    if (voiceToggleBtn) {
+        voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
+        voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
+        voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
+    }
+    const inputElement = getElement('#input');
+    if (inputElement) {
+        inputElement.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+    }
     // Mostrar mensaje de bienvenida y mensaje de interacción para audio
     setTimeout(() => {
         mostrarMensajeBienvenida();
