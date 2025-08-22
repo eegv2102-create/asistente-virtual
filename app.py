@@ -682,18 +682,27 @@ def get_avatars():
         return jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]}), 200
 
 if __name__ == "__main__":
-    for attempt in range(5):
+    max_attempts = 5
+    for attempt in range(max_attempts):
         try:
-            if init_db():
-                logging.info("Base de datos inicializada con éxito")
-                break
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations')")
+            exists = c.fetchone()[0]
+            conn.close()
+            if not exists:
+                logging.info(f"Intento {attempt + 1}: Tabla 'conversations' no existe, ejecutando init_db()")
+                if init_db():
+                    logging.info("Base de datos inicializada con éxito")
+                    break
             else:
-                logging.warning(f"Intento {attempt + 1} fallido al inicializar la base de datos. Reintentando...")
-                time.sleep(10)
+                logging.info("Tabla 'conversations' ya existe, no se requiere inicialización")
+                break
         except Exception as e:
-            logging.error(f"Error en intento {attempt + 1}: {str(e)}")
+            logging.error(f"Intento {attempt + 1} fallido: {str(e)}")
             time.sleep(10)
     else:
-        logging.error("No se pudo inicializar la base de datos tras 5 intentos. Verifica DATABASE_URL.")
+        logging.error("No se pudo inicializar la base de datos tras 5 intentos. Verifica DATABASE_URL y la configuración de PostgreSQL.")
         exit(1)
+
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
