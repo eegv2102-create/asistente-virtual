@@ -241,6 +241,30 @@ def manage_conversation(conv_id):
             logging.error(f"Error renombrando conversación: {str(e)}")
             return jsonify({'error': f"No se pudo renombrar la conversación: {str(e)}"}), 500
 
+@app.route('/messages/<int:conv_id>', methods=['GET'])
+def get_messages(conv_id):
+    usuario = session.get('usuario', 'anonimo')
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, role, content, created_at 
+            FROM messages 
+            WHERE conv_id = %s
+            ORDER BY created_at ASC
+        """, (conv_id,))
+        rows = c.fetchall()
+        conn.close()
+
+        messages = [
+            {"id": r[0], "role": r[1], "content": r[2], "created_at": r[3].isoformat()}
+            for r in rows
+        ]
+        return jsonify({"messages": messages})
+    except Exception as e:
+        logging.error(f"Error obteniendo mensajes: {str(e)}")
+        return jsonify({"error": "No se pudieron obtener los mensajes"}), 500
+    
 @app.route('/buscar_respuesta', methods=['POST'])
 def buscar_respuesta():
     data = request.get_json()

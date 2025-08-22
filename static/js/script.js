@@ -351,36 +351,28 @@ const cargarConversaciones = async () => {
 const cargarMensajes = async (convId) => {
     currentConvId = convId;
     try {
-        // 🔹 Pedimos solo los mensajes de esa conversación
         const res = await fetch(`/messages/${convId}`);
         if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'Error al cargar mensajes');
+            throw new Error('Error al cargar mensajes');
         }
         const data = await res.json();
 
         const container = getElement('#chatbox').querySelector('.message-container');
         container.innerHTML = '';
 
-        if (data.messages && data.messages.length > 0) {
-            // 🔹 Mostrar historial existente
-            data.messages.forEach(msg => {
-                const div = document.createElement('div');
-                div.classList.add(msg.role === 'user' ? 'user' : 'bot');
-                div.innerHTML = (typeof marked !== 'undefined' ? marked.parse(msg.content) : msg.content) +
-                    `<button class="copy-btn" data-text="${msg.content.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-                container.appendChild(div);
-            });
-        } else {
-            // 🔹 Si no hay mensajes → mostrar saludo inicial
-            mostrarMensajeBienvenida();
-        }
+        data.messages.forEach(msg => {
+            const div = document.createElement('div');
+            div.classList.add(msg.role === 'user' ? 'user' : 'bot');
+            div.innerHTML = (typeof marked !== 'undefined' ? marked.parse(msg.content) : msg.content) +
+                `<button class="copy-btn" data-text="${msg.content.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+            container.appendChild(div);
+        });
 
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
     } catch (error) {
         console.error('Error cargando mensajes:', error);
-        mostrarNotificacion(`Error al cargar mensajes: ${error.message}`, 'error');
+        mostrarNotificacion('Error al cargar mensajes', 'error');
     }
 };
 
