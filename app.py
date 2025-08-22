@@ -681,13 +681,13 @@ def get_avatars():
         logging.error(f"Error al obtener avatares: {str(e)}")
         return jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]}), 200
 
-if __name__ == "__main__":
-    try:
-        logging.info("Iniciando inicialización de DB...")
-        init_db()  # Fuerza init siempre (seguro por IF NOT EXISTS)
-        logging.info("DB inicializada con éxito")
-    except Exception as e:
-        logging.error(f"Falló inicialización de DB: {str(e)}. Verifica permisos en Render Postgres o DATABASE_URL.")
-        exit(1)
+try:
+    logging.info("Iniciando inicialización de DB...")
+    init_db()  # se ejecuta siempre, ya uses python app.py o gunicorn
+    logging.info("DB inicializada con éxito")
+except Exception as e:
+    logging.error(f"Falló inicialización de DB: {str(e)}. Verifica permisos en Render Postgres o DATABASE_URL.")
+    exit(1)
 
+if __name__ == "__main__":
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
