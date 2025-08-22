@@ -17,7 +17,6 @@ from gtts import gTTS
 import io
 import retrying
 import re
-import uuid
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -70,32 +69,21 @@ def init_db():
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        # Tabla progreso
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
-                    (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
-        # Tabla logs
+                     (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                    (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Añadir columna nivel_explicacion si no existe
-        c.execute('''ALTER TABLE logs ADD COLUMN IF NOT EXISTS nivel_explicacion TEXT''')
-        # Tabla avatars
+                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
-                    (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
+                     (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("default", "Avatar Predeterminado", "https://via.placeholder.com/50", ""))
-        # Tabla quiz_logs
+                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                    (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Tabla chats
-        c.execute('''CREATE TABLE IF NOT EXISTS chats
-                    (chat_id TEXT PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Índices
+                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_chats ON chats(usuario, timestamp)')
         conn.commit()
-        logging.info("Base de datos inicializada correctamente: tablas creadas (progreso, logs, avatars, quiz_logs, chats)")
+        logging.info("Base de datos inicializada correctamente: tablas creadas (progreso, logs, avatars, quiz_logs)")
         return True
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
@@ -107,20 +95,6 @@ def init_db():
         if 'conn' in locals():
             conn.close()
 
-@app.route("/avatars", methods=["GET"])
-def avatars():
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
-        avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
-        conn.close()
-        logging.info(f"Avatares enviados: {len(avatars)} avatares")
-        return jsonify(avatars)
-    except PsycopgError as e:
-        logging.error(f"Error al recuperar avatares: {str(e)}")
-        return jsonify({"error": "Error al recuperar avatares"}), 500
-    
 def cargar_temas():
     global temas
     try:
@@ -358,60 +332,9 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
-# Modificado para incluir saludo inicial y reiniciar historial
 @app.route("/")
 def index():
-    # Reiniciar historial y chat_id en la sesión al cargar la página
-    session['chat_id'] = None
-    session['historial'] = []
-    saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
-    return render_template("index.html", saludo_inicial=saludo_inicial)
-
-# Nuevo endpoint para iniciar un nuevo chat
-@app.route("/new_chat", methods=["POST"])
-def new_chat():
-    try:
-        data = request.get_json()
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        # Guardar el chat actual en la base de datos si existe
-        if session.get('chat_id') and session.get('historial'):
-            try:
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute(
-                    "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
-                    "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
-                    (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
-                )
-                conn.commit()
-                conn.close()
-                logging.info(f"Chat guardado: chat_id={session['chat_id']}, usuario={usuario}")
-            except PsycopgError as e:
-                logging.error(f"Error al guardar chat: {str(e)}")
-        # Reiniciar sesión para nuevo chat
-        session['chat_id'] = str(uuid.uuid4())
-        session['historial'] = []
-        saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
-        return jsonify({"saludo_inicial": saludo_inicial, "historial": []})
-    except Exception as e:
-        logging.error(f"Error en /new_chat: {str(e)}")
-        return jsonify({"error": f"Error al iniciar nuevo chat: {str(e)}"}), 500
-
-# Nuevo endpoint para obtener historial de chats
-@app.route("/chat_history", methods=["GET"])
-def chat_history():
-    try:
-        usuario = bleach.clean(request.args.get("usuario", "anonimo")[:50])
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT chat_id, timestamp, historial FROM chats WHERE usuario = %s ORDER BY timestamp DESC", (usuario,))
-        chats = [{"chat_id": row[0], "timestamp": row[1].strftime("%Y-%m-%d %H:%M:%S"), "historial": row[2]} for row in c.fetchall()]
-        conn.close()
-        logging.info(f"Historial de chats recuperado para usuario {usuario}: {len(chats)} chats")
-        return jsonify({"chats": chats})
-    except PsycopgError as e:
-        logging.error(f"Error al recuperar historial de chats: {str(e)}")
-        return jsonify({"error": "Error al recuperar historial de chats"}), 500
+    return render_template("index.html")
 
 @app.route("/ask", methods=["POST"])
 @retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
@@ -425,8 +348,8 @@ def ask():
         pregunta = bleach.clean(data.get("pregunta", "")[:500])
         usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
         nivel_explicacion = bleach.clean(data.get("nivel_explicacion", "basica")[:50])
-        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])
-        historial = session.get("historial", [])[:5]
+        avatar_id = bleach.clean(data.get("avatar_id", "default")[:50])  # Se recibe pero no se usa
+        historial = data.get("historial", [])[:5]
 
         if not pregunta:
             logging.error("Pregunta vacía en /ask")
@@ -436,40 +359,23 @@ def ask():
             logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
             nivel_explicacion = "basica"
 
-        # Generar chat_id si es el primer mensaje
-        if not session.get('chat_id'):
-            session['chat_id'] = str(uuid.uuid4())
-            session['historial'] = []
-            logging.info(f"Nuevo chat iniciado: chat_id={session['chat_id']}, usuario={usuario}")
+        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion)
 
-        respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion, usuario)
-
-        # Guardar en logs con chat_id
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion, chat_id) VALUES (%s, %s, %s, %s, %s)",
-                (usuario, pregunta, respuesta, nivel_explicacion, session['chat_id'])
-            )
-            # Guardar o actualizar historial en la tabla chats
-            session['historial'] = session['historial'] + [{"pregunta": pregunta, "respuesta": respuesta}]
-            cursor.execute(
-                "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
-                "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
-                (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
+                "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion) VALUES (%s, %s, %s, %s)",
+                (usuario, pregunta, respuesta, nivel_explicacion)
             )
             conn.commit()
             cursor.close()
             conn.close()
-            logging.info(f"Historial guardado en chats: chat_id={session['chat_id']}, usuario={usuario}")
         except PsycopgError as e:
-            logging.error(f"Error al guardar en logs o chats: {str(e)}")
+            logging.error(f"Error al guardar log en la base de datos: {str(e)}")
 
-        session.modified = True
-        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}, chat_id={session['chat_id']}")
-
-        return jsonify({"respuesta": respuesta, "video_url": None, "historial": session['historial']})
+        logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}")
+        return jsonify({"respuesta": respuesta, "video_url": None})
     except Exception as e:
         logging.error(f"Error en /ask: {str(e)}")
         return jsonify({"error": f"Error al obtener respuesta: {str(e)}"}), 500
@@ -580,6 +486,7 @@ def quiz():
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
         return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
+
 
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
@@ -768,7 +675,7 @@ def recommend():
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         logging.warning(f"Usando recomendación de fallback por error: {recomendacion_texto}")
         return jsonify({"recommendation": recomendacion_texto})
-
+    
 @app.route("/temas", methods=["GET"])
 def get_temas():
     try:
@@ -781,9 +688,8 @@ def get_temas():
         logging.error(f"Error en /temas: {str(e)}")
         return jsonify({"error": "Error al obtener temas"}), 500
 
-if not init_db():
-    logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
-    exit(1)
-
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
+    if not init_db():
+        logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
+        exit(1)
+    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
