@@ -197,15 +197,14 @@ def handle_messages(conv_id):
     usuario = session.get('usuario', 'anonimo')
 
     if request.method == 'GET':
-        # Obtener mensajes de una conversación
         try:
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("""
-                SELECT id, role, content, created_at
+                SELECT id, role, content, timestamp
                 FROM messages
                 WHERE conv_id = %s
-                ORDER BY created_at ASC
+                ORDER BY timestamp ASC
             """, (conv_id,))
             rows = c.fetchall()
             conn.close()
@@ -215,7 +214,7 @@ def handle_messages(conv_id):
                     "id": r[0],
                     "role": r[1],
                     "content": r[2],
-                    "created_at": r[3].isoformat()
+                    "created_at": r[3].isoformat()  # 🔑 aquí lo mantenemos como "created_at" en JSON
                 } for r in rows
             ]
             return jsonify({"messages": messages})
@@ -224,17 +223,16 @@ def handle_messages(conv_id):
             return jsonify({"error": "No se pudieron obtener los mensajes"}), 500
 
     elif request.method == 'POST':
-        # Insertar mensaje (usuario o bot)
         try:
             data = request.get_json()
-            role = data.get("role", "user")  # user o bot
+            role = data.get("role", "user")
             content = data.get("content", "")
 
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("""
-                INSERT INTO messages (conv_id, role, content)
-                VALUES (%s, %s, %s) RETURNING id, created_at
+                INSERT INTO messages (conv_id, role, content, timestamp)
+                VALUES (%s, %s, %s, NOW()) RETURNING id, timestamp
             """, (conv_id, role, content))
             row = c.fetchone()
             conn.commit()
