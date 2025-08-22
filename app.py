@@ -270,10 +270,10 @@ def handle_messages(conv_id):
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("""
-                SELECT id, role, content, timestamp
+                SELECT id, role, content, created_at
                 FROM messages
                 WHERE conv_id = %s
-                ORDER BY timestamp ASC
+                ORDER BY created_at ASC
             """, (conv_id,))
             rows = c.fetchall()
             conn.close()
@@ -283,7 +283,7 @@ def handle_messages(conv_id):
                     "id": r[0],
                     "role": r[1],
                     "content": r[2],
-                    "created_at": r[3].isoformat()  # 🔑 aquí lo mantenemos como "created_at" en JSON
+                    "created_at": (r[3].isoformat() if r[3] else None)
                 } for r in rows
             ]
             return jsonify({"messages": messages})
@@ -291,31 +291,61 @@ def handle_messages(conv_id):
             logging.error(f"Error obteniendo mensajes: {str(e)}")
             return jsonify({"error": "No se pudieron obtener los mensajes"}), 500
 
-    elif request.method == 'POST':
-        try:
-            data = request.get_json()
-            role = data.get("role", "user")
-            content = data.get("content", "")
+    # POST
+    try:
+        data = request.get_json()
+        role = data.get("role", "user")
+        content = data.get("content", "")
 
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("""
-                INSERT INTO messages (conv_id, role, content, timestamp)
-                VALUES (%s, %s, %s, NOW()) RETURNING id, timestamp
-            """, (conv_id, role, content))
-            row = c.fetchone()
-            conn.commit()
-            conn.close()
+        conn = get_db_connection()
+        c = conn.cursor()
+        # La tabla ya tiene created_at con DEFAULT CURRENT_TIMESTAMP
+        c.execute("""
+            INSERT INTO messages (conv_id, role, content)
+            VALUES (%s, %s, %s)
+            RETURNING id, created_at
+        """, (conv_id, role, content))
+        row = c.fetchone()
+        conn.commit()
+        conn.close()
 
-            return jsonify({
-                "id": row[0],
-                "role": role,
-                "content": content,
-                "created_at": row[1].isoformat()
-            })
-        except Exception as e:
-            logging.error(f"Error guardando mensaje: {str(e)}")
-            return jsonify({"error": "No se pudo guardar el mensaje"}), 500
+        return jsonify({
+            "id": row[0],
+            "role": role,
+            "content": content,
+            "created_at": row[1].isoformat() if row[1] else None
+        })
+    except Exception as e:
+        logging.error(f"Error guardando mensaje: {str(e)}")
+        return jsonify({"error": "No se pudo guardar el mensaje"}), 500
+
+@app.route('/conversations', methods=['GET'])
+def list_conversations():
+    usuario = session.get('usuario', 'anonimo')
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, nombre, created_at
+            FROM conversations
+            WHERE usuario = %s
+            ORDER BY created_at DESC, id DESC
+        """, (usuario,))
+        rows = c.fetchall()
+        conn.close()
+
+        conversations = [
+            {
+                "id": r[0],
+                "nombre": r[1] or "Nuevo Chat",
+                "created_at": (r[2].isoformat() if r[2] else None)
+            } for r in rows
+        ]
+        return jsonify({"conversations": conversations})
+    except Exception as e:
+        logging.error(f"Error listando conversaciones: {str(e)}")
+        return jsonify({"error": "No se pudieron obtener las conversaciones"}), 500
+
 
         
 @app.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
