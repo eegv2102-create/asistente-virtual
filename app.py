@@ -73,13 +73,11 @@ def init_db():
         # Tabla progreso
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                     (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
-        # Tabla logs con chat_id como UUID
+        # Tabla logs
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                    (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id UUID, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                    (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # Añadir columna nivel_explicacion si no existe
         c.execute('''ALTER TABLE logs ADD COLUMN IF NOT EXISTS nivel_explicacion TEXT''')
-        # Añadir columna chat_id como UUID si no existe
-        c.execute('''ALTER TABLE logs ADD COLUMN IF NOT EXISTS chat_id UUID''')
         # Tabla avatars
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                     (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
@@ -87,10 +85,10 @@ def init_db():
                   ("default", "Avatar Predeterminado", "https://via.placeholder.com/50", ""))
         # Tabla quiz_logs
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                    (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id UUID, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                    (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # Tabla chats
         c.execute('''CREATE TABLE IF NOT EXISTS chats
-                    (chat_id UUID PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                    (chat_id TEXT PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # Índices
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
@@ -360,33 +358,16 @@ def validate_quiz_format(quiz_data):
     if quiz_data["respuesta_correcta"] not in quiz_data["opciones"]:
         raise ValueError("La respuesta_correcta debe coincidir exactamente con una de las opciones")
 
+# Modificado para incluir saludo inicial y reiniciar historial
 @app.route("/")
 def index():
-    # Reiniciar historial y generar un nuevo chat_id al cargar la página
-    session['chat_id'] = str(uuid.uuid4())  # Generar un nuevo chat_id único
+    # Reiniciar historial y chat_id en la sesión al cargar la página
+    session['chat_id'] = None
     session['historial'] = []
     saludo_inicial = "¡Hola, soy YELIA! Estoy lista para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?"
-    
-    # Guardar el nuevo chat en la base de datos
-    usuario = session.get('usuario', 'anonimo')
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
-            "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
-            (session['chat_id'], usuario, json.dumps([]), json.dumps([]))
-        )
-        conn.commit()
-        logging.info(f"Nuevo chat inicial creado al cargar página: chat_id={session['chat_id']}, usuario={usuario}")
-    except PsycopgError as e:
-        logging.error(f"Error al guardar chat inicial en /: {str(e)}")
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
     return render_template("index.html", saludo_inicial=saludo_inicial)
 
+# Nuevo endpoint para iniciar un nuevo chat
 @app.route("/new_chat", methods=["POST"])
 def new_chat():
     try:
@@ -416,6 +397,7 @@ def new_chat():
         logging.error(f"Error en /new_chat: {str(e)}")
         return jsonify({"error": f"Error al iniciar nuevo chat: {str(e)}"}), 500
 
+# Nuevo endpoint para obtener historial de chats
 @app.route("/chat_history", methods=["GET"])
 def chat_history():
     try:
@@ -454,30 +436,11 @@ def ask():
             logging.warning(f"Nivel de explicación inválido: {nivel_explicacion}, usando 'basica'")
             nivel_explicacion = "basica"
 
-        # Asegurar que el usuario esté registrado en la sesión
-        session['usuario'] = usuario
-
-        # Verificar si es la primera pregunta del chat
-        if not historial:  # Si el historial está vacío, confirmar que el chat_id existe
-            if not session.get('chat_id'):
-                session['chat_id'] = str(uuid.uuid4())
-                logging.info(f"Nuevo chat iniciado en /ask: chat_id={session['chat_id']}, usuario={usuario}")
-            # Guardar el nuevo chat en la base de datos si aún no está
-            try:
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute(
-                    "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
-                    "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
-                    (session['chat_id'], usuario, json.dumps([]), json.dumps([]))
-                )
-                conn.commit()
-                logging.info(f"Chat inicial guardado en /ask: chat_id={session['chat_id']}, usuario={usuario}")
-            except PsycopgError as e:
-                logging.error(f"Error al guardar chat inicial en /ask: {str(e)}")
-            finally:
-                if 'conn' in locals():
-                    conn.close()
+        # Generar chat_id si es el primer mensaje
+        if not session.get('chat_id'):
+            session['chat_id'] = str(uuid.uuid4())
+            session['historial'] = []
+            logging.info(f"Nuevo chat iniciado: chat_id={session['chat_id']}, usuario={usuario}")
 
         respuesta = buscar_respuesta_app(pregunta, historial, nivel_explicacion, usuario)
 
@@ -497,13 +460,11 @@ def ask():
                 (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
             )
             conn.commit()
+            cursor.close()
+            conn.close()
             logging.info(f"Historial guardado en chats: chat_id={session['chat_id']}, usuario={usuario}")
         except PsycopgError as e:
             logging.error(f"Error al guardar en logs o chats: {str(e)}")
-        finally:
-            if 'conn' in locals():
-                cursor.close()
-                conn.close()
 
         session.modified = True
         logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}, chat_id={session['chat_id']}")
