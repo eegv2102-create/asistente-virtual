@@ -197,7 +197,7 @@ body {
   margin-top: 10px;
   background-color: var(--bg-primary);
   border-radius: 8px;
-  overflow: visible;
+  /* Removido overflow: hidden para evitar recorte del menú desplegable */
 }
 
 .left-section, .right-section {
@@ -562,11 +562,6 @@ body.modo-oscuro .bot code {
   background-color: var(--bg-primary);
   flex-wrap: wrap;
   gap: 6px;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  z-index: 1000;
 }
 
 .input-buttons.left, .input-buttons.right {
@@ -576,28 +571,25 @@ body.modo-oscuro .bot code {
 
 .dropdown-container {
   position: relative;
-  display: inline-block;
-  z-index: 10010;
-  overflow: visible;
+  display: block;
 }
 
 .dropdown-menu {
   display: none;
   position: absolute;
-  background: var(--bg-primary) !important;
-  border: 1px solid var(--border) !important;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px;
-  z-index: 10010 !important;
+  z-index: 10000;
   box-shadow: 0 4px 8px var(--shadow);
   min-width: 150px;
-  top: calc(100% + 4px);
+  bottom: calc(100% + 4px); /* Posiciona arriba del botón en PC y móvil */
   left: 0;
-  pointer-events: auto;
 }
 
 .dropdown-menu.active {
-  display: block !important;
+  display: block;
 }
 
 .dropdown-menu button {
@@ -607,16 +599,16 @@ body.modo-oscuro .bot code {
   background: none;
   border: none;
   text-align: left;
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-size: 0.85rem;
   cursor: pointer;
-  pointer-events: auto !important;
+  pointer-events: auto;
   border-radius: 4px;
 }
 
 .dropdown-menu button:hover, .dropdown-menu button:focus {
-  background-color: var(--accent) !important;
-  color: var(--button-text) !important;
+  background-color: var(--accent);
+  color: var(--button-text);
 }
 
 #input {
@@ -762,6 +754,7 @@ body.modo-oscuro .bot code {
   margin-bottom: 5px;
 }
 
+/* Media queries para móvil (max-width: 768px) - Estilos específicos para dispositivos móviles */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -856,42 +849,40 @@ body.modo-oscuro .bot code {
 
   .dropdown-container {
     position: relative;
-    display: inline-block;
-    z-index: 10010;
-    overflow: visible;
+    display: block;
   }
 
   .dropdown-menu {
     display: none;
     position: absolute;
-    background: var(--bg-primary) !important;
-    border: 1px solid var(--border) !important;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 8px;
-    z-index: 10010 !important;
+    z-index: 10001; /* Aumentado para evitar superposición */
     box-shadow: 0 4px 8px var(--shadow);
-    min-width: 160px;
-    bottom: calc(100% + 4px);
+    min-width: 150px;
+    bottom: calc(100% + 4px); /* Arriba del botón en móvil */
     left: 0;
-    right: auto;
-    pointer-events: auto !important;
+    visibility: visible; /* Visible por defecto */
   }
 
   .dropdown-menu.active {
-    display: block !important;
+    display: block;
+    visibility: visible; /* Visible cuando activo */
   }
 
   .dropdown-menu button {
     display: block;
     width: 100%;
-    padding: 6px 10px;
+    padding: 8px 12px;
     background: none;
     border: none;
     text-align: left;
-    color: var(--text-primary) !important;
-    font-size: 0.8rem;
+    color: var(--text-primary);
+    font-size: 0.85rem;
     cursor: pointer;
-    pointer-events: auto !important;
+    pointer-events: auto;
     border-radius: 4px;
   }
 
@@ -923,6 +914,16 @@ body.modo-oscuro .bot code {
   .menu-toggle-right {
     order: 2;
     margin-left: 6px;
+  }
+
+  #modo-btn {
+    order: -1;
+    margin-right: 4px;
+  }
+
+  #voice-btn {
+    order: 1;
+    margin-left: 4px;
   }
 
   .app-title h1 {
@@ -992,26 +993,32 @@ body.modo-oscuro .bot code {
   }
 }
 
+/* Media queries para PC (min-width: 769px) - Estilos específicos para escritorios */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
   }
 
   .dropdown-container {
-    display: inline-block;
-    z-index: 10010;
+    display: block;
   }
 
   .dropdown-menu {
-    top: calc(100% + 4px);
+    bottom: calc(100% + 4px); /* Asegura que aparezca arriba del botón */
     left: 0;
     right: auto;
     min-width: 150px;
-    z-index: 10010 !important;
-    pointer-events: auto !important;
   }
 }
 
-.container, .main-section, .right-section, .left-section, .input-group {
+/* Estilo para el botón de nivel */
+#nivel-btn {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* Asegurar que el contenedor padre no recorte el menú */
+.container, .main-section, .right-section, .left-section {
   overflow: visible !important;
 }
