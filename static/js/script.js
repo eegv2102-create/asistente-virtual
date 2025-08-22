@@ -558,34 +558,21 @@ const addCopyButtonListeners = () => {
 
 // --- DROPDOWN NIVEL ---
 const toggleDropdown = () => {
-    const dropdownMenu = getElement('.dropdown-menu');
+    const dropdownMenu = document.querySelector('.dropdown-menu');
     if (!dropdownMenu) return;
     dropdownMenu.classList.toggle('active');
 };
 
 const setNivelExplicacion = (nivel) => {
     localStorage.setItem('nivelExplicacion', nivel);
-    const nivelBtn = getElement('#nivel-btn');
+    const nivelBtn = document.querySelector('#nivel-btn');
     if (nivelBtn) {
         nivelBtn.textContent =
-            nivel === 'basica'   ? 'Explicación Básica' :
+            nivel === 'basica' ? 'Explicación Básica' :
             nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
-                                   'Avanzada/Teórica';
-
-        // Cierra el menú
-        const dropdownMenu = getElement('.dropdown-menu');
-        if (dropdownMenu && dropdownMenu.classList.contains('active')) {
-            dropdownMenu.classList.remove('active');
-        }
-
-        if (typeof mostrarNotificacion === 'function') {
-            mostrarNotificacion(`Nivel cambiado a: ${nivelBtn.textContent}`, 'success');
-        }
-    } else {
-        console.error('Elemento #nivel-btn no encontrado');
-        if (typeof mostrarNotificacion === 'function') {
-            mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
-        }
+            'Avanzada/Teórica';
+        document.querySelector('.dropdown-menu').classList.remove('active'); // 🔹 cerrar después de elegir
+        mostrarNotificacion(`Nivel cambiado a: ${nivelBtn.textContent}`, 'success');
     }
 };
 

@@ -61,25 +61,26 @@
             <div id="chatbox">
                 <div class="message-container"></div>
             </div>
-
             <div class="input-group">
                 <div class="input-buttons left">
                     <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
                         <i class="fas fa-plus"></i>
                     </button>
                     <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </div>
-                
-                <div class="dropdown-container">
-                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación" onclick="toggleDropdown()">Explicación Básica</button>
-                    <div class="dropdown-menu">
-                        <button onclick="setNivelExplicacion('basica')">Explicación Básica</button>
-                        <button onclick="setNivelExplicacion('ejemplos')">Con Ejemplos de Código</button>
-                        <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
-                    </div>
-                </div>
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                         <!-- DROPDOWN NIVEL CORREGIDO -->
+                                          <div class="dropdown-container">
+                                            <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">
+                                                Explicación Básica
+                                            </button>
+                                            <div class="dropdown-menu">
+                                                <button onclick="setNivelExplicacion('basica')">Explicación Básica</button>
+                                                <button onclick="setNivelExplicacion('ejemplos')">Con Ejemplos de Código</button>
+                                                <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
+                                            </div>
+                                        </div>
 
                 <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
 
