@@ -1010,3 +1010,78 @@ body.modo-oscuro .bot code {
     min-width: 150px;
   }
 }
+/* Estilos para el contenedor del menú desplegable */
+.dropdown-container {
+    position: relative;
+    display: inline-block; /* Cambiado a inline-block para evitar conflictos */
+}
+
+/* Estilos para el menú desplegable */
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    background: var(--bg-primary, #ffffff) !important;
+    border: 1px solid var(--border, #cccccc) !important;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 999999 !important; /* Muy alto para evitar superposición */
+    box-shadow: 0 4px 8px var(--shadow, rgba(0, 0, 0, 0.2));
+    min-width: 180px; /* Aumentado para mejor visibilidad */
+    top: calc(100% + 4px); /* Justo debajo del botón */
+    left: 0;
+    background: red !important; /* Temporal para depuración */
+}
+
+/* Asegurar que el menú sea visible cuando está activo */
+.dropdown-menu.active {
+    display: block !important;
+}
+
+/* Estilos para los botones del menú */
+.dropdown-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    text-align: left;
+    color: var(--text-primary, #333333) !important;
+    font-size: 0.9rem;
+    cursor: pointer;
+    pointer-events: auto !important; /* Asegurar clics */
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.dropdown-menu button:hover, .dropdown-menu button:focus {
+    background-color: var(--accent, #007bff) !important;
+    color: var(--button-text, #ffffff) !important;
+}
+
+/* Ajustes para móviles */
+@media (max-width: 768px) {
+    .dropdown-menu {
+        top: auto;
+        bottom: calc(100% + 4px); /* Arriba del botón en móvil */
+        left: 0;
+        right: auto;
+        min-width: 160px;
+    }
+
+    .dropdown-menu button {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Asegurar que el contenedor padre no recorte el menú */
+.container, .main-section, .right-section, .left-section {
+    overflow: visible !important;
+}
+
+/* Estilo para el botón de nivel */
+#nivel-btn {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
