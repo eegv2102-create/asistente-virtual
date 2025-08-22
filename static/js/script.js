@@ -554,7 +554,6 @@ const addCopyButtonListeners = () => {
         });
     });
 };
-
 const toggleDropdown = () => {
     const dropdownMenu = getElement('.dropdown-menu');
     if (!dropdownMenu) return;
@@ -578,19 +577,33 @@ const setNivelExplicacion = (nivel) => {
 
 const isMobile = () => window.innerWidth < 768;
 
+// 🔹 FIX: ahora ignoramos clicks en las opciones del menú para que no se cierre antes
 document.addEventListener('click', (event) => {
+    const dropdownMenu = getElement('.dropdown-menu');
+    const nivelBtn = getElement('#nivel-btn');
+
+    // Si clic en opción del dropdown → no cerrar antes de actualizar
+    if (dropdownMenu && dropdownMenu.contains(event.target)) {
+        return; 
+    }
+
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
-        const dropdownMenu = getElement('.dropdown-menu');
 
-        if (leftSection && leftSection.classList.contains('active') && !leftSection.contains(event.target) && !getElement('.menu-toggle').contains(event.target)) {
+        if (leftSection && leftSection.classList.contains('active') &&
+            !leftSection.contains(event.target) &&
+            !getElement('.menu-toggle').contains(event.target)) {
             toggleMenu();
         }
-        if (rightSection && rightSection.classList.contains('active') && !rightSection.contains(event.target) && !getElement('.menu-toggle-right').contains(event.target)) {
+        if (rightSection && rightSection.classList.contains('active') &&
+            !rightSection.contains(event.target) &&
+            !getElement('.menu-toggle-right').contains(event.target)) {
             toggleRightMenu();
         }
-        if (dropdownMenu && dropdownMenu.classList.contains('active') && !dropdownMenu.contains(event.target) && !getElement('#nivel-btn').contains(event.target)) {
+        if (dropdownMenu && dropdownMenu.classList.contains('active') &&
+            !dropdownMenu.contains(event.target) &&
+            !nivelBtn.contains(event.target)) {
             toggleDropdown();
         }
     }
@@ -603,11 +616,9 @@ const toggleMenu = () => {
     leftSection.classList.toggle('active');
     if (isMobile()) {
         const menuToggle = getElement('.menu-toggle');
-        if (leftSection.classList.contains('active')) {
-            menuToggle.innerHTML = '<i class="fas fa-times"></i>';
-        } else {
-            menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
-        }
+        menuToggle.innerHTML = leftSection.classList.contains('active')
+            ? '<i class="fas fa-times"></i>'
+            : '<i class="fas fa-bars"></i>';
     }
     if (rightSection && rightSection.classList.contains('active')) {
         rightSection.classList.remove('active');
@@ -625,11 +636,9 @@ const toggleRightMenu = () => {
     rightSection.classList.toggle('active');
     if (isMobile()) {
         const menuToggleRight = getElement('.menu-toggle-right');
-        if (rightSection.classList.contains('active')) {
-            menuToggleRight.innerHTML = '<i class="fas fa-times"></i>';
-        } else {
-            menuToggleRight.innerHTML = '<i class="fas fa-bars"></i>';
-        }
+        menuToggleRight.innerHTML = rightSection.classList.contains('active')
+            ? '<i class="fas fa-times"></i>'
+            : '<i class="fas fa-bars"></i>';
     }
     if (leftSection && leftSection.classList.contains('active')) {
         leftSection.classList.remove('active');
