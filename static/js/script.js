@@ -555,14 +555,14 @@ const addCopyButtonListeners = () => {
     });
 };
 const toggleDropdown = () => {
-    const dropdownMenu = getElement('.dropdown-menu');
+    const dropdownMenu = document.querySelector('.dropdown-menu');
     if (!dropdownMenu) return;
     dropdownMenu.classList.toggle('active');
 };
 
 const setNivelExplicacion = (nivel) => {
     localStorage.setItem('nivelExplicacion', nivel);
-    const nivelBtn = getElement('#nivel-btn');
+    const nivelBtn = document.querySelector('#nivel-btn');
     if (nivelBtn) {
         nivelBtn.textContent = nivel === 'basica' ? 'Explicación Básica' :
                                nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
