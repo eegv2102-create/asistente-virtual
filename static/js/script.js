@@ -313,8 +313,13 @@ const cargarConversaciones = async () => {
                     <button class="delete-btn" data-tooltip="Eliminar"><i class="fas fa-trash"></i></button>
                 </div>
             `;
-            li.addEventListener('click', () => cargarMensajes(conv.id));
+            li.addEventListener('click', () => {
+                currentConvId = conv.id;
+                localStorage.setItem('lastConvId', currentConvId); // 🔹 Guarda último chat
+                cargarMensajes(conv.id);
+            });
             chatList.appendChild(li);
+
             li.querySelector('.delete-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 eliminarConversacion(conv.id);
@@ -324,9 +329,18 @@ const cargarConversaciones = async () => {
                 renombrarConversacion(conv.id);
             });
         });
+
+        // Si hay chats y no hay conversación activa, cargar último usado
         if (data.conversations.length > 0 && !currentConvId) {
-            currentConvId = data.conversations[0].id;
-            cargarMensajes(currentConvId);
+            const lastConvId = localStorage.getItem('lastConvId');
+            if (lastConvId) {
+                currentConvId = parseInt(lastConvId);
+                cargarMensajes(currentConvId);
+            } else {
+                currentConvId = data.conversations[0].id;
+                cargarMensajes(currentConvId);
+                localStorage.setItem('lastConvId', currentConvId);
+            }
         }
     } catch (error) {
         console.error('Error cargando conversaciones:', error);
@@ -368,6 +382,7 @@ const cargarMensajes = async (convId) => {
 };
 
 const eliminarConversacion = async (convId) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar esta conversación?")) return;
     try {
         const res = await fetch(`/conversations/${convId}`, {
             method: 'DELETE',
@@ -390,6 +405,7 @@ const eliminarConversacion = async (convId) => {
         mostrarNotificacion(`Error al eliminar conversación: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
     }
 };
+
 
 const renombrarConversacion = async (convId) => {
     const nuevoNombre = prompt('Nuevo nombre para la conversación:');

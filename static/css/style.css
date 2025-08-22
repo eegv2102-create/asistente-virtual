@@ -229,13 +229,14 @@ body {
 
 .chat-history {
   flex: 1;
-  overflow: hidden; /* Evita scrollbar en el contenedor de historial, delega a #chat-list */
+  overflow: hidden; /* Contenedor no genera scroll propio */
   overflow-x: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   background-color: var(--bg-primary);
   width: 100%;
   box-sizing: border-box;
+  max-height: 350px; /* 🔹 altura máxima visible del historial */
 }
 
 #chat-list {
@@ -243,9 +244,10 @@ body {
   padding: 8px;
   margin: 0;
   width: 100%;
-  overflow-y: auto; /* Scrollbar solo en la lista de chats */
-  max-height: 100%; /* Limita la altura al contenedor padre (.chat-history) */
+  overflow-y: auto; /* 🔹 scroll dentro de la lista */
+  max-height: 100%;
 }
+
 
 #chat-list::-webkit-scrollbar,
 #chatbox::-webkit-scrollbar,
