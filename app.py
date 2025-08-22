@@ -61,24 +61,32 @@ def init_db():
         # Crear tablas (mantiene IF NOT EXISTS para seguridad)
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
+        
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                      (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                   ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
+
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
         c.execute('''CREATE TABLE IF NOT EXISTS conversations
                      (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, nombre TEXT DEFAULT 'Nuevo Chat', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
         c.execute('''CREATE TABLE IF NOT EXISTS messages
                      (id SERIAL PRIMARY KEY, conv_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
-                      role TEXT NOT NULL, content TEXT NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                      role TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
+        # Índices
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, created_at)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_conversations ON conversations(usuario, created_at)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, timestamp)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, created_at)')
+
         conn.commit()
         logging.info("Base de datos inicializada correctamente: tablas creadas")
         conn.close()
@@ -96,6 +104,7 @@ def init_db():
     finally:
         if 'conn' in locals() and conn:
             conn.close()
+
 
 def cargar_temas():
     global temas
@@ -173,37 +182,64 @@ def call_groq_api(messages, model, max_tokens, temperature):
             raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
 
-@app.route('/conversations', methods=['GET', 'POST'])
-def handle_conversations():
+@app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
+def handle_messages(conv_id):
     usuario = session.get('usuario', 'anonimo')
-    if request.method == 'POST':
-        try:
-            conn = get_db_connection()  # Chequeo conexión
-            c = conn.cursor()
-            nombre = request.json.get('nombre', 'Nuevo Chat')
-            c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id", (usuario, nombre))
-            conv_id = c.fetchone()[0]
-            conn.commit()
-            conn.close()
-            session['current_conv_id'] = conv_id
-            return jsonify({'id': conv_id, 'nombre': nombre})
-        except Exception as e:
-            logging.error(f"Error creando conversación: {str(e)}")  # Log detallado
-            return jsonify({'error': f"No se pudo crear la conversación: {str(e)}. Verifica si tablas existen en DB."}), 500
-    else:
+
+    if request.method == 'GET':
+        # Obtener mensajes de una conversación
         try:
             conn = get_db_connection()
             c = conn.cursor()
-            c.execute("SELECT id, nombre, created_at FROM conversations WHERE usuario = %s ORDER BY created_at DESC", (usuario,))
-            convs = [{'id': row[0], 'nombre': row[1], 'created_at': row[2].isoformat()} for row in c.fetchall()]
+            c.execute("""
+                SELECT id, role, content, created_at
+                FROM messages
+                WHERE conv_id = %s
+                ORDER BY created_at ASC
+            """, (conv_id,))
+            rows = c.fetchall()
             conn.close()
-            if not session.get('current_conv_id') and convs:
-                session['current_conv_id'] = convs[0]['id']
-            return jsonify({'conversations': convs})
+
+            messages = [
+                {
+                    "id": r[0],
+                    "role": r[1],
+                    "content": r[2],
+                    "created_at": r[3].isoformat()
+                } for r in rows
+            ]
+            return jsonify({"messages": messages})
         except Exception as e:
-            logging.error(f"Error listando conversaciones: {str(e)}")
-            return jsonify({'error': f"No se pudo listar conversaciones: {str(e)}. Verifica si tablas existen en DB."}), 500
-        
+            logging.error(f"Error obteniendo mensajes: {str(e)}")
+            return jsonify({"error": "No se pudieron obtener los mensajes"}), 500
+
+    elif request.method == 'POST':
+        # Insertar mensaje (usuario o bot)
+        try:
+            data = request.get_json()
+            role = data.get("role", "user")  # user o bot
+            content = data.get("content", "")
+
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO messages (conv_id, role, content)
+                VALUES (%s, %s, %s) RETURNING id, created_at
+            """, (conv_id, role, content))
+            row = c.fetchone()
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                "id": row[0],
+                "role": role,
+                "content": content,
+                "created_at": row[1].isoformat()
+            })
+        except Exception as e:
+            logging.error(f"Error guardando mensaje: {str(e)}")
+            return jsonify({"error": "No se pudo guardar el mensaje"}), 500
+
         
 @app.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
 def manage_conversation(conv_id):
