@@ -698,10 +698,15 @@ const toggleRightMenu = () => {
 
 // --- Estado inicial (recuperar nivel guardado) ---
 document.addEventListener('DOMContentLoaded', () => {
-    const nivelGuardado = localStorage.getItem('nivelExplicacion') || 'basica';
+    // Forzar nivel inicial a 'basica' si no está definido
+    let nivelGuardado = localStorage.getItem('nivelExplicacion');
+    if (!['basica', 'ejemplos', 'avanzada'].includes(nivelGuardado)) {
+        nivelGuardado = 'basica';
+        localStorage.setItem('nivelExplicacion', nivelGuardado);
+    }
     console.log('Nivel guardado en localStorage:', nivelGuardado); // Depuración
     setNivelExplicacion(nivelGuardado);
-    init(); // Llama a init después de establecer el nivel
+    init();
 });
 
 const mostrarMensajeBienvenida = () => {
@@ -950,7 +955,8 @@ const init = () => {
             getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
             scrollToBottom();
             speakText(mensaje);
-            guardarMensaje('Recomendación', mensaje);
+            // Nota: guardarMensaje no está definido en el código proporcionado, comentado para evitar errores
+            // guardarMensaje('Recomendación', mensaje);
             addCopyButtonListeners();
         }));
     }
