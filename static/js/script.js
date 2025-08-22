@@ -82,9 +82,12 @@ const scrollToBottom = () => {
 
 const updateAvatarDisplay = () => {
     const avatarImg = getElement('#avatar-img');
-    if (!avatarImg) return;
+    if (!avatarImg) {
+        console.warn('Elemento #avatar-img no encontrado, omitiendo actualización');
+        return;
+    }
     const avatars = JSON.parse(localStorage.getItem('avatars') || '[]');
-    const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: '/static/img/default-avatar.png' };
+    const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: 'https://via.placeholder.com/50' };
     avatarImg.src = selected.url;
     avatarImg.classList.add('animate-avatar');
     setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
@@ -264,6 +267,7 @@ const toggleVoiceRecognition = () => {
     }
 };
 
+const defaultAvatar = 'https://via.placeholder.com/50'; // Imagen de respaldo
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
     if (!avatarContainer) return;
@@ -273,7 +277,8 @@ const cargarAvatares = async () => {
         if (response.ok) {
             avatares = await response.json();
         } else {
-            avatares = [{ avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png', animation_url: '' }];
+            console.warn('Endpoint /avatars no disponible, usando avatares por defecto');
+            avatares = [{ avatar_id: 'default', nombre: 'Default', url: defaultAvatar, animation_url: '' }];
         }
         localStorage.setItem('avatars', JSON.stringify(avatares));
         avatarContainer.innerHTML = '';
@@ -299,6 +304,28 @@ const cargarAvatares = async () => {
     } catch (error) {
         console.error('Error al cargar avatares:', error);
         mostrarNotificacion('Error al cargar avatares', 'error');
+        const avatares = [{ avatar_id: 'default', nombre: 'Default', url: defaultAvatar, animation_url: '' }];
+        localStorage.setItem('avatars', JSON.stringify(avatares));
+        avatarContainer.innerHTML = '';
+        avatares.forEach(avatar => {
+            const img = document.createElement('img');
+            img.src = avatar.url;
+            img.classList.add('avatar-option');
+            img.dataset.avatar = avatar.avatar_id;
+            img.alt = `Avatar ${avatar.nombre}`;
+            img.title = avatar.nombre;
+            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
+            avatarContainer.appendChild(img);
+            img.addEventListener('click', () => {
+                getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+                img.classList.add('selected');
+                selectedAvatar = avatar.avatar_id;
+                localStorage.setItem('selectedAvatar', selectedAvatar);
+                updateAvatarDisplay();
+                mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
+            });
+        });
+        updateAvatarDisplay();
     }
 };
 
@@ -343,11 +370,12 @@ const actualizarListaChats = async () => {
     const chatList = getElement('#chat-list');
     if (!chatList) {
         console.error('Elemento #chat-list no encontrado');
+        mostrarNotificacion('Error: Lista de chats no encontrada', 'error');
         return;
     }
     try {
         const response = await fetch('/chat_history?usuario=anonimo');
-        if (!response.ok) throw new Error('Error en /chat_history');
+        if (!response.ok) throw new Error(`Error en /chat_history: ${response.statusText}`);
         const data = await response.json();
         const historial = data.chats || [];
         localStorage.setItem('chatHistory', JSON.stringify(historial.map((chat, index) => ({
@@ -392,9 +420,19 @@ const actualizarListaChats = async () => {
         });
     } catch (error) {
         console.error('Error en /chat_history:', error);
-        mostrarNotificacion('Error al cargar historial de chats', 'error');
+        mostrarNotificacion('Error al cargar historial de chats desde el servidor', 'error');
         // Fallback a localStorage
-        const historial = JSON.parse(localStorage.getItem('chatHistory') || '[]').filter(chat => chat && typeof chat === 'object');
+        let historial = [];
+        try {
+            const chatHistoryRaw = localStorage.getItem('chatHistory');
+            if (chatHistoryRaw) {
+                historial = JSON.parse(chatHistoryRaw).filter(chat => chat && typeof chat === 'object' && chat.id !== undefined);
+            }
+        } catch (localError) {
+            console.error('Error al parsear chatHistory:', localError);
+            localStorage.setItem('chatHistory', JSON.stringify([]));
+            mostrarNotificacion('Historial local corrupto, reiniciado', 'warning');
+        }
         chatList.innerHTML = '';
         historial.forEach((chat, index) => {
             const li = document.createElement('li');

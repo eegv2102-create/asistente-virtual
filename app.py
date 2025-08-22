@@ -72,22 +72,22 @@ def init_db():
         c = conn.cursor()
         # Tabla progreso
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
-                     (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
-        # Tabla logs para interacciones individuales
+                    (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
+        # Tabla logs
         c.execute('''CREATE TABLE IF NOT EXISTS logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                    (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         # Tabla avatars
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
-                     (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
+                    (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
         c.execute("INSERT INTO avatars (avatar_id, nombre, url, animation_url) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
+                  ("default", "Avatar Predeterminado", "https://via.placeholder.com/50", ""))
         # Tabla quiz_logs
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
-                     (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Nueva tabla chats para almacenar historial de chats
+                    (id SERIAL PRIMARY KEY, usuario TEXT NOT NULL, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL, es_correcta BOOLEAN NOT NULL, puntos INTEGER NOT NULL, tema TEXT NOT NULL, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Tabla chats
         c.execute('''CREATE TABLE IF NOT EXISTS chats
-                     (chat_id TEXT PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        # Índices para mejorar rendimiento
+                    (chat_id TEXT PRIMARY KEY, usuario TEXT NOT NULL, historial JSONB DEFAULT '[]', timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Índices
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, timestamp)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, timestamp)')
@@ -105,6 +105,20 @@ def init_db():
         if 'conn' in locals():
             conn.close()
 
+@app.route("/avatars", methods=["GET"])
+def avatars():
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
+        avatars = [{"avatar_id": row[0], "nombre": row[1], "url": row[2], "animation_url": row[3]} for row in c.fetchall()]
+        conn.close()
+        logging.info(f"Avatares enviados: {len(avatars)} avatares")
+        return jsonify(avatars)
+    except PsycopgError as e:
+        logging.error(f"Error al recuperar avatares: {str(e)}")
+        return jsonify({"error": "Error al recuperar avatares"}), 500
+    
 def cargar_temas():
     global temas
     try:
@@ -759,8 +773,9 @@ def get_temas():
         logging.error(f"Error en /temas: {str(e)}")
         return jsonify({"error": "Error al obtener temas"}), 500
 
+if not init_db():
+    logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
+    exit(1)
+
 if __name__ == "__main__":
-    if not init_db():
-        logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
-        exit(1)
-    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
+    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
