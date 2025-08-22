@@ -76,6 +76,8 @@ def init_db():
         # Tabla logs
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                     (id SERIAL PRIMARY KEY, usuario TEXT, pregunta TEXT, respuesta TEXT, nivel_explicacion TEXT, chat_id TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        # Añadir columna nivel_explicacion si no existe
+        c.execute('''ALTER TABLE logs ADD COLUMN IF NOT EXISTS nivel_explicacion TEXT''')
         # Tabla avatars
         c.execute('''CREATE TABLE IF NOT EXISTS avatars
                     (avatar_id TEXT PRIMARY KEY, nombre TEXT, url TEXT, animation_url TEXT)''')
@@ -377,8 +379,8 @@ def new_chat():
                 conn = get_db_connection()
                 c = conn.cursor()
                 c.execute(
-                    "INSERT INTO chats (chat_id, usuario, historial) VALUES (%s, %s, %s) "
-                    "ON CONFLICT (chat_id) DO UPDATE SET historial = %s",
+                    "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
+                    "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
                     (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
                 )
                 conn.commit()
@@ -450,14 +452,20 @@ def ask():
                 "INSERT INTO logs (usuario, pregunta, respuesta, nivel_explicacion, chat_id) VALUES (%s, %s, %s, %s, %s)",
                 (usuario, pregunta, respuesta, nivel_explicacion, session['chat_id'])
             )
+            # Guardar o actualizar historial en la tabla chats
+            session['historial'] = session['historial'] + [{"pregunta": pregunta, "respuesta": respuesta}]
+            cursor.execute(
+                "INSERT INTO chats (chat_id, usuario, historial, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
+                "ON CONFLICT (chat_id) DO UPDATE SET historial = %s, timestamp = CURRENT_TIMESTAMP",
+                (session['chat_id'], usuario, json.dumps(session['historial']), json.dumps(session['historial']))
+            )
             conn.commit()
             cursor.close()
             conn.close()
+            logging.info(f"Historial guardado en chats: chat_id={session['chat_id']}, usuario={usuario}")
         except PsycopgError as e:
-            logging.error(f"Error al guardar log en la base de datos: {str(e)}")
+            logging.error(f"Error al guardar en logs o chats: {str(e)}")
 
-        # Actualizar historial en la sesión
-        session['historial'] = session['historial'] + [{"pregunta": pregunta, "respuesta": respuesta}]
         session.modified = True
         logging.info(f"Pregunta procesada: usuario={usuario}, pregunta={pregunta}, nivel={nivel_explicacion}, chat_id={session['chat_id']}")
 
