@@ -554,39 +554,59 @@ const addCopyButtonListeners = () => {
         });
     });
 };
+
+
+// --- DROPDOWN NIVEL ---
 const toggleDropdown = () => {
-    const dropdownMenu = document.querySelector('.dropdown-menu');
+    const dropdownMenu = getElement('.dropdown-menu');
     if (!dropdownMenu) return;
     dropdownMenu.classList.toggle('active');
 };
 
 const setNivelExplicacion = (nivel) => {
     localStorage.setItem('nivelExplicacion', nivel);
-    const nivelBtn = document.querySelector('#nivel-btn');
+    const nivelBtn = getElement('#nivel-btn');
     if (nivelBtn) {
-        nivelBtn.textContent = nivel === 'basica' ? 'Explicación Básica' :
-                               nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
-                               'Avanzada/Teórica';
-        toggleDropdown();
-        mostrarNotificacion(`Nivel cambiado a: ${nivelBtn.textContent}`, 'success');
+        nivelBtn.textContent =
+            nivel === 'basica'   ? 'Explicación Básica' :
+            nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
+                                   'Avanzada/Teórica';
+
+        // Cierra el menú
+        const dropdownMenu = getElement('.dropdown-menu');
+        if (dropdownMenu && dropdownMenu.classList.contains('active')) {
+            dropdownMenu.classList.remove('active');
+        }
+
+        if (typeof mostrarNotificacion === 'function') {
+            mostrarNotificacion(`Nivel cambiado a: ${nivelBtn.textContent}`, 'success');
+        }
     } else {
         console.error('Elemento #nivel-btn no encontrado');
-        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
+        if (typeof mostrarNotificacion === 'function') {
+            mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
+        }
     }
 };
 
 const isMobile = () => window.innerWidth < 768;
 
-// 🔹 FIX: ahora ignoramos clicks en las opciones del menú para que no se cierre antes
+// --- CLICK GLOBAL ---
 document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
 
-    // Si clic en opción del dropdown → no cerrar antes de actualizar
-    if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        return; 
+    // 👉 Si clic en una opción del dropdown → dejar que setNivelExplicacion maneje
+    if (dropdownMenu && dropdownMenu.contains(event.target)) return;
+
+    // Cerrar si se hace clic fuera
+    if (dropdownMenu && dropdownMenu.classList.contains('active') &&
+        !dropdownMenu.contains(event.target) &&
+        !nivelBtn.contains(event.target)) {
+        dropdownMenu.classList.remove('active');
     }
 
+    // --- Mobile menus ---
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
@@ -601,28 +621,27 @@ document.addEventListener('click', (event) => {
             !getElement('.menu-toggle-right').contains(event.target)) {
             toggleRightMenu();
         }
-        if (dropdownMenu && dropdownMenu.classList.contains('active') &&
-            !dropdownMenu.contains(event.target) &&
-            !nivelBtn.contains(event.target)) {
-            toggleDropdown();
-        }
     }
 });
 
+// --- TOGGLE MENÚS ---
 const toggleMenu = () => {
     const leftSection = getElement('.left-section');
     const rightSection = getElement('.right-section');
     if (!leftSection) return;
     leftSection.classList.toggle('active');
+
     if (isMobile()) {
         const menuToggle = getElement('.menu-toggle');
         menuToggle.innerHTML = leftSection.classList.contains('active')
             ? '<i class="fas fa-times"></i>'
             : '<i class="fas fa-bars"></i>';
     }
+
     if (rightSection && rightSection.classList.contains('active')) {
         rightSection.classList.remove('active');
     }
+
     const voiceHint = getElement('#voice-hint');
     if (voiceHint && leftSection.classList.contains('active')) {
         voiceHint.classList.add('hidden');
@@ -634,20 +653,29 @@ const toggleRightMenu = () => {
     const leftSection = getElement('.left-section');
     if (!rightSection) return;
     rightSection.classList.toggle('active');
+
     if (isMobile()) {
         const menuToggleRight = getElement('.menu-toggle-right');
         menuToggleRight.innerHTML = rightSection.classList.contains('active')
             ? '<i class="fas fa-times"></i>'
             : '<i class="fas fa-bars"></i>';
     }
+
     if (leftSection && leftSection.classList.contains('active')) {
         leftSection.classList.remove('active');
     }
+
     const voiceHint = getElement('#voice-hint');
     if (voiceHint && rightSection.classList.contains('active')) {
         voiceHint.classList.add('hidden');
     }
 };
+
+// --- Estado inicial (recuperar nivel guardado) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const nivelGuardado = localStorage.getItem('nivelExplicacion') || 'basica';
+    setNivelExplicacion(nivelGuardado);
+});
 
 const mostrarMensajeBienvenida = () => {
     const chatbox = getElement('#chatbox');
