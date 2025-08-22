@@ -751,6 +751,43 @@ const obtenerRecomendacion = async () => {
     }
 };
 
+// =====================
+//  MANEJO DEL DROPDOWN
+// =====================
+
+// Estado inicial del nivel de explicación
+let nivelExplicacion = 'basica';
+
+// Función para abrir/cerrar el menú
+function toggleDropdown() {
+    const menu = document.querySelector('.dropdown-menu');
+    menu.classList.toggle('show'); // Clase CSS que muestra/oculta
+}
+
+// Función para establecer nivel y cerrar menú
+function setNivelExplicacion(nivel) {
+    nivelExplicacion = nivel;
+
+    // Actualizar texto del botón principal
+    const btn = document.getElementById('nivel-btn');
+    if (nivel === 'basica') btn.innerText = 'Explicación Básica';
+    if (nivel === 'ejemplos') btn.innerText = 'Con Ejemplos de Código';
+    if (nivel === 'avanzada') btn.innerText = 'Avanzada/Teórica';
+
+    // Cerrar el menú
+    const menu = document.querySelector('.dropdown-menu');
+    menu.classList.remove('show');
+}
+
+// Cerrar menú si hago clic fuera del dropdown
+window.addEventListener('click', function (e) {
+    const menu = document.querySelector('.dropdown-menu');
+    const btn = document.getElementById('nivel-btn');
+    if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.remove('show');
+    }
+});
+
 const init = () => {
     // Inicializar quizHistory
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
