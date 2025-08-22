@@ -319,7 +319,7 @@ const cargarConversaciones = async () => {
             `;
             li.addEventListener('click', () => {
                 currentConvId = conv.id;
-                localStorage.setItem('lastConvId', currentConvId); // 🔹 Guarda último chat
+                localStorage.setItem('lastConvId', currentConvId);
                 cargarMensajes(conv.id);
             });
             chatList.appendChild(li);
@@ -334,7 +334,6 @@ const cargarConversaciones = async () => {
             });
         });
 
-        // Si hay chats y no hay conversación activa, cargar último usado
         if (data.conversations.length > 0 && !currentConvId) {
             const lastConvId = localStorage.getItem('lastConvId');
             if (lastConvId) {
@@ -415,7 +414,6 @@ const eliminarConversacion = async (convId) => {
     }
 };
 
-
 const renombrarConversacion = async (convId) => {
     const nuevoNombre = prompt('Nuevo nombre para la conversación:');
     if (!nuevoNombre) return;
@@ -446,7 +444,6 @@ const sendMessage = async () => {
 
     const container = getElement('#chatbox').querySelector('.message-container');
 
-    // Mostrar mensaje del usuario en pantalla al instante
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
     userDiv.innerHTML = pregunta + 
@@ -454,7 +451,6 @@ const sendMessage = async () => {
     container.appendChild(userDiv);
     scrollToBottom();
 
-    // Crear conversación si aún no existe
     if (!currentConvId) {
         try {
             const res = await fetch('/conversations', {
@@ -472,7 +468,6 @@ const sendMessage = async () => {
         }
     }
 
-    // 1. Guardar mensaje del usuario en la BD
     try {
         await fetch(`/messages/${currentConvId}`, {
             method: 'POST',
@@ -483,7 +478,6 @@ const sendMessage = async () => {
         console.error('Error guardando mensaje usuario:', error);
     }
 
-    // 2. Pedir respuesta a la IA
     try {
         const res = await fetch('/buscar_respuesta', {
             method: 'POST',
@@ -497,7 +491,6 @@ const sendMessage = async () => {
         });
         const data = await res.json();
 
-        // 3. Mostrar respuesta del bot en pantalla
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
@@ -507,7 +500,6 @@ const sendMessage = async () => {
         if (window.Prism) Prism.highlightAll();
         speakText(data.respuesta);
 
-        // 4. Guardar mensaje del bot en la BD
         await fetch(`/messages/${currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -544,28 +536,29 @@ const vaciarChat = async () => {
 
 const addCopyButtonListeners = () => {
     getElements('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const text = btn.dataset.text;
-            navigator.clipboard.writeText(text).then(() => {
-                mostrarNotificacion('Texto copiado al portapapeles', 'success');
-                btn.innerHTML = `<i class="fas fa-check"></i>`;
-                setTimeout(() => btn.innerHTML = `<i class="fas fa-copy"></i>`, 2000);
-            }).catch(err => {
-                console.error('Error al copiar texto:', err);
-                mostrarNotificacion('Error al copiar texto', 'error');
-            });
-        });
+        btn.removeEventListener('click', handleCopy); // Remove any existing listeners
+        btn.addEventListener('click', handleCopy);
     });
 };
 
+const handleCopy = (event) => {
+    const btn = event.currentTarget;
+    const text = btn.dataset.text;
+    navigator.clipboard.writeText(text).then(() => {
+        mostrarNotificacion('Texto copiado al portapapeles', 'success');
+        btn.innerHTML = `<i class="fas fa-check"></i>`;
+        setTimeout(() => btn.innerHTML = `<i class="fas fa-copy"></i>`, 2000);
+    }).catch(err => {
+        console.error('Error al copiar texto:', err);
+        mostrarNotificacion('Error al copiar texto', 'error');
+    });
+};
 
-// --- DROPDOWN NIVEL ---
 const toggleDropdown = (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     if (dropdownMenu) {
         dropdownMenu.classList.toggle('active');
-        console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado'); // Depuración
-        // Verificar visibilidad y posición
+        console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado');
         if (dropdownMenu.classList.contains('active')) {
             const computedStyle = window.getComputedStyle(dropdownMenu);
             const rect = dropdownMenu.getBoundingClientRect();
@@ -578,13 +571,12 @@ const toggleDropdown = (event) => {
                 zIndex: computedStyle.zIndex,
                 width: computedStyle.width,
                 height: computedStyle.height,
-                boundingClientRect: rect // Coordenadas en la ventana
+                boundingClientRect: rect
             });
-            // Verificar botones del menú
             const buttons = dropdownMenu.querySelectorAll('button');
             console.log('Botones en .dropdown-menu:', buttons.length, Array.from(buttons).map(b => b.textContent));
         }
-        if (event) event.stopPropagation(); // Evita que el clic global cierre el menú
+        if (event) event.stopPropagation();
     } else {
         console.error('Elemento .dropdown-menu no encontrado');
         mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
@@ -592,7 +584,7 @@ const toggleDropdown = (event) => {
 };
 
 const setNivelExplicacion = (nivel) => {
-    console.log('setNivelExplicacion llamado con nivel:', nivel); // Depuración
+    console.log('setNivelExplicacion llamado con nivel:', nivel);
     if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
         console.error('Nivel inválido:', nivel);
         mostrarNotificacion('Error: Nivel inválido', 'error');
@@ -607,53 +599,43 @@ const setNivelExplicacion = (nivel) => {
             nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
             'Avanzada/Teórica';
         nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
-        console.log('Nivel actualizado a:', nivelText); // Depuración
+        console.log('Nivel actualizado a:', nivelText);
 
-        // Cierra el menú
         const dropdownMenu = getElement('.dropdown-menu');
         if (dropdownMenu && dropdownMenu.classList.contains('active')) {
             dropdownMenu.classList.remove('active');
-            console.log('Menú desplegable cerrado tras seleccionar nivel'); // Depuración
+            console.log('Menú desplegable cerrado tras seleccionar nivel');
         }
 
-        if (typeof mostrarNotificacion === 'function') {
-            mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
-        }
+        mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
     } else {
         console.error('Elemento #nivel-btn no encontrado');
-        if (typeof mostrarNotificacion === 'function') {
-            mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
-        }
+        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
     }
 };
 
 const isMobile = () => window.innerWidth < 768;
 
-// --- CLICK GLOBAL ---
 document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
     const dropdownContainer = getElement('.dropdown-container');
 
-    // Si clic en el botón de nivel, no cerrar el menú (toggleDropdown lo maneja)
     if (nivelBtn && nivelBtn.contains(event.target)) {
-        console.log('Clic en botón de nivel, toggling menú'); // Depuración
+        console.log('Clic en botón de nivel, toggling menú');
         return;
     }
 
-    // Si clic en una opción del menú, dejar que setNivelExplicacion maneje
     if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        console.log('Clic en opción del menú desplegable'); // Depuración
+        console.log('Clic en opción del menú desplegable');
         return;
     }
 
-    // Si menú abierto y clic fuera, cerrarlo
     if (dropdownMenu && dropdownMenu.classList.contains('active')) {
         dropdownMenu.classList.remove('active');
-        console.log('Menú desplegable cerrado por clic fuera'); // Depuración
+        console.log('Menú desplegable cerrado por clic fuera');
     }
 
-    // Menús móviles
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
@@ -718,19 +700,6 @@ const toggleRightMenu = () => {
     }
 };
 
-// --- Estado inicial (recuperar nivel guardado) ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Forzar nivel inicial a 'basica' si no está definido o es inválido
-    let nivelGuardado = localStorage.getItem('nivelExplicacion');
-    if (!['basica', 'ejemplos', 'avanzada'].includes(nivelGuardado)) {
-        nivelGuardado = 'basica';
-        localStorage.setItem('nivelExplicacion', nivelGuardado);
-    }
-    console.log('Nivel guardado en localStorage:', nivelGuardado); // Depuración
-    setNivelExplicacion(nivelGuardado);
-    init();
-});
-
 const mostrarMensajeBienvenida = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
@@ -742,7 +711,6 @@ const mostrarMensajeBienvenida = () => {
 
     const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
     
-    // 🔹 Solo agregar el saludo si el chat está vacío
     if (container.children.length === 0) {
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -752,7 +720,6 @@ const mostrarMensajeBienvenida = () => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
 
-        // 🔊 Voz (solo si activada)
         if (vozActiva && userHasInteracted) {
             speakText(mensaje);
         } else if (vozActiva) {
@@ -762,6 +729,7 @@ const mostrarMensajeBienvenida = () => {
 };
 
 const obtenerQuiz = async (tipo) => {
+    console.log('Obteniendo quiz, tipo:', tipo);
     try {
         const res = await fetch('/quiz', {
             method: 'POST',
@@ -779,6 +747,7 @@ const obtenerQuiz = async (tipo) => {
 
 const mostrarQuizEnChat = async (quizData) => {
     if (!quizData) return;
+    console.log('Mostrando quiz en chat:', quizData);
     const container = getElement('#chatbox').querySelector('.message-container');
     const quizDiv = document.createElement('div');
     quizDiv.classList.add('bot');
@@ -794,39 +763,51 @@ const mostrarQuizEnChat = async (quizData) => {
     scrollToBottom();
 
     getElements('.quiz-option').forEach(option => {
-        option.addEventListener('click', async () => {
-            const selectedOption = option.dataset.option;
-            try {
-                const res = await fetch('/responder_quiz', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        pregunta: quizData.pregunta,
-                        respuesta: selectedOption,
-                        respuesta_correcta: quizData.respuesta_correcta,
-                        tema: quizData.tema
-                    })
-                });
-                const data = await res.json();
-                const feedbackDiv = document.createElement('div');
-                feedbackDiv.classList.add('bot');
-                feedbackDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
-                    `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar respuesta"><i class="fas fa-copy"></i></button>`;
-                container.appendChild(feedbackDiv);
-                scrollToBottom();
-                if (window.Prism) Prism.highlightAll();
-                speakText(data.respuesta);
-                addCopyButtonListeners();
-            } catch (error) {
-                console.error('Error respondiendo quiz:', error);
-                mostrarNotificacion('Error al responder quiz', 'error');
-            }
-        });
+        option.removeEventListener('click', handleQuizOption); // Remove existing listeners
+        option.addEventListener('click', handleQuizOption);
     });
     addCopyButtonListeners();
 };
 
+const handleQuizOption = async (event) => {
+    const option = event.currentTarget;
+    const selectedOption = option.dataset.option;
+    const quizData = {
+        pregunta: option.parentElement.previousElementSibling.textContent,
+        opciones: Array.from(option.parentElement.children).map(opt => opt.dataset.option),
+        respuesta_correcta: option.parentElement.querySelector('.quiz-option[data-index="0"]').dataset.option, // Assuming correct answer is first for simplicity
+        tema: 'unknown' // Adjust based on actual quiz data
+    };
+    try {
+        const res = await fetch('/responder_quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pregunta: quizData.pregunta,
+                respuesta: selectedOption,
+                respuesta_correcta: quizData.respuesta_correcta,
+                tema: quizData.tema
+            })
+        });
+        const data = await res.json();
+        const container = getElement('#chatbox').querySelector('.message-container');
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.classList.add('bot');
+        feedbackDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
+            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar respuesta"><i class="fas fa-copy"></i></button>`;
+        container.appendChild(feedbackDiv);
+        scrollToBottom();
+        if (window.Prism) Prism.highlightAll();
+        speakText(data.respuesta);
+        addCopyButtonListeners();
+    } catch (error) {
+        console.error('Error respondiendo quiz:', error);
+        mostrarNotificacion('Error al responder quiz', 'error');
+    }
+};
+
 const obtenerRecomendacion = async () => {
+    console.log('Obteniendo recomendación');
     try {
         const res = await fetch('/recommend', {
             method: 'POST',
@@ -843,10 +824,9 @@ const obtenerRecomendacion = async () => {
 };
 
 const init = () => {
-    // Inicializar quizHistory
+    console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
-    // Obtener temas desde el backend
     fetch('/temas', { method: 'GET' })
         .then(res => res.json())
         .then(data => {
@@ -855,47 +835,12 @@ const init = () => {
                 console.log('Temas cargados:', TEMAS_DISPONIBLES);
             } else {
                 console.warn('No se pudieron cargar temas, usando lista por defecto');
-                TEMAS_DISPONIBLES = [
-                    'Introducción a la POO',
-                    'Clases y Objetos',
-                    'Encapsulamiento',
-                    'Herencia',
-                    'Polimorfismo',
-                    'Clases Abstractas e Interfaces',
-                    'UML',
-                    'Diagramas UML',
-                    'Patrones de Diseño en POO',
-                    'Patrón MVC',
-                    'Acceso a Archivos',
-                    'Bases de Datos y ORM',
-                    'Integración POO + MVC + BD',
-                    'Pruebas y Buenas Prácticas',
-                    'Concurrencia'
-                ];
             }
         })
         .catch(error => {
             console.error('Error al cargar temas:', error);
-            TEMAS_DISPONIBLES = [
-                'Introducción a la POO',
-                'Clases y Objetos',
-                'Encapsulamiento',
-                'Herencia',
-                'Polimorfismo',
-                'Clases Abstractas e Interfaces',
-                'UML',
-                'Diagramas UML',
-                'Patrones de Diseño en POO',
-                'Patrón MVC',
-                'Acceso a Archivos',
-                'Bases de Datos y ORM',
-                'Integración POO + MVC + BD',
-                'Pruebas y Buenas Prácticas',
-                'Concurrencia'
-            ];
         });
 
-    // Resto de la función init (sin cambios)
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
@@ -909,11 +854,13 @@ const init = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
 
     if (menuToggle) {
+        menuToggle.removeEventListener('click', toggleMenu);
         menuToggle.addEventListener('click', toggleMenu);
         menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
         menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
     }
     if (menuToggleRight) {
+        menuToggleRight.removeEventListener('click', toggleRightMenu);
         menuToggleRight.addEventListener('click', toggleRightMenu);
         menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
         menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
@@ -926,18 +873,8 @@ const init = () => {
             <i class="fas ${modoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
             <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
         `;
-        modoBtn.addEventListener('click', () => {
-            document.body.classList.toggle('modo-oscuro');
-            const isModoOscuro = document.body.classList.contains('modo-oscuro');
-            localStorage.setItem('modoOscuro', isModoOscuro);
-            modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
-            modoBtn.setAttribute('aria-label', isModoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
-            modoBtn.innerHTML = `
-                <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
-                <span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
-            `;
-            mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
-        });
+        modoBtn.removeEventListener('click', handleModoToggle);
+        modoBtn.addEventListener('click', handleModoToggle);
     }
     if (voiceBtn) {
         voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
@@ -946,96 +883,176 @@ const init = () => {
             <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
             <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
         `;
-        voiceBtn.addEventListener('click', () => {
-            vozActiva = !vozActiva;
-            localStorage.setItem('vozActiva', vozActiva);
-            voiceBtn.innerHTML = `
-                <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
-                <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
-            `;
-            voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
-            voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
-            mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
-            if (!vozActiva) stopSpeech();
-            if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
-        });
+        voiceBtn.removeEventListener('click', handleVoiceToggle);
+        voiceBtn.addEventListener('click', handleVoiceToggle);
     }
     if (quizBtn) {
         quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
         quizBtn.setAttribute('aria-label', 'Generar un quiz');
-        quizBtn.addEventListener('click', () => obtenerQuiz('opciones').then(mostrarQuizEnChat));
+        quizBtn.removeEventListener('click', handleQuizClick);
+        quizBtn.addEventListener('click', handleQuizClick);
     }
     if (recommendBtn) {
         recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
         recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
-        recommendBtn.addEventListener('click', () => obtenerRecomendacion().then(data => {
-            const mensaje = `Recomendación: ${data.recommendation}`;
-            const botDiv = document.createElement('div');
-            botDiv.classList.add('bot');
-            botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
-                `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-            getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
-            scrollToBottom();
-            speakText(mensaje);
-            guardarMensaje('Recomendación', mensaje);
-            addCopyButtonListeners();
-        }));
+        recommendBtn.removeEventListener('click', handleRecommendClick);
+        recommendBtn.addEventListener('click', handleRecommendClick);
     }
     if (sendBtn) {
         sendBtn.setAttribute('data-tooltip', 'Enviar');
         sendBtn.setAttribute('aria-label', 'Enviar mensaje');
+        sendBtn.removeEventListener('click', sendMessage);
         sendBtn.addEventListener('click', sendMessage);
     }
     if (newChatBtn) {
         newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
         newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
+        newChatBtn.removeEventListener('click', nuevaConversacion);
         newChatBtn.addEventListener('click', nuevaConversacion);
     }
     if (clearBtn) {
         clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
         clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
+        clearBtn.removeEventListener('click', nuevaConversacion);
         clearBtn.addEventListener('click', nuevaConversacion);
     }
     if (nivelBtn) {
         nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
         nivelBtn.setAttribute('aria-label', 'Cambiar nivel de explicación');
+        nivelBtn.removeEventListener('click', toggleDropdown);
         nivelBtn.addEventListener('click', toggleDropdown);
     }
     if (voiceToggleBtn) {
         voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
+        voiceToggleBtn.removeEventListener('click', toggleVoiceRecognition);
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
     }
     const inputElement = getElement('#input');
     if (inputElement) {
-        inputElement.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        });
+        inputElement.removeEventListener('keydown', handleInputKeydown);
+        inputElement.addEventListener('keydown', handleInputKeydown);
     }
-    // Mostrar mensaje de bienvenida y mensaje de interacción para audio
+
     setTimeout(() => {
         mostrarMensajeBienvenida();
         if (vozActiva && !userHasInteracted) {
             toggleVoiceHint(true);
         }
-    }, 100); // Retraso para asegurar que el DOM esté cargado
-    document.addEventListener('click', () => {
-        if (!userHasInteracted) {
-            userHasInteracted = true;
-            toggleVoiceHint(false);
-            console.log('Interacción detectada, audio habilitado');
-            if (pendingWelcomeMessage) {
-                speakText(pendingWelcomeMessage);
-                pendingWelcomeMessage = null;
-            }
-        }
-    }, { once: true });
+    }, 100);
+    document.removeEventListener('click', handleFirstInteraction);
+    document.addEventListener('click', handleFirstInteraction, { once: true });
     cargarAvatares();
     cargarConversaciones();
+
+    // Initialize nivel dropdown
+    let nivelGuardado = localStorage.getItem('nivelExplicacion');
+    if (!['basica', 'ejemplos', 'avanzada'].includes(nivelGuardado)) {
+        nivelGuardado = 'basica';
+        localStorage.setItem('nivelExplicacion', nivelGuardado);
+    }
+    console.log('Nivel guardado en localStorage:', nivelGuardado);
+    setNivelExplicacion(nivelGuardado);
 };
 
-// Eliminar inicialización redundante fuera de DOMContentLoaded
-document.addEventListener('DOMContentLoaded', init);
+const handleModoToggle = () => {
+    document.body.classList.toggle('modo-oscuro');
+    const isModoOscuro = document.body.classList.contains('modo-oscuro');
+    localStorage.setItem('modoOscuro', isModoOscuro);
+    const modoBtn = getElement('#modo-btn');
+    modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+    modoBtn.setAttribute('aria-label', isModoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    modoBtn.innerHTML = `
+        <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+        <span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+    `;
+    mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
+};
+
+const handleVoiceToggle = () => {
+    vozActiva = !vozActiva;
+    localStorage.setItem('vozActiva', vozActiva);
+    const voiceBtn = getElement('#voice-btn');
+    voiceBtn.innerHTML = `
+        <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+        <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+    `;
+    voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+    voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+    mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
+    if (!vozActiva) stopSpeech();
+    if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
+};
+
+const handleQuizClick = () => {
+    console.log('Botón de quiz clickeado');
+    obtenerQuiz('opciones').then(mostrarQuizEnChat);
+};
+
+const handleRecommendClick = () => {
+    console.log('Botón de recomendación clickeado');
+    obtenerRecomendacion().then(data => {
+        const mensaje = `Recomendación: ${data.recommendation}`;
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
+            `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
+        scrollToBottom();
+        speakText(mensaje);
+        guardarMensaje('Recomendación', mensaje);
+        addCopyButtonListeners();
+    });
+};
+
+const handleInputKeydown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
+};
+
+const handleFirstInteraction = () => {
+    if (!userHasInteracted) {
+        userHasInteracted = true;
+        toggleVoiceHint(false);
+        console.log('Interacción detectada, audio habilitado');
+        if (pendingWelcomeMessage) {
+            speakText(pendingWelcomeMessage);
+            pendingWelcomeMessage = null;
+        }
+    }
+};
+
+const guardarMensaje = async (tipo, mensaje) => {
+    if (!currentConvId) {
+        try {
+            const res = await fetch('/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            currentConvId = data.id;
+            await cargarConversaciones();
+        } catch (error) {
+            console.error('Error creando conversación para guardar mensaje:', error);
+            return;
+        }
+    }
+    try {
+        await fetch(`/messages/${currentConvId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'bot', content: mensaje })
+        });
+    } catch (error) {
+        console.error('Error guardando mensaje:', error);
+    }
+};
+
+// Initialize only once
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded disparado, inicializando aplicación');
+    init();
+});
