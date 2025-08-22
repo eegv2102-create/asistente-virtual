@@ -19,6 +19,7 @@ import retrying
 import re
 import uuid  # Agregado para IDs únicos
 
+
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -643,7 +644,17 @@ def get_temas():
     except Exception as e:
         logging.error(f"Error en /temas: {str(e)}")
         return jsonify({"error": "Error al obtener temas"}), 500
-
+    
+@app.route('/')
+def index():
+    try:
+        usuario = session.get('usuario', 'anonimo')
+        logging.info(f"Accediendo a la ruta raíz para usuario: {usuario}")
+        return render_template('index.html')
+    except Exception as e:
+        logging.error(f"Error al renderizar index.html: {str(e)}")
+        return jsonify({'error': 'Error al cargar la página principal'}), 500
+    
 if __name__ == "__main__":
     if not init_db():
         logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
