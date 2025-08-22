@@ -431,12 +431,16 @@ const sendMessage = async () => {
     input.value = '';
 
     const container = getElement('#chatbox').querySelector('.message-container');
+
+    // Mostrar mensaje del usuario en pantalla al instante
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
-    userDiv.innerHTML = pregunta + `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+    userDiv.innerHTML = pregunta + 
+        `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
     scrollToBottom();
 
+    // Crear conversación si aún no existe
     if (!currentConvId) {
         try {
             const res = await fetch('/conversations', {
@@ -444,20 +448,28 @@ const sendMessage = async () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'Error al crear nueva conversación');
-            }
             const data = await res.json();
             currentConvId = data.id;
             await cargarConversaciones();
         } catch (error) {
             console.error('Error creando conversación:', error);
-            mostrarNotificacion(`Error al crear nueva conversación: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
+            mostrarNotificacion('Error al crear nueva conversación', 'error');
             return;
         }
     }
 
+    // 1. Guardar mensaje del usuario en la BD
+    try {
+        await fetch(`/messages/${currentConvId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: "user", content: pregunta })
+        });
+    } catch (error) {
+        console.error('Error guardando mensaje usuario:', error);
+    }
+
+    // 2. Pedir respuesta a la IA
     try {
         const res = await fetch('/buscar_respuesta', {
             method: 'POST',
@@ -469,11 +481,9 @@ const sendMessage = async () => {
                 conv_id: currentConvId
             })
         });
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'Error al enviar mensaje');
-        }
         const data = await res.json();
+
+        // 3. Mostrar respuesta del bot en pantalla
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
@@ -482,9 +492,16 @@ const sendMessage = async () => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
         speakText(data.respuesta);
+
+        // 4. Guardar mensaje del bot en la BD
+        await fetch(`/messages/${currentConvId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: "bot", content: data.respuesta })
+        });
     } catch (error) {
         console.error('Error enviando mensaje:', error);
-        mostrarNotificacion(`Error al enviar mensaje: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
+        mostrarNotificacion('Error al enviar mensaje', 'error');
     }
 };
 

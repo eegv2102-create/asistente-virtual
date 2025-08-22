@@ -264,7 +264,65 @@ def get_messages(conv_id):
     except Exception as e:
         logging.error(f"Error obteniendo mensajes: {str(e)}")
         return jsonify({"error": "No se pudieron obtener los mensajes"}), 500
-    
+@app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
+def handle_messages(conv_id):
+    usuario = session.get('usuario', 'anonimo')
+
+    if request.method == 'GET':
+        # Obtener mensajes de una conversación
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("""
+                SELECT id, role, content, created_at
+                FROM messages
+                WHERE conv_id = %s
+                ORDER BY created_at ASC
+            """, (conv_id,))
+            rows = c.fetchall()
+            conn.close()
+
+            messages = [
+                {
+                    "id": r[0],
+                    "role": r[1],
+                    "content": r[2],
+                    "created_at": r[3].isoformat()
+                } for r in rows
+            ]
+            return jsonify({"messages": messages})
+        except Exception as e:
+            logging.error(f"Error obteniendo mensajes: {str(e)}")
+            return jsonify({"error": "No se pudieron obtener los mensajes"}), 500
+
+    elif request.method == 'POST':
+        # Insertar mensaje (usuario o bot)
+        try:
+            data = request.get_json()
+            role = data.get("role", "user")  # user o bot
+            content = data.get("content", "")
+
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO messages (conv_id, role, content)
+                VALUES (%s, %s, %s) RETURNING id, created_at
+            """, (conv_id, role, content))
+            row = c.fetchone()
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                "id": row[0],
+                "role": role,
+                "content": content,
+                "created_at": row[1].isoformat()
+            })
+        except Exception as e:
+            logging.error(f"Error guardando mensaje: {str(e)}")
+            return jsonify({"error": "No se pudo guardar el mensaje"}), 500
+        
+            
 @app.route('/buscar_respuesta', methods=['POST'])
 def buscar_respuesta():
     data = request.get_json()
@@ -287,6 +345,7 @@ def buscar_respuesta():
             logging.error(f"Error creando conv en buscar_respuesta: {str(e)}")
             # Continúa sin conv_id si falla, pero loguea
             conv_id = None
+
 
     pregunta_norm = pregunta.lower().strip()
     respuestas_simples = {
