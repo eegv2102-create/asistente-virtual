@@ -554,127 +554,64 @@ const addCopyButtonListeners = () => {
         });
     });
 };
-
+// Abrir / Cerrar menú de opciones
 const toggleDropdown = () => {
     const dropdownMenu = getElement('.dropdown-menu');
     if (!dropdownMenu) return;
     dropdownMenu.classList.toggle('active');
 };
 
+// Selección de nivel de explicación
 const setNivelExplicacion = (nivel) => {
     localStorage.setItem('nivelExplicacion', nivel);
     const nivelBtn = getElement('#nivel-btn');
     if (nivelBtn) {
-        nivelBtn.textContent = nivel === 'basica' ? 'Explicación Básica' :
-                               nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
-                               'Avanzada/Teórica';
-        toggleDropdown();
+        nivelBtn.textContent = nivel === 'basica'
+            ? 'Explicación Básica'
+            : nivel === 'ejemplos'
+            ? 'Con Ejemplos de Código'
+            : 'Avanzada/Teórica';
+
         mostrarNotificacion(`Nivel cambiado a: ${nivelBtn.textContent}`, 'success');
     } else {
         console.error('Elemento #nivel-btn no encontrado');
         mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
     }
+
+    // Cerrar menú después de elegir opción
+    const dropdownMenu = getElement('.dropdown-menu');
+    if (dropdownMenu) dropdownMenu.classList.remove('active');
 };
 
+// Detectar si es móvil
 const isMobile = () => window.innerWidth < 768;
 
+// Cerrar menú cuando hago clic afuera (funciona en PC y móvil)
 document.addEventListener('click', (event) => {
+    const dropdownMenu = getElement('.dropdown-menu');
+    const nivelBtn = getElement('#nivel-btn');
+
+    if (dropdownMenu && dropdownMenu.classList.contains('active')) {
+        if (!dropdownMenu.contains(event.target) && !nivelBtn.contains(event.target)) {
+            dropdownMenu.classList.remove('active');
+        }
+    }
+
+    // Menús laterales (tu lógica original para móvil)
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
-        const dropdownMenu = getElement('.dropdown-menu');
 
-        if (leftSection && leftSection.classList.contains('active') && !leftSection.contains(event.target) && !getElement('.menu-toggle').contains(event.target)) {
+        if (leftSection && leftSection.classList.contains('active') &&
+            !leftSection.contains(event.target) && !getElement('.menu-toggle').contains(event.target)) {
             toggleMenu();
         }
-        if (rightSection && rightSection.classList.contains('active') && !rightSection.contains(event.target) && !getElement('.menu-toggle-right').contains(event.target)) {
+        if (rightSection && rightSection.classList.contains('active') &&
+            !rightSection.contains(event.target) && !getElement('.menu-toggle-right').contains(event.target)) {
             toggleRightMenu();
         }
-        if (dropdownMenu && dropdownMenu.classList.contains('active') && !dropdownMenu.contains(event.target) && !getElement('#nivel-btn').contains(event.target)) {
-            toggleDropdown();
-        }
     }
 });
-
-const toggleMenu = () => {
-    const leftSection = getElement('.left-section');
-    const rightSection = getElement('.right-section');
-    if (!leftSection) return;
-    leftSection.classList.toggle('active');
-    if (isMobile()) {
-        const menuToggle = getElement('.menu-toggle');
-        if (leftSection.classList.contains('active')) {
-            menuToggle.innerHTML = '<i class="fas fa-times"></i>';
-        } else {
-            menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
-        }
-    }
-    if (rightSection && rightSection.classList.contains('active')) {
-        rightSection.classList.remove('active');
-    }
-    const voiceHint = getElement('#voice-hint');
-    if (voiceHint && leftSection.classList.contains('active')) {
-        voiceHint.classList.add('hidden');
-    }
-};
-// =====================
-//  MANEJO DEL DROPDOWN
-// =====================
-
-// Estado inicial del nivel de explicación
-let nivelExplicacion = 'basica';
-
-// Función para abrir/cerrar el menú
-function toggleDropdown() {
-    const menu = document.querySelector('.dropdown-menu');
-    menu.classList.toggle('show'); // Clase CSS que muestra/oculta
-}
-
-// Función para establecer nivel y cerrar menú
-function setNivelExplicacion(nivel) {
-    nivelExplicacion = nivel;
-
-    // Actualizar texto del botón principal
-    const btn = document.getElementById('nivel-btn');
-    if (nivel === 'basica') btn.innerText = 'Explicación Básica';
-    if (nivel === 'ejemplos') btn.innerText = 'Con Ejemplos de Código';
-    if (nivel === 'avanzada') btn.innerText = 'Avanzada/Teórica';
-
-    // Cerrar el menú
-    const menu = document.querySelector('.dropdown-menu');
-    menu.classList.remove('show');
-}
-
-// Cerrar menú si hago clic fuera del dropdown
-window.addEventListener('click', function (e) {
-    const menu = document.querySelector('.dropdown-menu');
-    const btn = document.getElementById('nivel-btn');
-    if (!btn.contains(e.target) && !menu.contains(e.target)) {
-        menu.classList.remove('show');
-    }
-});
-
-const toggleRightMenu = () => {
-    const rightSection = getElement('.right-section');
-    const leftSection = getElement('.left-section');
-    if (!rightSection) return;
-    rightSection.classList.toggle('active');
-    if (isMobile()) {
-        const menuToggleRight = getElement('.menu-toggle-right');
-        if (rightSection.classList.contains('active')) {
-            menuToggleRight.innerHTML = '<i class="fas fa-times"></i>';
-        } else {
-            menuToggleRight.innerHTML = '<i class="fas fa-bars"></i>';
-        }
-    }
-    if (leftSection && leftSection.classList.contains('active')) {
-        leftSection.classList.remove('active');
-    }
-    const voiceHint = getElement('#voice-hint');
-    if (voiceHint && rightSection.classList.contains('active')) {
-        voiceHint.classList.add('hidden');
-    }
-};
 
 const mostrarMensajeBienvenida = () => {
     const chatbox = getElement('#chatbox');
