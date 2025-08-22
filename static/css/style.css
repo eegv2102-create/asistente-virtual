@@ -197,7 +197,7 @@ body {
   margin-top: 10px;
   background-color: var(--bg-primary);
   border-radius: 8px;
-  /* Removido overflow: hidden para evitar recorte del menú desplegable */
+  overflow: visible;
 }
 
 .left-section, .right-section {
@@ -562,6 +562,11 @@ body.modo-oscuro .bot code {
   background-color: var(--bg-primary);
   flex-wrap: wrap;
   gap: 6px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
 }
 
 .input-buttons.left, .input-buttons.right {
@@ -571,25 +576,28 @@ body.modo-oscuro .bot code {
 
 .dropdown-container {
   position: relative;
-  display: block;
+  display: inline-block;
+  z-index: 10010;
+  overflow: visible;
 }
 
 .dropdown-menu {
   display: none;
   position: absolute;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 8px;
   padding: 8px;
-  z-index: 10000;
+  z-index: 10010 !important;
   box-shadow: 0 4px 8px var(--shadow);
   min-width: 150px;
-  top: 100%; /* Posiciona debajo del botón en PC */
+  top: calc(100% + 4px);
   left: 0;
+  pointer-events: auto;
 }
 
 .dropdown-menu.active {
-  display: block;
+  display: block !important;
 }
 
 .dropdown-menu button {
@@ -599,16 +607,16 @@ body.modo-oscuro .bot code {
   background: none;
   border: none;
   text-align: left;
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
   font-size: 0.85rem;
   cursor: pointer;
-  pointer-events: auto;
+  pointer-events: auto !important;
   border-radius: 4px;
 }
 
 .dropdown-menu button:hover, .dropdown-menu button:focus {
-  background-color: var(--accent);
-  color: var(--button-text);
+  background-color: var(--accent) !important;
+  color: var(--button-text) !important;
 }
 
 #input {
@@ -754,7 +762,6 @@ body.modo-oscuro .bot code {
   margin-bottom: 5px;
 }
 
-/* Media queries para móvil (max-width: 768px) - Estilos específicos para dispositivos móviles */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -845,46 +852,48 @@ body.modo-oscuro .bot code {
     background-color: var(--bg-secondary);
     border-color: var(--accent);
     transform: scale(1.05);
-}
+  }
 
   .dropdown-container {
-  position: relative;
-  display: block;
-}
+    position: relative;
+    display: inline-block;
+    z-index: 10010;
+    overflow: visible;
+  }
 
   .dropdown-menu {
-  display: none;
-  position: absolute;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px;
-  z-index: 10001; /* Aumentado para evitar superposición */
-  box-shadow: 0 4px 8px var(--shadow);
-  min-width: 150px;
-  top: 100%; /* Sin gap para evitar recorte */
-  left: 0;
-  visibility: hidden; /* Oculto por defecto */
-}
+    display: none;
+    position: absolute;
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 10010 !important;
+    box-shadow: 0 4px 8px var(--shadow);
+    min-width: 160px;
+    bottom: calc(100% + 4px);
+    left: 0;
+    right: auto;
+    pointer-events: auto !important;
+  }
 
-.dropdown-menu.active {
-  display: block;
-  visibility: visible; /* Visible cuando activo */
-}
+  .dropdown-menu.active {
+    display: block !important;
+  }
 
-.dropdown-menu button {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  background: none;
-  border: none;
-  text-align: left;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  cursor: pointer;
-  pointer-events: auto;
-  border-radius: 4px;
-}
+  .dropdown-menu button {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    background: none;
+    border: none;
+    text-align: left;
+    color: var(--text-primary) !important;
+    font-size: 0.8rem;
+    cursor: pointer;
+    pointer-events: auto !important;
+    border-radius: 4px;
+  }
 
   .menu-toggle, .menu-toggle-right {
     display: flex;
@@ -914,16 +923,6 @@ body.modo-oscuro .bot code {
   .menu-toggle-right {
     order: 2;
     margin-left: 6px;
-  }
-
-  #modo-btn {
-    order: -1;
-    margin-right: 4px;
-  }
-
-  #voice-btn {
-    order: 1;
-    margin-left: 4px;
   }
 
   .app-title h1 {
@@ -993,95 +992,26 @@ body.modo-oscuro .bot code {
   }
 }
 
-/* Media queries para PC (min-width: 769px) - Estilos específicos para escritorios */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
   }
 
   .dropdown-container {
-    display: block;
+    display: inline-block;
+    z-index: 10010;
   }
 
   .dropdown-menu {
-    top: 100%; /* Asegura que aparezca debajo sin recorte */
+    top: calc(100% + 4px);
     left: 0;
     right: auto;
     min-width: 150px;
+    z-index: 10010 !important;
+    pointer-events: auto !important;
   }
 }
-/* Estilos para el contenedor del menú desplegable */
-.dropdown-container {
-    position: relative;
-    display: inline-block; /* Cambiado a inline-block para evitar conflictos */
-}
 
-/* Estilos para el menú desplegable */
-.dropdown-menu {
-    display: none;
-    position: absolute;
-    background: var(--bg-primary, #ffffff) !important;
-    border: 1px solid var(--border, #cccccc) !important;
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 999999 !important; /* Muy alto para evitar superposición */
-    box-shadow: 0 4px 8px var(--shadow, rgba(0, 0, 0, 0.2));
-    min-width: 180px; /* Aumentado para mejor visibilidad */
-    top: calc(100% + 4px); /* Justo debajo del botón */
-    left: 0;
-    background: red !important; /* Temporal para depuración */
-}
-
-/* Asegurar que el menú sea visible cuando está activo */
-.dropdown-menu.active {
-    display: block !important;
-}
-
-/* Estilos para los botones del menú */
-.dropdown-menu button {
-    display: block;
-    width: 100%;
-    padding: 8px 12px;
-    background: none;
-    border: none;
-    text-align: left;
-    color: var(--text-primary, #333333) !important;
-    font-size: 0.9rem;
-    cursor: pointer;
-    pointer-events: auto !important; /* Asegurar clics */
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.dropdown-menu button:hover, .dropdown-menu button:focus {
-    background-color: var(--accent, #007bff) !important;
-    color: var(--button-text, #ffffff) !important;
-}
-
-/* Ajustes para móviles */
-@media (max-width: 768px) {
-    .dropdown-menu {
-        top: auto;
-        bottom: calc(100% + 4px); /* Arriba del botón en móvil */
-        left: 0;
-        right: auto;
-        min-width: 160px;
-    }
-
-    .dropdown-menu button {
-        padding: 6px 10px;
-        font-size: 0.8rem;
-    }
-}
-
-/* Asegurar que el contenedor padre no recorte el menú */
-.container, .main-section, .right-section, .left-section {
-    overflow: visible !important;
-}
-
-/* Estilo para el botón de nivel */
-#nivel-btn {
-    padding: 8px 12px;
-    font-size: 0.9rem;
-    cursor: pointer;
+.container, .main-section, .right-section, .left-section, .input-group {
+  overflow: visible !important;
 }

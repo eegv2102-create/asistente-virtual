@@ -67,23 +67,20 @@
                         <i class="fas fa-plus"></i>
                     </button>
                     <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </div>
-                                        <div class="dropdown-container">
-    
-                                            <button id="nivel-btn" aria-label="Seleccionar nivel de explicación" onclick="toggleDropdown()">
-                                                Explicación Básica <i class="fas fa-caret-down"></i>    
-                                            </button>    
-                                            <div class="dropdown-menu">
-                                                <button onclick="setNivelExplicacion('basica')">Explicación Básica</button>
-                                                <button onclick="setNivelExplicacion('ejemplos')">Con Ejemplos de Código</button>
-                                                <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
-                                            </div>
-                                        </div>
-
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div class="dropdown-container">
+                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">
+                        Explicación Básica <i class="fas fa-caret-down"></i>
+                    </button>
+                    <div class="dropdown-menu">
+                        <button onclick="setNivelExplicacion('basica')">Explicación Básica</button>
+                        <button onclick="setNivelExplicacion('ejemplos')">Con Ejemplos de Código</button>
+                        <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
+                    </div>
+                </div>
                 <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
-
                 <div class="input-buttons right">
                     <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
                         <i class="fas fa-paper-plane"></i>
