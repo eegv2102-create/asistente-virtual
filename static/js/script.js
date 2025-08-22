@@ -351,33 +351,36 @@ const cargarConversaciones = async () => {
 const cargarMensajes = async (convId) => {
     currentConvId = convId;
     try {
-        const res = await fetch('/conversations');
+        // 🔹 Pedimos solo los mensajes de esa conversación
+        const res = await fetch(`/messages/${convId}`);
         if (!res.ok) {
             const errorData = await res.json();
-            throw new Error(errorData.error || 'Error al cargar historial');
+            throw new Error(errorData.error || 'Error al cargar mensajes');
         }
         const data = await res.json();
 
-        // Buscar la conversación por ID
-        const conversation = data.conversations.find(conv => conv.id === convId);
         const container = getElement('#chatbox').querySelector('.message-container');
         container.innerHTML = '';
 
-        if (conversation && conversation.messages) {
-            conversation.messages.forEach(msg => {
+        if (data.messages && data.messages.length > 0) {
+            // 🔹 Mostrar historial existente
+            data.messages.forEach(msg => {
                 const div = document.createElement('div');
                 div.classList.add(msg.role === 'user' ? 'user' : 'bot');
                 div.innerHTML = (typeof marked !== 'undefined' ? marked.parse(msg.content) : msg.content) +
                     `<button class="copy-btn" data-text="${msg.content.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
                 container.appendChild(div);
             });
+        } else {
+            // 🔹 Si no hay mensajes → mostrar saludo inicial
+            mostrarMensajeBienvenida();
         }
 
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
     } catch (error) {
         console.error('Error cargando mensajes:', error);
-        mostrarNotificacion('Error al cargar mensajes', 'error');
+        mostrarNotificacion(`Error al cargar mensajes: ${error.message}`, 'error');
     }
 };
 
@@ -625,18 +628,25 @@ const mostrarMensajeBienvenida = () => {
         mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
         return;
     }
-    const mensaje = '¡Hola! Soy YELIA, tu asistente para Programación Avanzada en Ingeniería en Telemática. Estoy aquí para ayudarte. ¿Qué quieres aprender hoy?';
-    const botDiv = document.createElement('div');
-    botDiv.classList.add('bot');
-    botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) +
-        `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-    container.appendChild(botDiv);
-    scrollToBottom();
-    if (window.Prism) Prism.highlightAll();
-    if (vozActiva && userHasInteracted) {
-        speakText(mensaje);
-    } else if (vozActiva) {
-        pendingWelcomeMessage = mensaje;
+
+    const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
+    
+    // 🔹 Solo agregar el saludo si el chat está vacío
+    if (container.children.length === 0) {
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) +
+            `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        container.appendChild(botDiv);
+        scrollToBottom();
+        if (window.Prism) Prism.highlightAll();
+
+        // 🔊 Voz (solo si activada)
+        if (vozActiva && userHasInteracted) {
+            speakText(mensaje);
+        } else if (vozActiva) {
+            pendingWelcomeMessage = mensaje;
+        }
     }
 };
 
