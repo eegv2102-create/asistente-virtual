@@ -558,15 +558,15 @@ const addCopyButtonListeners = () => {
 
 // --- DROPDOWN NIVEL ---
 const toggleDropdown = (event) => {
-    event?.stopPropagation(); // Evita que el clic propague y cierre el menú inmediatamente
     const dropdownMenu = getElement('.dropdown-menu');
-    if (!dropdownMenu) {
+    if (dropdownMenu) {
+        dropdownMenu.classList.toggle('active');
+        console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado'); // Depuración
+        if (event) event.stopPropagation(); // Evita que el clic global cierre el menú
+    } else {
         console.error('Elemento .dropdown-menu no encontrado');
-        return;
+        mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
     }
-    const isActive = dropdownMenu.classList.contains('active');
-    dropdownMenu.classList.toggle('active');
-    console.log(`Menú desplegable: ${isActive ? 'cerrado' : 'abierto'}`); // Depuración
 };
 
 const setNivelExplicacion = (nivel) => {
@@ -613,25 +613,25 @@ document.addEventListener('click', (event) => {
     const nivelBtn = getElement('#nivel-btn');
     const dropdownContainer = getElement('.dropdown-container');
 
-    // ✅ Si clic en el botón de nivel o dentro del contenedor → alternar menú
-    if (nivelBtn && (nivelBtn.contains(event.target) || dropdownContainer.contains(event.target))) {
-        toggleDropdown(event); // Pasar el evento para detener la propagación
+    // Si clic en el botón de nivel, no cerrar el menú (toggleDropdown lo maneja)
+    if (nivelBtn && nivelBtn.contains(event.target)) {
+        console.log('Clic en botón de nivel, toggling menú'); // Depuración
         return;
     }
 
-    // ✅ Si clic en una opción del menú → dejar que setNivelExplicacion maneje
+    // Si clic en una opción del menú, dejar que setNivelExplicacion maneje
     if (dropdownMenu && dropdownMenu.contains(event.target)) {
         console.log('Clic en opción del menú desplegable'); // Depuración
         return;
     }
 
-    // ✅ Si menú abierto y clic fuera → cerrarlo
+    // Si menú abierto y clic fuera, cerrarlo
     if (dropdownMenu && dropdownMenu.classList.contains('active')) {
         dropdownMenu.classList.remove('active');
         console.log('Menú desplegable cerrado por clic fuera'); // Depuración
     }
 
-    // --- Menús móviles ---
+    // Menús móviles
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
@@ -701,6 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nivelGuardado = localStorage.getItem('nivelExplicacion') || 'basica';
     console.log('Nivel guardado en localStorage:', nivelGuardado); // Depuración
     setNivelExplicacion(nivelGuardado);
+    init(); // Llama a init después de establecer el nivel
 });
 
 const mostrarMensajeBienvenida = () => {
@@ -738,7 +739,7 @@ const obtenerQuiz = async (tipo) => {
         const res = await fetch('/quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', nivel: localStorage.getItem('nivelExplicacion') || 'basico' })
+            body: JSON.stringify({ usuario: 'anonimo', nivel: localStorage.getItem('nivelExplicacion') || 'basica' })
         });
         if (!res.ok) throw new Error('Error al obtener quiz');
         return await res.json();
@@ -867,7 +868,7 @@ const init = () => {
             ];
         });
 
-    // Resto de la función init (sin cambios)
+    // Resto de la función init
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
@@ -1006,7 +1007,8 @@ const init = () => {
         }
     }, { once: true });
     cargarAvatares();
-    actualizarListaChats();
+    cargarConversaciones();
 };
 
+// Eliminar inicialización redundante fuera de DOMContentLoaded
 document.addEventListener('DOMContentLoaded', init);

@@ -197,7 +197,7 @@ body {
   margin-top: 10px;
   background-color: var(--bg-primary);
   border-radius: 8px;
-  overflow: hidden;
+  /* Removido overflow: hidden para evitar recorte del menú desplegable */
 }
 
 .left-section, .right-section {
@@ -571,32 +571,25 @@ body.modo-oscuro .bot code {
 
 .dropdown-container {
   position: relative;
-  display: inline-block;
-  z-index: 10001; /* Asegura que el contenedor esté encima */
+  display: block;
 }
 
 .dropdown-menu {
   display: none;
   position: absolute;
-  top: calc(100% + 4px); /* Aparece debajo en escritorio */
-  left: 0;
-  right: auto;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px;
-  z-index: 10001; /* Asegura que el menú esté encima de todo */
+  z-index: 10000;
   box-shadow: 0 4px 8px var(--shadow);
   min-width: 150px;
-  visibility: hidden; /* Oculto por defecto */
-  opacity: 0; /* Para animación suave */
-  transition: visibility 0.2s ease, opacity 0.2s ease;
+  top: 100%; /* Posiciona debajo del botón en PC */
+  left: 0;
 }
 
 .dropdown-menu.active {
   display: block;
-  visibility: visible; /* Visible cuando activo */
-  opacity: 1;
 }
 
 .dropdown-menu button {
@@ -761,7 +754,7 @@ body.modo-oscuro .bot code {
   margin-bottom: 5px;
 }
 
-/* Media queries para móvil (max-width: 768px) */
+/* Media queries para móvil (max-width: 768px) - Estilos específicos para dispositivos móviles */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -855,32 +848,26 @@ body.modo-oscuro .bot code {
   }
 
   .dropdown-container {
-    display: inline-block;
-    z-index: 10001; /* Asegura que el contenedor esté encima */
+    display: block;
   }
 
   .dropdown-menu {
     display: none;
     position: absolute;
-    bottom: calc(100% + 4px); /* Aparece encima en móviles */
+    bottom: calc(100% + 4px);
     left: 0;
     right: auto;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px;
-    z-index: 10001; /* Asegura que el menú esté encima de todo */
+    z-index: 10000;
     box-shadow: 0 4px 8px var(--shadow);
     min-width: 140px;
-    visibility: hidden;
-    opacity: 0;
-    transition: visibility 0.2s ease, opacity 0.2s ease;
   }
 
   .dropdown-menu.active {
     display: block;
-    visibility: visible;
-    opacity: 1;
   }
 
   .dropdown-menu button {
@@ -996,19 +983,18 @@ body.modo-oscuro .bot code {
   }
 }
 
-/* Media queries para PC (min-width: 769px) */
+/* Media queries para PC (min-width: 769px) - Estilos específicos para escritorios */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
   }
 
   .dropdown-container {
-    display: inline-block;
-    z-index: 10001;
+    display: block;
   }
 
   .dropdown-menu {
-    top: calc(100% + 4px); /* Aparece debajo en escritorio */
+    top: 100%; /* Asegura que aparezca debajo sin recorte */
     left: 0;
     right: auto;
     min-width: 150px;
