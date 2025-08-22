@@ -14,6 +14,21 @@ let TEMAS_DISPONIBLES = [
     'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
 ];
 
+const showLoading = () => {
+    const container = getElement('#chatbox')?.querySelector('.message-container');
+    if (!container) return null;
+    const loadingDiv = document.createElement('div');
+    loadingDiv.classList.add('loading');
+    loadingDiv.innerHTML = '<div class="spinner"></div> Cargando...';
+    container.appendChild(loadingDiv);
+    scrollToBottom();
+    return loadingDiv;
+};
+
+const hideLoading = (loadingDiv) => {
+    if (loadingDiv) loadingDiv.remove();
+};
+
 const getElement = selector => {
     const element = document.querySelector(selector);
     if (!element) console.warn(`Elemento ${selector} no encontrado en el DOM`);
@@ -26,21 +41,15 @@ const getElements = selector => {
     return elements;
 };
 
-const mostrarNotificacion = (mensaje, tipo = 'info') => {
-    const card = getElement('#notification-card');
-    if (!card) {
-        console.error('Elemento #notification-card no encontrado');
-        return;
-    }
-    card.innerHTML = `
-        <p>${mensaje}</p>
-        <button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación">Cerrar</button>
-    `;
-    card.classList.add('active', tipo);
-    card.style.animation = 'fadeIn 0.5s ease-out';
+const mostrarNotificacion = (mensaje, tipo) => {
+    const notificationCard = getElement('#notification-card');
+    if (!notificationCard) return;
+    notificationCard.innerHTML = `<p>${mensaje}</p><button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación">Cerrar</button>`;
+    notificationCard.classList.remove('info', 'success', 'error');
+    notificationCard.classList.add(tipo, 'active');
+    // Ocultar después de 5 segundos
     setTimeout(() => {
-        card.style.animation = 'fadeOut 0.5s ease-out';
-        setTimeout(() => card.classList.remove('active', tipo), 500);
+        notificationCard.classList.remove('active');
     }, 5000);
 };
 
@@ -96,6 +105,15 @@ const speakText = async (text) => {
         pendingWelcomeMessage = text;
         return;
     }
+    const reemplazosTTS = {
+        'POO': 'Programación Orientada a Objetos',
+        'UML': 'U Em Ele',
+        'MVC': 'Em Vi Ci',
+        'ORM': 'Mapeo Objeto Relacional',
+        'BD': 'Base de Datos',
+        'API': 'A Pi I',
+        'SQL': 'Esquiu Ele'
+    };
     let textoParaVoz = text
         .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '')
         .replace(/```[\s\S]*?```/g, '')
@@ -105,6 +123,7 @@ const speakText = async (text) => {
         .replace(/#+\s*/g, '')
         .replace(/-\s*/g, '')
         .replace(/\n+/g, ' ')
+        .replace(/\b(POO|UML|MVC|ORM|BD)\b/g, match => reemplazosTTS[match] || match)
         .replace(/\bYELIA\b/g, 'Yelia')
         .trim();
     const botMessage = getElement('.bot:last-child');
@@ -162,7 +181,10 @@ const speakText = async (text) => {
             };
             utterance.onerror = (event) => {
                 console.error('Error en speechSynthesis:', event.error);
-                mostrarNotificacion('Error en audio local: ' + event.error, 'error');
+                let errorMsg = 'Error en audio local: ' + event.error;
+                if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página primero';
+                if (event.error === 'network') errorMsg = 'Error de red en síntesis de voz';
+                mostrarNotificacion(errorMsg, 'error');
                 if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
@@ -206,13 +228,14 @@ const toggleVoiceRecognition = () => {
     if (!voiceToggleBtn) return;
     if (!isListening) {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            mostrarNotificacion('Reconocimiento de voz no soportado', 'error');
+            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
             return;
         }
         recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
         recognition.lang = 'es-ES';
         recognition.interimResults = true;
         recognition.continuous = true;
+        let timeoutId = null;
         recognition.start();
         isListening = true;
         voiceToggleBtn.classList.add('voice-active');
@@ -220,7 +243,16 @@ const toggleVoiceRecognition = () => {
         voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Detener reconocimiento de voz');
         mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
+        const resetTimeout = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                if (isListening) stopSpeech();
+                mostrarNotificacion('Reconocimiento de voz detenido por inactividad', 'info');
+            }, 30000); // 30 segundos
+        };
+        resetTimeout();
         recognition.onresult = event => {
+            resetTimeout();
             const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
             const input = getElement('#input');
             if (input) input.value = transcript;
@@ -228,6 +260,7 @@ const toggleVoiceRecognition = () => {
                 sendMessage();
                 recognition.stop();
                 isListening = false;
+                clearTimeout(timeoutId);
                 voiceToggleBtn.classList.remove('voice-active');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
                 voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
@@ -235,7 +268,12 @@ const toggleVoiceRecognition = () => {
             }
         };
         recognition.onerror = event => {
-            mostrarNotificacion(`Error en voz: ${event.error}`, 'error');
+            clearTimeout(timeoutId);
+            let errorMsg = `Error en reconocimiento de voz: ${event.error}`;
+            if (event.error === 'no-speech') errorMsg = 'No se detectó voz, intenta de nuevo';
+            if (event.error === 'aborted') errorMsg = 'Reconocimiento de voz cancelado';
+            if (event.error === 'network') errorMsg = 'Error de red en reconocimiento de voz';
+            mostrarNotificacion(errorMsg, 'error');
             recognition.stop();
             isListening = false;
             voiceToggleBtn.classList.remove('voice-active');
@@ -244,8 +282,11 @@ const toggleVoiceRecognition = () => {
             voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         };
         recognition.onend = () => {
-            if (isListening) recognition.start();
-            else {
+            if (isListening) {
+                recognition.start();
+                resetTimeout();
+            } else {
+                clearTimeout(timeoutId);
                 voiceToggleBtn.classList.remove('voice-active');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
                 voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
@@ -443,12 +484,12 @@ const sendMessage = async () => {
     input.value = '';
 
     const container = getElement('#chatbox').querySelector('.message-container');
-
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
     userDiv.innerHTML = pregunta + 
         `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
+    const loadingDiv = showLoading();
     scrollToBottom();
 
     if (!currentConvId) {
@@ -458,12 +499,14 @@ const sendMessage = async () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
+            if (!res.ok) throw new Error('Error al crear conversación: ' + res.status);
             const data = await res.json();
             currentConvId = data.id;
             await cargarConversaciones();
         } catch (error) {
             console.error('Error creando conversación:', error);
-            mostrarNotificacion('Error al crear nueva conversación', 'error');
+            hideLoading(loadingDiv);
+            mostrarNotificacion('Error al crear nueva conversación: ' + (error.message.includes('network') ? 'Sin conexión a internet' : error.message), 'error');
             return;
         }
     }
@@ -476,6 +519,8 @@ const sendMessage = async () => {
         });
     } catch (error) {
         console.error('Error guardando mensaje usuario:', error);
+        hideLoading(loadingDiv);
+        mostrarNotificacion('Error al guardar mensaje: ' + (error.message.includes('network') ? 'Sin conexión a internet' : error.message), 'error');
     }
 
     try {
@@ -489,7 +534,13 @@ const sendMessage = async () => {
                 conv_id: currentConvId
             })
         });
+        if (!res.ok) {
+            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
+            if (!navigator.onLine) throw new Error('Sin conexión a internet');
+            throw new Error('Error al procesar la solicitud: ' + res.status);
+        }
         const data = await res.json();
+        hideLoading(loadingDiv);
 
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -507,7 +558,8 @@ const sendMessage = async () => {
         });
     } catch (error) {
         console.error('Error enviando mensaje:', error);
-        mostrarNotificacion('Error al enviar mensaje', 'error');
+        hideLoading(loadingDiv);
+        mostrarNotificacion('Error al enviar mensaje: ' + error.message, 'error');
     }
 };
 
@@ -730,17 +782,25 @@ const mostrarMensajeBienvenida = () => {
 
 const obtenerQuiz = async (tipo) => {
     console.log('Obteniendo quiz, tipo:', tipo);
+    const loadingDiv = showLoading();
     try {
         const res = await fetch('/quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario: 'anonimo', nivel: localStorage.getItem('nivelExplicacion') || 'basica' })
         });
-        if (!res.ok) throw new Error('Error al obtener quiz');
-        return await res.json();
+        if (!res.ok) {
+            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
+            if (!navigator.onLine) throw new Error('Sin conexión a internet');
+            throw new Error('Error al obtener quiz: ' + res.status);
+        }
+        const data = await res.json();
+        hideLoading(loadingDiv);
+        return data;
     } catch (error) {
         console.error('Error obteniendo quiz:', error);
-        mostrarNotificacion('Error al obtener quiz', 'error');
+        hideLoading(loadingDiv);
+        mostrarNotificacion('Error al obtener quiz: ' + error.message, 'error');
         return null;
     }
 };
@@ -751,20 +811,25 @@ const mostrarQuizEnChat = async (quizData) => {
     const container = getElement('#chatbox').querySelector('.message-container');
     const quizDiv = document.createElement('div');
     quizDiv.classList.add('bot');
+    quizDiv.setAttribute('aria-live', 'polite'); // Añadir accesibilidad
     let optionsHtml = quizData.opciones.map((opcion, index) => `
-        <div class="quiz-option" data-option="${opcion}" data-index="${index}">${opcion}</div>
+        <div class="quiz-option" data-option="${opcion}" data-index="${index}" tabindex="0" role="button" aria-label="Opción ${opcion}">${opcion}</div>
     `).join('');
     quizDiv.innerHTML = `
         <p>${quizData.pregunta}</p>
         <div class="quiz-options">${optionsHtml}</div>
         <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
+    quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta; // Guardar respuesta correcta
     container.appendChild(quizDiv);
     scrollToBottom();
 
     getElements('.quiz-option').forEach(option => {
-        option.removeEventListener('click', handleQuizOption); // Remove existing listeners
+        option.removeEventListener('click', handleQuizOption);
         option.addEventListener('click', handleQuizOption);
+        option.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') option.click();
+        });
     });
     addCopyButtonListeners();
 };
@@ -775,9 +840,17 @@ const handleQuizOption = async (event) => {
     const quizData = {
         pregunta: option.parentElement.previousElementSibling.textContent,
         opciones: Array.from(option.parentElement.children).map(opt => opt.dataset.option),
-        respuesta_correcta: option.parentElement.querySelector('.quiz-option[data-index="0"]').dataset.option, // Assuming correct answer is first for simplicity
-        tema: 'unknown' // Adjust based on actual quiz data
+        respuesta_correcta: option.parentElement.dataset.respuestaCorrecta || '', // Obtener del backend o dataset
+        tema: 'unknown' // Ajustar según datos reales del quiz
     };
+    if (!quizData.respuesta_correcta) {
+        console.error('No se proporcionó respuesta_correcta');
+        mostrarNotificacion('Error: No se pudo determinar la respuesta correcta', 'error');
+        return;
+    }
+    getElements('.quiz-option').forEach(opt => opt.classList.remove('selected', 'correct', 'incorrect'));
+    option.classList.add('selected');
+    const loadingDiv = showLoading();
     try {
         const res = await fetch('/responder_quiz', {
             method: 'POST',
@@ -789,7 +862,19 @@ const handleQuizOption = async (event) => {
                 tema: quizData.tema
             })
         });
+        if (!res.ok) {
+            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
+            if (!navigator.onLine) throw new Error('Sin conexión a internet');
+            throw new Error('Error al responder quiz: ' + res.status);
+        }
         const data = await res.json();
+        const isCorrect = data.es_correcta;
+        option.classList.add(isCorrect ? 'correct' : 'incorrect');
+        if (!isCorrect) {
+            const correctOption = option.parentElement.querySelector(`.quiz-option[data-option="${data.respuesta_correcta}"]`);
+            if (correctOption) correctOption.classList.add('correct');
+        }
+        hideLoading(loadingDiv);
         const container = getElement('#chatbox').querySelector('.message-container');
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('bot');
@@ -802,23 +887,32 @@ const handleQuizOption = async (event) => {
         addCopyButtonListeners();
     } catch (error) {
         console.error('Error respondiendo quiz:', error);
-        mostrarNotificacion('Error al responder quiz', 'error');
+        hideLoading(loadingDiv);
+        mostrarNotificacion('Error al responder quiz: ' + error.message, 'error');
     }
 };
 
 const obtenerRecomendacion = async () => {
     console.log('Obteniendo recomendación');
+    const loadingDiv = showLoading();
     try {
         const res = await fetch('/recommend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario: 'anonimo', historial: [] })
         });
-        if (!res.ok) throw new Error('Error al obtener recomendación');
-        return await res.json();
+        if (!res.ok) {
+            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
+            if (!navigator.onLine) throw new Error('Sin conexión a internet');
+            throw new Error('Error al obtener recomendación: ' + res.status);
+        }
+        const data = await res.json();
+        hideLoading(loadingDiv);
+        return data;
     } catch (error) {
         console.error('Error obteniendo recomendación:', error);
-        mostrarNotificacion('Error al obtener recomendación', 'error');
+        hideLoading(loadingDiv);
+        mostrarNotificacion('Error al obtener recomendación: ' + error.message, 'error');
         return { recommendation: 'No se pudo generar recomendación' };
     }
 };

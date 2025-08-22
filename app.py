@@ -86,7 +86,7 @@ def init_db():
         conn = get_db_connection()
         c = conn.cursor()
 
-        # 1) Crear tablas si no existen (version canónica con created_at)
+        # Crear tablas si no existen
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY,
                       puntos INTEGER DEFAULT 0,
@@ -136,14 +136,14 @@ def init_db():
                       content TEXT NOT NULL,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
-        # 2) Migrar tablas antiguas que tenían "timestamp"
+        # Migrar tablas antiguas que tenían "timestamp"
         for table in ["logs", "quiz_logs", "conversations", "messages"]:
             _ensure_created_at(c, table)
 
-        # 3) Índices (siempre sobre created_at)
+        # Índices
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, created_at)')
-        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, created_at)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, tema, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_conversations ON conversations(usuario, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, created_at)')
 
@@ -154,17 +154,15 @@ def init_db():
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
         if conn:
             conn.rollback()
-        raise
+        return jsonify({"error": f"Error de base de datos: {str(e)}"}), 500
     except Exception as e:
         logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
         if conn:
             conn.rollback()
-        raise
+        return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
     finally:
         if conn:
             conn.close()
-
-
 
 def migrate_columns():
     try:
@@ -586,21 +584,21 @@ def quiz():
             f"para el nivel '{nivel}'. Devuelve un objeto JSON con las claves: "
             f"'pregunta' (máximo 100 caracteres), 'opciones' (lista de 4 strings, máximo 50 caracteres cada una), "
             f"'respuesta_correcta' (string, debe coincidir con una opción), 'tema' (string), 'nivel' (string). "
+            f"Asegúrate de que la respuesta_correcta sea precisa y esté incluida en las opciones. "
             f"No uses Markdown, emojis, ni texto adicional. "
             f"Contexto: {contexto}\nTemas disponibles: {', '.join(TEMAS_DISPONIBLES)}"
         )
 
-        completion = call_groq_api(
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": "Genera una pregunta de quiz."}
-            ],
-            model="llama3-70b-8192",
-            max_tokens=300,
-            temperature=0.2
-        )
-
         try:
+            completion = call_groq_api(
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": "Genera una pregunta de quiz."}
+                ],
+                model="llama3-70b-8192",
+                max_tokens=300,
+                temperature=0.2
+            )
             quiz_data = json.loads(completion.choices[0].message.content.strip())
             validate_quiz_format(quiz_data)
         except (json.JSONDecodeError, ValueError) as e:
@@ -610,20 +608,23 @@ def quiz():
                 "opciones": ["Encapsulamiento", "Herencia", "Polimorfismo", "Abstracción"] if tema_seleccionado == "Encapsulamiento" else ["Diagrama de Clases", "Diagrama de Actividades", "Diagrama de Estados", "Diagrama de Componentes"],
                 "respuesta_correcta": "Encapsulamiento" if tema_seleccionado == "Encapsulamiento" else "Diagrama de Clases",
                 "tema": tema_seleccionado,
-                "nivel": "basico"
+                "nivel": nivel
             }
-
-        try:
-            validate_quiz_format(quiz_data)
-        except ValueError as e:
-            logging.error(f"Formato de quiz inválido: {str(e)}")
-            return jsonify({"error": str(e)}), 400
+            try:
+                validate_quiz_format(quiz_data)
+            except ValueError as ve:
+                logging.error(f"Formato de quiz de respaldo inválido: {str(ve)}")
+                return jsonify({"error": "No se pudo generar un quiz válido"}), 500
 
         logging.info(f"Quiz generado para usuario {usuario} sobre tema {quiz_data['tema']}: {quiz_data}")
         return jsonify(quiz_data)
     except Exception as e:
         logging.error(f"Error en /quiz: {str(e)}")
-        return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
+        if '503' in str(e):
+            return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde"}), 503
+        if isinstance(e, httpx.ConnectTimeout):
+            return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
+        return jsonify({"error": f"No se pudo generar el quiz: {str(e)}"}), 500
 
 @app.route('/responder_quiz', methods=['POST'])
 def responder_quiz():
@@ -638,9 +639,9 @@ def responder_quiz():
         tema = bleach.clean(data.get('tema', 'General')[:50])
         pregunta = bleach.clean(data.get('pregunta', 'Sin pregunta')[:200])
 
-        if not respuesta or not respuesta_correcta:
-            logging.error("Faltan respuesta o respuesta_correcta en /responder_quiz")
-            return jsonify({'error': 'Faltan respuesta o respuesta_correcta'}), 400
+        if not respuesta or not respuesta_correcta or not pregunta:
+            logging.error("Faltan datos requeridos en /responder_quiz")
+            return jsonify({'error': 'Faltan respuesta, respuesta_correcta o pregunta'}), 400
 
         respuesta_norm = ''.join(respuesta.strip().lower().split())
         respuesta_correcta_norm = ''.join(respuesta_correcta.strip().lower().split())
@@ -661,6 +662,7 @@ def responder_quiz():
             logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}")
         except PsycopgError as e:
             logging.error(f"Error al guardar en quiz_logs: {str(e)}")
+            return jsonify({"error": f"Error de base de datos al guardar quiz: {str(e)}"}), 500
 
         try:
             prompt = (
@@ -685,6 +687,10 @@ def responder_quiz():
             explicacion = response.choices[0].message.content.strip()
         except Exception as e:
             logging.error(f"Error al generar explicación con Groq: {str(e)}")
+            if '503' in str(e):
+                return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde"}), 503
+            if isinstance(e, httpx.ConnectTimeout):
+                return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
             explicacion = (
                 f"**{'¡Felicidades, está bien! Seleccionaste: ' + respuesta + '.' if es_correcta else f'Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.'}** "
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
@@ -693,11 +699,16 @@ def responder_quiz():
 
         return jsonify({
             'es_correcta': es_correcta,
-            'respuesta': explicacion
+            'respuesta': explicacion,
+            'respuesta_correcta': respuesta_correcta
         })
     except Exception as e:
         logging.error(f"Error en /responder_quiz: {str(e)}")
-        return jsonify({'error': f"Error al procesar la respuesta: {str(e)}"}), 500
+        if '503' in str(e):
+            return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde"}), 503
+        if isinstance(e, httpx.ConnectTimeout):
+            return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
+        return jsonify({"error": f"No se pudo procesar la respuesta del quiz: {str(e)}"}), 500
 
 @app.route("/tts", methods=["POST"])
 def tts():
@@ -710,6 +721,18 @@ def tts():
         if not all(c.isprintable() or c.isspace() for c in text):
             logging.error("Texto contiene caracteres no válidos")
             return jsonify({"error": "El texto contiene caracteres no válidos"}), 400
+
+        # Reemplazos para mejorar pronunciación
+        reemplazos = {
+            'POO': 'Programación Orientada a Objetos',
+            'UML': 'U Em Ele',
+            'MVC': 'Em Vi Ci',
+            'ORM': 'Mapeo Objeto Relacional',
+            'BD': 'Base de Datos'
+        }
+        for term, replacement in reemplazos.items():
+            text = re.sub(rf'\b{term}\b', replacement, text, flags=re.IGNORECASE)
+
         try:
             tts = gTTS(text=text, lang='es', tld='com.mx', timeout=10)
             audio_io = io.BytesIO()
@@ -719,9 +742,13 @@ def tts():
             return send_file(audio_io, mimetype='audio/mp3')
         except Exception as gtts_error:
             logging.error(f"Error en gTTS: {str(gtts_error)}")
+            if isinstance(gtts_error, httpx.ConnectTimeout):
+                return jsonify({"error": "Tiempo de conexión agotado en gTTS, verifica tu conexión a internet"}), 504
             return jsonify({"error": f"Error en la generación de audio: {str(gtts_error)}"}), 500
     except Exception as e:
         logging.error(f"Error en /tts: {str(e)}")
+        if isinstance(e, httpx.ConnectTimeout):
+            return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
         return jsonify({"error": f"Error al procesar la solicitud: {str(e)}"}), 500
 
 @app.route("/recommend", methods=["POST"])

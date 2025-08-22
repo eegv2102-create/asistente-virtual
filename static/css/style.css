@@ -1022,3 +1022,69 @@ body.modo-oscuro .bot code {
 .container, .main-section, .right-section, .left-section {
   overflow: visible !important;
 }
+/* Añadir al final de tu archivo styles.css */
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    color: var(--text-primary);
+    font-style: italic;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--text-primary);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.quiz-option {
+    cursor: pointer;
+    padding: 8px;
+    margin: 5px 0;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.quiz-option:hover {
+    background-color: color-mix(in srgb, var(--bg-primary) 80%, var(--primary));
+}
+
+.quiz-option:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.quiz-option.selected {
+    background-color: color-mix(in srgb, var(--bg-primary) 70%, var(--primary));
+}
+
+.quiz-option.correct {
+    border-color: var(--success);
+    background-color: color-mix(in srgb, var(--success) 20%, var(--bg-primary));
+}
+
+.quiz-option.incorrect {
+    border-color: var(--error);
+    background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+@media (max-width: 768px) {
+    .loading {
+        padding: 8px;
+        font-size: 0.9rem;
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border-width: 2px;
+    }
+}
