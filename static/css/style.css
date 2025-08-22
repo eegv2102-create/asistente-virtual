@@ -557,21 +557,18 @@ body.modo-oscuro .bot code {
 .dropdown-menu {
   display: none;
   position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  right: auto;
-  background-color: var(--bg-primary);
+  background: var(--bg-primary);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px var(--shadow);
-  z-index: 1002;
-  min-width: 120px;
-  margin-bottom: 4px;
+  border-radius: 6px;
+  padding: 5px;
+  margin-top: 5px;
+  z-index: 1000;
 }
 
 .dropdown-menu.active {
   display: block;
 }
+
 
 .dropdown-menu button {
   display: block;
