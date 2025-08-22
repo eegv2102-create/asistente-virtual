@@ -354,11 +354,17 @@ const cargarConversaciones = async () => {
 };
 
 const cargarMensajes = async (convId) => {
+    if (!convId) {
+        console.warn("⚠️ No hay convId válido, no se pueden cargar mensajes.");
+        return;
+    }
     currentConvId = convId;
+
     try {
         const res = await fetch(`/messages/${convId}`);
         if (!res.ok) {
-            throw new Error('Error al cargar mensajes');
+            const text = await res.text();
+            throw new Error(`Error HTTP ${res.status}: ${text}`);
         }
         const data = await res.json();
 
@@ -377,7 +383,7 @@ const cargarMensajes = async (convId) => {
         if (window.Prism) Prism.highlightAll();
     } catch (error) {
         console.error('Error cargando mensajes:', error);
-        mostrarNotificacion('Error al cargar mensajes', 'error');
+        mostrarNotificacion(`Error al cargar mensajes: ${error.message}`, 'error');
     }
 };
 
