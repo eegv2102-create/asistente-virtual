@@ -559,18 +559,30 @@ const addCopyButtonListeners = () => {
 // --- DROPDOWN NIVEL ---
 const toggleDropdown = () => {
     const dropdownMenu = getElement('.dropdown-menu');
-    if (!dropdownMenu) return;
+    if (!dropdownMenu) {
+        console.error('Elemento .dropdown-menu no encontrado');
+        return;
+    }
     dropdownMenu.classList.toggle('active');
 };
 
 const setNivelExplicacion = (nivel) => {
+    console.log('setNivelExplicacion llamado con nivel:', nivel); // Depuración
+    if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
+        console.error('Nivel inválido:', nivel);
+        mostrarNotificacion('Error: Nivel inválido', 'error');
+        return;
+    }
+
     localStorage.setItem('nivelExplicacion', nivel);
     const nivelBtn = getElement('#nivel-btn');
     if (nivelBtn) {
-        nivelBtn.textContent =
-            nivel === 'basica'   ? 'Explicación Básica' :
+        const nivelText =
+            nivel === 'basica' ? 'Explicación Básica' :
             nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
-                                   'Avanzada/Teórica';
+            'Avanzada/Teórica';
+        nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
+        console.log('Nivel actualizado a:', nivelText); // Depuración
 
         // Cierra el menú
         const dropdownMenu = getElement('.dropdown-menu');
@@ -579,7 +591,7 @@ const setNivelExplicacion = (nivel) => {
         }
 
         if (typeof mostrarNotificacion === 'function') {
-            mostrarNotificacion(`Nivel cambiado a: ${nivelBtn.textContent}`, 'success');
+            mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
         }
     } else {
         console.error('Elemento #nivel-btn no encontrado');
@@ -595,14 +607,15 @@ const isMobile = () => window.innerWidth < 768;
 document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
+    const dropdownContainer = getElement('.dropdown-container');
 
-    // ✅ Si clic en el botón de nivel → alternar menú
-    if (nivelBtn && nivelBtn.contains(event.target)) {
+    // ✅ Si clic en el botón de nivel o dentro del contenedor → alternar menú
+    if (nivelBtn && (nivelBtn.contains(event.target) || dropdownContainer.contains(event.target))) {
         toggleDropdown();
         return;
     }
 
-    // ✅ Si clic en una opción del menú → dejar que setNivelExplicacion maneje (no cerrar antes)
+    // ✅ Si clic en una opción del menú → dejar que setNivelExplicacion maneje
     if (dropdownMenu && dropdownMenu.contains(event.target)) {
         return;
     }
@@ -630,7 +643,6 @@ document.addEventListener('click', (event) => {
         }
     }
 });
-
 
 // --- TOGGLE MENÚS ---
 const toggleMenu = () => {
@@ -682,6 +694,7 @@ const toggleRightMenu = () => {
 // --- Estado inicial (recuperar nivel guardado) ---
 document.addEventListener('DOMContentLoaded', () => {
     const nivelGuardado = localStorage.getItem('nivelExplicacion') || 'basica';
+    console.log('Nivel guardado en localStorage:', nivelGuardado); // Depuración
     setNivelExplicacion(nivelGuardado);
 });
 
