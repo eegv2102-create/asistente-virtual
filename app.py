@@ -235,6 +235,93 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
     prompt = (
         f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
         f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta_procesar}'. "
+        f"Sigue estrictamente estas reglas:\n"
+        f"1. Responde solo sobre los temas: {', '.join(temas_validos)}.\n"
+        f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
+        f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras). Prohibido incluir ejemplos, listas, ventajas, comparaciones o bloques de código.\n"
+        f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones.\n"
+        f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras).\n"
+        f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
+        f"4. Usa Markdown para estructurar la respuesta (títulos con ##, listas con -, bloques de código con ```java).\n"
+        f"5. Contexto: {contexto}\n"
+        f"6. Al final, escribe únicamente: '¿Tienes alguna pregunta adicional sobre este tema?' en una línea nueva.\n"
+        f"7. Si detectas un saludo inicial, ya fue manejado; enfócate en la parte técnica.\n"
+        f"8. Asegúrate de que el ejemplo en Java sea funcional, relevante y no exceda 10 líneas.\n"
+        f"9. En 'avanzada', las ventajas deben ser específicas y concisas, en formato de lista.\n"
+        f"Timestamp: {int(time.time())}"
+    )
+
+    try:
+        completion = call_groq_api(
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": pregunta_procesar}
+            ],
+            model="llama3-70b-8192",
+            max_tokens=2000,
+            temperature=0.7
+        )
+        respuesta = completion.choices[0].message.content.strip()
+
+        # Limpiar respuesta según nivel de explicación
+        if nivel_explicacion == "basica":
+            for pattern in [
+                r'```[\s\S]*?```',  # Bloques de código
+                r'- .+?(?=\n|$)',  # Listas
+                r'##\s*(Ejemplo|Ventajas|Comparación|Prerequisitos)[\s\S]*?(?=(?:^##|\Z))',  # Secciones de ejemplo, ventajas, etc.
+                r'\n\s*\n\s*',  # Espacios dobles
+                r'(\*\*Ejemplo\*\*|\*\*Ventajas\*\*|\*\*Comparación\*\*)[\s\S]*?(?=(?:^##|\Z))'  # Títulos en negrita
+            ]:
+                respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
+            # Limitar a 70 palabras
+            palabras = respuesta.split()
+            if len(palabras) > 70:
+                respuesta = ' '.join(palabras[:70]).strip() + '...'
+
+        # Validar que 'ejemplos' tenga un ejemplo en Java
+        if nivel_explicacion == "ejemplos" and not re.search(r'```java[\s\S]*?```', respuesta):
+            respuesta += (
+                f"\n\n## Ejemplo en Java\n```java\n// Ejemplo genérico para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo básico\"); }}\n}}\n```"
+            )
+
+        # Validar que 'avanzada' tenga ventajas y ejemplo en Java
+        if nivel_explicacion == "avanzada":
+            if not re.search(r'```java[\s\S]*?```', respuesta):
+                respuesta += (
+                    f"\n\n## Ejemplo en Java\n```java\n// Ejemplo genérico para {pregunta_procesar}\nclass Ejemplo {{\n    void metodo() {{ System.out.println(\"Ejemplo avanzado\"); }}\n}}\n```"
+                )
+            if not re.search(r'##\s*Ventajas[\s\S]*?-', respuesta):
+                respuesta += (
+                    f"\n\n## Ventajas\n- Mejora la comprensión del tema.\n- Facilita la aplicación práctica.\n- Optimiza el diseño de software."
+                )
+
+        # Agregar prefijo de cortesía si aplica
+        if es_cortesia:
+            respuesta = (
+                f"¡Gracias por la cortesía, {usuario if usuario != 'anonimo' else 'amigo'}! Aquí tienes tu respuesta:\n\n{respuesta.strip()}"
+            )
+
+        # Asegurar que la respuesta termine con la pregunta adicional
+        if not respuesta.endswith("¿Tienes alguna pregunta adicional sobre este tema?"):
+            respuesta = f"{respuesta.strip()}\n\n¿Tienes alguna pregunta adicional sobre este tema?"
+
+        return respuesta.strip()
+    except Exception as e:
+        logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
+        return (
+            f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
+            f"Intenta con una pregunta sobre Programación Avanzada, como {temas_validos[0]}. "
+            f"¿Tienes alguna pregunta adicional sobre este tema?"
+        )
+
+    # Procesar pregunta técnica
+    contexto = ""
+    if historial:
+        contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
+
+    prompt = (
+        f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+        f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta_procesar}'. "
         f"Sigue estas reglas estrictamente:\n"
         f"1. Responde solo sobre los temas: {', '.join(temas_validos)}.\n"
         f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
