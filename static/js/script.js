@@ -330,7 +330,7 @@ const cargarConversaciones = async () => {
         }
     } catch (error) {
         console.error('Error cargando conversaciones:', error);
-        mostrarNotificacion(`Error al cargar historial: ${error.message}`, 'error');
+        mostrarNotificacion(`Error al cargar historial: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
     }
 };
 
@@ -371,11 +371,12 @@ const eliminarConversacion = async (convId) => {
             cargarConversaciones();
             mostrarNotificacion('Conversación eliminada', 'success');
         } else {
-            throw new Error('Error al eliminar conversación');
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Error al eliminar conversación');
         }
     } catch (error) {
         console.error('Error eliminando conversación:', error);
-        mostrarNotificacion('Error al eliminar conversación', 'error');
+        mostrarNotificacion(`Error al eliminar conversación: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
     }
 };
 
@@ -392,11 +393,12 @@ const renombrarConversacion = async (convId) => {
             cargarConversaciones();
             mostrarNotificacion('Conversación renombrada', 'success');
         } else {
-            throw new Error('Error al renombrar conversación');
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Error al renombrar conversación');
         }
     } catch (error) {
         console.error('Error renombrando conversación:', error);
-        mostrarNotificacion('Error al renombrar conversación', 'error');
+        mostrarNotificacion(`Error al renombrar conversación: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
     }
 };
 
@@ -429,7 +431,7 @@ const sendMessage = async () => {
             await cargarConversaciones();
         } catch (error) {
             console.error('Error creando conversación:', error);
-            mostrarNotificacion(`Error al crear nueva conversación: ${error.message}. Intenta de nuevo.`, 'error');
+            mostrarNotificacion(`Error al crear nueva conversación: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
             return;
         }
     }
@@ -460,7 +462,7 @@ const sendMessage = async () => {
         speakText(data.respuesta);
     } catch (error) {
         console.error('Error enviando mensaje:', error);
-        mostrarNotificacion(`Error al enviar mensaje: ${error.message}. Intenta de nuevo.`, 'error');
+        mostrarNotificacion(`Error al enviar mensaje: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
     }
 };
 
