@@ -58,7 +58,7 @@ def init_db():
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        # Crear tablas
+        # Crear tablas (mantiene IF NOT EXISTS para seguridad)
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
@@ -81,12 +81,6 @@ def init_db():
         c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, timestamp)')
         conn.commit()
         logging.info("Base de datos inicializada correctamente: tablas creadas")
-        # Verificar que la tabla conversations existe
-        c.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations')")
-        exists = c.fetchone()[0]
-        if not exists:
-            logging.error("La tabla 'conversations' no se creó correctamente")
-            raise PsycopgError("Tabla 'conversations' no creada")
         conn.close()
         return True
     except PsycopgError as e:
@@ -184,7 +178,7 @@ def handle_conversations():
     usuario = session.get('usuario', 'anonimo')
     if request.method == 'POST':
         try:
-            conn = get_db_connection()
+            conn = get_db_connection()  # Chequeo conexión
             c = conn.cursor()
             nombre = request.json.get('nombre', 'Nuevo Chat')
             c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id", (usuario, nombre))
@@ -194,8 +188,8 @@ def handle_conversations():
             session['current_conv_id'] = conv_id
             return jsonify({'id': conv_id, 'nombre': nombre})
         except Exception as e:
-            logging.error(f"Error creando conversación: {str(e)}")
-            return jsonify({'error': f"No se pudo crear la conversación: {str(e)}"}), 500
+            logging.error(f"Error creando conversación: {str(e)}")  # Log detallado
+            return jsonify({'error': f"No se pudo crear la conversación: {str(e)}. Verifica si tablas existen en DB."}), 500
     else:
         try:
             conn = get_db_connection()
@@ -208,8 +202,9 @@ def handle_conversations():
             return jsonify({'conversations': convs})
         except Exception as e:
             logging.error(f"Error listando conversaciones: {str(e)}")
-            return jsonify({'error': f"No se pudo listar conversaciones: {str(e)}"}), 500
-
+            return jsonify({'error': f"No se pudo listar conversaciones: {str(e)}. Verifica si tablas existen en DB."}), 500
+        
+        
 @app.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
 def manage_conversation(conv_id):
     usuario = session.get('usuario', 'anonimo')
@@ -256,13 +251,18 @@ def buscar_respuesta():
 
     conv_id = session.get('current_conv_id')
     if not conv_id and pregunta:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
-        conv_id = c.fetchone()[0]
-        conn.commit()
-        conn.close()
-        session['current_conv_id'] = conv_id
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
+            conv_id = c.fetchone()[0]
+            conn.commit()
+            conn.close()
+            session['current_conv_id'] = conv_id
+        except Exception as e:
+            logging.error(f"Error creando conv en buscar_respuesta: {str(e)}")
+            # Continúa sin conv_id si falla, pero loguea
+            conv_id = None
 
     pregunta_norm = pregunta.lower().strip()
     respuestas_simples = {
@@ -276,7 +276,7 @@ def buscar_respuesta():
 
     for patron, respuesta in respuestas_simples.items():
         if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre|quiero aprender|saber más)", pregunta_norm):
-            if pregunta:
+            if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
@@ -288,7 +288,7 @@ def buscar_respuesta():
             f"Es un tema clave en Programación Avanzada que te ayudará a entender mejor cómo estructurar y optimizar tu código. "
             f"¿Quieres que te explique más sobre {tema_sugerido}? ¿Tienes alguna pregunta adicional sobre este tema?"
         )
-        if pregunta:
+        if pregunta and conv_id:
             guardar_mensaje(usuario, conv_id, 'user', pregunta)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta)
         return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
@@ -315,7 +315,7 @@ def buscar_respuesta():
                 f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. ¿Qué deseas saber de la materia? "
                 f"¿Tienes alguna pregunta adicional sobre este tema?"
             )
-            if pregunta:
+            if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
@@ -326,7 +326,7 @@ def buscar_respuesta():
             f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
             f"¿Tienes alguna pregunta adicional sobre este tema?"
         )
-        if pregunta:
+        if pregunta and conv_id:
             guardar_mensaje(usuario, conv_id, 'user', pregunta)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta)
         return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
@@ -363,7 +363,7 @@ def buscar_respuesta():
             temperature=0.2
         )
         respuesta = completion.choices[0].message.content.strip()
-        if pregunta:
+        if pregunta and conv_id:
             guardar_mensaje(usuario, conv_id, 'user', pregunta)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta)
         return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
@@ -374,7 +374,7 @@ def buscar_respuesta():
             f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
             f"¿Tienes alguna pregunta adicional sobre este tema?"
         )
-        if pregunta:
+        if pregunta and conv_id:
             guardar_mensaje(usuario, conv_id, 'user', pregunta)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta)
         return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
@@ -682,27 +682,12 @@ def get_avatars():
         return jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]}), 200
 
 if __name__ == "__main__":
-    max_attempts = 5
-    for attempt in range(max_attempts):
-        try:
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations')")
-            exists = c.fetchone()[0]
-            conn.close()
-            if not exists:
-                logging.info(f"Intento {attempt + 1}: Tabla 'conversations' no existe, ejecutando init_db()")
-                if init_db():
-                    logging.info("Base de datos inicializada con éxito")
-                    break
-            else:
-                logging.info("Tabla 'conversations' ya existe, no se requiere inicialización")
-                break
-        except Exception as e:
-            logging.error(f"Intento {attempt + 1} fallido: {str(e)}")
-            time.sleep(10)
-    else:
-        logging.error("No se pudo inicializar la base de datos tras 5 intentos. Verifica DATABASE_URL y la configuración de PostgreSQL.")
+    try:
+        logging.info("Iniciando inicialización de DB...")
+        init_db()  # Fuerza init siempre (seguro por IF NOT EXISTS)
+        logging.info("DB inicializada con éxito")
+    except Exception as e:
+        logging.error(f"Falló inicialización de DB: {str(e)}. Verifica permisos en Render Postgres o DATABASE_URL.")
         exit(1)
 
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
