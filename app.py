@@ -17,8 +17,7 @@ from gtts import gTTS
 import io
 import retrying
 import re
-import uuid  # Agregado para IDs únicos
-
+import uuid
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 load_dotenv()
 
 # Inicializar Flask
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'tu_clave_secreta')
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
@@ -35,11 +34,13 @@ Session(app)
 # Inicializar Groq client globalmente
 client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
-# Definir get_db_connection
+# Definir get_db_connection con reintentos
+@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
 def get_db_connection():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         conn.set_session(autocommit=False)
+        logging.info("Conexión a la base de datos establecida")
         return conn
     except Exception as e:
         logging.error(f"Error al conectar con la base de datos: {str(e)}")
@@ -48,29 +49,16 @@ def get_db_connection():
 # Validar variables de entorno
 if not os.getenv("GROQ_API_KEY"):
     logging.error("GROQ_API_KEY no configurada")
+    exit(1)
 if not os.getenv("DATABASE_URL"):
     logging.error("DATABASE_URL no configurada")
-
-try:
-    with open("temas.json", "r", encoding="utf-8") as f:
-        temas = json.load(f)
-    logging.info("Temas cargados: %s", list(temas.keys()))
-except Exception as e:
-    logging.error(f"Error cargando temas.json: {str(e)}")
-    temas = {}
-
-try:
-    with open("prerequisitos.json", "r", encoding="utf-8") as f:
-        prerequisitos = json.load(f)
-    logging.info("Prerequisitos cargados: %s", list(prerequisitos.keys()))
-except Exception as e:
-    logging.error(f"Error cargando prerequisitos.json: {str(e)}")
-    prerequisitos = {}
+    exit(1)
 
 def init_db():
     try:
         conn = get_db_connection()
         c = conn.cursor()
+        # Crear tablas
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY, puntos INTEGER DEFAULT 0, temas_aprendidos TEXT DEFAULT '', avatar_id TEXT DEFAULT 'default', temas_recomendados TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs
@@ -93,6 +81,12 @@ def init_db():
         c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, timestamp)')
         conn.commit()
         logging.info("Base de datos inicializada correctamente: tablas creadas")
+        # Verificar que la tabla conversations existe
+        c.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations')")
+        exists = c.fetchone()[0]
+        if not exists:
+            logging.error("La tabla 'conversations' no se creó correctamente")
+            return False
         return True
     except PsycopgError as e:
         logging.error(f"Error al inicializar la base de datos: {str(e)}")
@@ -393,7 +387,7 @@ def quiz():
                 raise ValueError("Respuesta correcta no está en las opciones")
             if quiz_data["tema"] not in TEMAS_DISPONIBLES:
                 raise ValueError(f"Tema {quiz_data['tema']} no es válido")
-            if quiz_data["nivel"] not in ["basico", "intermedio", "avanzado"]:
+            if quiz_data["nivel"] not in ["basico", "intermedio", "avanzada"]:
                 raise ValueError(f"Nivel {quiz_data['nivel']} no es válido")
 
         contexto = ""
@@ -659,4 +653,4 @@ if __name__ == "__main__":
     if not init_db():
         logging.error("No se pudo inicializar la base de datos. Verifica DATABASE_URL.")
         exit(1)
-    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
+    app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
