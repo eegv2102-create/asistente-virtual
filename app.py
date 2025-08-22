@@ -164,36 +164,49 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
     # Normalizar la pregunta para comparaciones
     pregunta_norm = pregunta.lower().strip()
 
+    # Lista de temas válidos
+    temas_validos = TEMAS_DISPONIBLES
+
     # Respuestas para cortesías
     respuestas_simples = {
-        r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi)(.*por favor.*)?$": 
-            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?",
-        r"^(gracias|muchas gracias|gracias por.*|thank you|gracias por la ayuda)$": 
-            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada?",
-        r"^(adiós|bye|hasta luego|nos vemos)$": 
-            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses."
+        r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos)(.*por favor.*)?$": 
+            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy? ¿Tienes alguna pregunta adicional sobre este tema?",
+        r"^(gracias|muchas gracias|gracias por.*|thank you|te agradezco)$": 
+            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada? ¿Tienes alguna pregunta adicional sobre este tema?",
+        r"^(adiós|bye|hasta luego|nos vemos|chau)$": 
+            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses. ¿Tienes alguna pregunta adicional sobre este tema?"
     }
 
     # Verificar si es solo una cortesía
     for patron, respuesta in respuestas_simples.items():
-        if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre)", pregunta_norm):
+        if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre|quiero aprender|saber más)", pregunta_norm):
             return respuesta
 
     # Si contiene una consulta técnica después de una cortesía, procesar solo la parte técnica
-    consulta_tecnica = re.sub(r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|por favor)\s*", "", pregunta_norm, flags=re.IGNORECASE)
-    if consulta_tecnica != pregunta_norm:
-        pregunta = consulta_tecnica  # Actualizar la pregunta para procesar solo la parte técnica
+    consulta_tecnica = re.sub(r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos|por favor)\s*", "", pregunta_norm, flags=re.IGNORECASE)
+    es_cortesia = consulta_tecnica != pregunta_norm
+    pregunta_procesar = consulta_tecnica if es_cortesia else pregunta
+
+    # Manejo de preguntas generales como "qué puedo aprender"
+    if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
+        tema_sugerido = random.choice(temas_validos)
+        return (
+            f"¡Qué buena pregunta, {usuario if usuario != 'anonimo' else 'amigo'}! Te recomiendo explorar **{tema_sugerido}**. "
+            f"Es un tema clave en Programación Avanzada que te ayudará a entender mejor cómo estructurar y optimizar tu código. "
+            f"¿Quieres que te explique más sobre {tema_sugerido}? ¿Tienes alguna pregunta adicional sobre este tema?"
+        )
 
     # Verificar relevancia de la pregunta
     prompt_relevancia = (
-        f"Determina si la pregunta '{pregunta}' es sobre Programación Avanzada en Ingeniería en Telemática. "
-        "Responde solo 'Sí' o 'No'."
+        f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
+        f"Determina si la pregunta '{pregunta_procesar}' está relacionada con los siguientes temas de Programación Avanzada: {', '.join(temas_validos)}. "
+        f"Responde solo 'Sí' o 'No'."
     )
     try:
         completion = call_groq_api(
             messages=[
                 {"role": "system", "content": prompt_relevancia},
-                {"role": "user", "content": pregunta}
+                {"role": "user", "content": pregunta_procesar}
             ],
             model="llama3-70b-8192",
             max_tokens=10,
@@ -201,10 +214,18 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
         )
         es_relevante = completion.choices[0].message.content.strip().lower() == 'sí'
         if not es_relevante:
-            return f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo puedo responder preguntas sobre Programación Avanzada en Ingeniería en Telemática. ¿Qué deseas saber de la materia?"
+            return (
+                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo puedo ayudarte con Programación Avanzada en Ingeniería en Telemática. "
+                f"Algunos temas que puedo explicarte son: {', '.join(temas_validos[:3])}. ¿Qué deseas saber de la materia? "
+                f"¿Tienes alguna pregunta adicional sobre este tema?"
+            )
     except Exception as e:
         logging.error(f"Error al verificar relevancia: {str(e)}")
-        return f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. Intenta con una pregunta sobre Programación Avanzada."
+        return (
+            f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
+            f"Intenta con una pregunta sobre Programación Avanzada, como {temas_validos[0]}. "
+            f"¿Tienes alguna pregunta adicional sobre este tema?"
+        )
 
     # Procesar pregunta técnica
     contexto = ""
@@ -213,13 +234,18 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
 
     prompt = (
         f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-        f"Proporciona una respuesta clara y precisa en español para la pregunta: '{pregunta}'. "
-        f"Contexto: {contexto}\n"
-        f"Nivel de explicación: {nivel_explicacion}. "
-        f"Si es 'basica', explica solo el concepto sin ejemplos ni ventajas. "
-        f"Si es 'ejemplos', incluye un ejemplo de código en Java. "
-        f"Si es 'avanzada', incluye definición, ventajas y ejemplos. "
-        f"Responde solo sobre Programación Avanzada, evitando temas fuera de esta materia. "
+        f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta_procesar}'. "
+        f"Sigue estas reglas estrictamente:\n"
+        f"1. Responde solo sobre los temas: {', '.join(temas_validos)}.\n"
+        f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
+        f"   - 'basica': Solo definición clara y concisa (máximo 100 palabras), sin ejemplos ni ventajas.\n"
+        f"   - 'ejemplos': Definición (máximo 100 palabras) + un ejemplo breve en Java (máximo 10 líneas).\n"
+        f"   - 'avanzada': Definición (máximo 100 palabras) + ventajas (máximo 50 palabras) + ejemplo en Java (máximo 10 líneas).\n"
+        f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
+        f"4. Usa Markdown para estructurar la respuesta (títulos, listas, bloques de código).\n"
+        f"5. Contexto: {contexto}\n"
+        f"6. Al final, escribe únicamente: '¿Tienes alguna pregunta adicional sobre este tema?'\n"
+        f"7. Si detectas un saludo inicial, ya fue manejado; enfócate en la parte técnica.\n"
         f"Timestamp: {int(time.time())}"
     )
 
@@ -227,29 +253,42 @@ def buscar_respuesta_app(pregunta, historial=None, nivel_explicacion="basica", u
         completion = call_groq_api(
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": pregunta}
+                {"role": "user", "content": pregunta_procesar}
             ],
             model="llama3-70b-8192",
             max_tokens=2000,
             temperature=0.7
         )
-        respuesta = completion.choices[0].message.content
+        respuesta = completion.choices[0].message.content.strip()
+
+        # Limpiar respuesta según nivel de explicación
         if nivel_explicacion == "basica":
             for pattern in [
                 r'Ejemplo:[\s\S]*?(?=(?:^##|\Z))',
                 r'Ventajas:[\s\S]*?(?=(?:^##|\Z))',
                 r'Prerequisitos recomendados:[\s\S]*?(?=(?:^##|\Z))',
-                r'\?Deseas saber más\?',
                 r'\n\s*\n\s*'
             ]:
                 respuesta = re.sub(pattern, '', respuesta, flags=re.MULTILINE)
-        # Agregar prefijo amigable si la pregunta original contenía una cortesía
-        if consulta_tecnica != pregunta_norm:
-            respuesta = f"¡Gracias por la cortesía, {usuario if usuario != 'anonimo' else 'amigo'}! Aquí tienes tu respuesta:\n\n{respuesta.strip()}"
+
+        # Agregar prefijo de cortesía si aplica
+        if es_cortesia:
+            respuesta = (
+                f"¡Gracias por la cortesía, {usuario if usuario != 'anonimo' else 'amigo'}! Aquí tienes tu respuesta:\n\n{respuesta.strip()}"
+            )
+
+        # Asegurar que la respuesta termine con la pregunta adicional
+        if not respuesta.endswith("¿Tienes alguna pregunta adicional sobre este tema?"):
+            respuesta = f"{respuesta.strip()}\n\n¿Tienes alguna pregunta adicional sobre este tema?"
+
         return respuesta.strip()
     except Exception as e:
         logging.error(f"Error al procesar pregunta con Groq: {str(e)}")
-        return f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. Intenta con otra sobre Programación Avanzada."
+        return (
+            f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
+            f"Intenta con una pregunta sobre Programación Avanzada, como {temas_validos[0]}. "
+            f"¿Tienes alguna pregunta adicional sobre este tema?"
+        )
 
 def validate_quiz_format(quiz_data):
     required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
