@@ -97,6 +97,23 @@ def init_db():
         if 'conn' in locals() and conn:
             conn.close()
 
+def migrate_columns():
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        # Verificar y renombrar columnas antiguas
+        for table in ["logs", "quiz_logs", "messages"]:
+            c.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = %s AND column_name = 'timestamp'
+            """, (table,))
+            if c.fetchone():
+                c.execute(f'ALTER TABLE {table} RENAME COLUMN "timestamp" TO created_at')
+                logging.info(f"Columna 'timestamp' renombrada a 'created_at' en {table}")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Error en migración de columnas: {str(e)}")
 
 
 def cargar_temas():
