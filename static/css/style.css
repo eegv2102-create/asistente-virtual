@@ -210,7 +210,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: hidden; /* Evita scrollbar en la sección izquierda completa */
+  overflow-y: hidden;
 }
 
 .right-section {
@@ -250,14 +250,14 @@ body {
 
 .chat-history {
   flex: 1;
-  overflow: hidden; /* Contenedor no genera scroll propio */
+  overflow: hidden;
   overflow-x: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   background-color: var(--bg-primary);
   width: 100%;
   box-sizing: border-box;
-  max-height: 350px; /* 🔹 altura máxima visible del historial */
+  max-height: 350px;
 }
 
 #chat-list {
@@ -265,7 +265,7 @@ body {
   padding: 8px;
   margin: 0;
   width: 100%;
-  overflow-y: auto; /* 🔹 scroll dentro de la lista */
+  overflow-y: auto;
   max-height: 100%;
 }
 
@@ -571,24 +571,32 @@ body.modo-oscuro .bot code {
 
 .dropdown-container {
   position: relative;
-  display: block;
+  display: inline-block;
+  z-index: 10001; /* Asegura que el contenedor esté encima */
 }
 
 .dropdown-menu {
   display: none;
   position: absolute;
+  top: calc(100% + 4px); /* Aparece debajo en escritorio */
+  left: 0;
+  right: auto;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px;
-  margin-top: 6px;
-  z-index: 10000;
+  z-index: 10001; /* Asegura que el menú esté encima de todo */
   box-shadow: 0 4px 8px var(--shadow);
   min-width: 150px;
+  visibility: hidden; /* Oculto por defecto */
+  opacity: 0; /* Para animación suave */
+  transition: visibility 0.2s ease, opacity 0.2s ease;
 }
 
 .dropdown-menu.active {
   display: block;
+  visibility: visible; /* Visible cuando activo */
+  opacity: 1;
 }
 
 .dropdown-menu button {
@@ -753,7 +761,7 @@ body.modo-oscuro .bot code {
   margin-bottom: 5px;
 }
 
-/* Media queries para móvil (max-width: 768px) - Estilos específicos para dispositivos móviles */
+/* Media queries para móvil (max-width: 768px) */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -847,26 +855,32 @@ body.modo-oscuro .bot code {
   }
 
   .dropdown-container {
-    display: block;
+    display: inline-block;
+    z-index: 10001; /* Asegura que el contenedor esté encima */
   }
 
   .dropdown-menu {
     display: none;
     position: absolute;
-    bottom: calc(100% + 4px);
+    bottom: calc(100% + 4px); /* Aparece encima en móviles */
     left: 0;
     right: auto;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px;
-    z-index: 10000;
+    z-index: 10001; /* Asegura que el menú esté encima de todo */
     box-shadow: 0 4px 8px var(--shadow);
     min-width: 140px;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.2s ease, opacity 0.2s ease;
   }
 
   .dropdown-menu.active {
     display: block;
+    visibility: visible;
+    opacity: 1;
   }
 
   .dropdown-menu button {
@@ -982,18 +996,19 @@ body.modo-oscuro .bot code {
   }
 }
 
-/* Media queries para PC (min-width: 769px) - Estilos específicos para escritorios */
+/* Media queries para PC (min-width: 769px) */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
   }
 
   .dropdown-container {
-    display: block;
+    display: inline-block;
+    z-index: 10001;
   }
 
   .dropdown-menu {
-    top: calc(100% + 6px);
+    top: calc(100% + 4px); /* Aparece debajo en escritorio */
     left: 0;
     right: auto;
     min-width: 150px;

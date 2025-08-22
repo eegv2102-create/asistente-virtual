@@ -557,13 +557,16 @@ const addCopyButtonListeners = () => {
 
 
 // --- DROPDOWN NIVEL ---
-const toggleDropdown = () => {
+const toggleDropdown = (event) => {
+    event?.stopPropagation(); // Evita que el clic propague y cierre el menú inmediatamente
     const dropdownMenu = getElement('.dropdown-menu');
     if (!dropdownMenu) {
         console.error('Elemento .dropdown-menu no encontrado');
         return;
     }
+    const isActive = dropdownMenu.classList.contains('active');
     dropdownMenu.classList.toggle('active');
+    console.log(`Menú desplegable: ${isActive ? 'cerrado' : 'abierto'}`); // Depuración
 };
 
 const setNivelExplicacion = (nivel) => {
@@ -588,6 +591,7 @@ const setNivelExplicacion = (nivel) => {
         const dropdownMenu = getElement('.dropdown-menu');
         if (dropdownMenu && dropdownMenu.classList.contains('active')) {
             dropdownMenu.classList.remove('active');
+            console.log('Menú desplegable cerrado tras seleccionar nivel'); // Depuración
         }
 
         if (typeof mostrarNotificacion === 'function') {
@@ -611,18 +615,20 @@ document.addEventListener('click', (event) => {
 
     // ✅ Si clic en el botón de nivel o dentro del contenedor → alternar menú
     if (nivelBtn && (nivelBtn.contains(event.target) || dropdownContainer.contains(event.target))) {
-        toggleDropdown();
+        toggleDropdown(event); // Pasar el evento para detener la propagación
         return;
     }
 
     // ✅ Si clic en una opción del menú → dejar que setNivelExplicacion maneje
     if (dropdownMenu && dropdownMenu.contains(event.target)) {
+        console.log('Clic en opción del menú desplegable'); // Depuración
         return;
     }
 
     // ✅ Si menú abierto y clic fuera → cerrarlo
     if (dropdownMenu && dropdownMenu.classList.contains('active')) {
         dropdownMenu.classList.remove('active');
+        console.log('Menú desplegable cerrado por clic fuera'); // Depuración
     }
 
     // --- Menús móviles ---
@@ -644,7 +650,6 @@ document.addEventListener('click', (event) => {
     }
 });
 
-// --- TOGGLE MENÚS ---
 const toggleMenu = () => {
     const leftSection = getElement('.left-section');
     const rightSection = getElement('.right-section');
