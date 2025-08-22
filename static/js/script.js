@@ -319,7 +319,7 @@ const cargarConversaciones = async () => {
             `;
             li.addEventListener('click', () => {
                 currentConvId = conv.id;
-                localStorage.setItem('lastConvId', currentConvId);
+                localStorage.setItem('lastConvId', currentConvId); // 🔹 Guarda último chat
                 cargarMensajes(conv.id);
             });
             chatList.appendChild(li);
@@ -334,6 +334,7 @@ const cargarConversaciones = async () => {
             });
         });
 
+        // Si hay chats y no hay conversación activa, cargar último usado
         if (data.conversations.length > 0 && !currentConvId) {
             const lastConvId = localStorage.getItem('lastConvId');
             if (lastConvId) {
@@ -414,6 +415,7 @@ const eliminarConversacion = async (convId) => {
     }
 };
 
+
 const renombrarConversacion = async (convId) => {
     const nuevoNombre = prompt('Nuevo nombre para la conversación:');
     if (!nuevoNombre) return;
@@ -444,13 +446,15 @@ const sendMessage = async () => {
 
     const container = getElement('#chatbox').querySelector('.message-container');
 
+    // Mostrar mensaje del usuario en pantalla al instante
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
-    userDiv.innerHTML = pregunta +
+    userDiv.innerHTML = pregunta + 
         `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
     scrollToBottom();
 
+    // Crear conversación si aún no existe
     if (!currentConvId) {
         try {
             const res = await fetch('/conversations', {
@@ -468,6 +472,7 @@ const sendMessage = async () => {
         }
     }
 
+    // 1. Guardar mensaje del usuario en la BD
     try {
         await fetch(`/messages/${currentConvId}`, {
             method: 'POST',
@@ -478,6 +483,7 @@ const sendMessage = async () => {
         console.error('Error guardando mensaje usuario:', error);
     }
 
+    // 2. Pedir respuesta a la IA
     try {
         const res = await fetch('/buscar_respuesta', {
             method: 'POST',
@@ -491,6 +497,7 @@ const sendMessage = async () => {
         });
         const data = await res.json();
 
+        // 3. Mostrar respuesta del bot en pantalla
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
@@ -500,6 +507,7 @@ const sendMessage = async () => {
         if (window.Prism) Prism.highlightAll();
         speakText(data.respuesta);
 
+        // 4. Guardar mensaje del bot en la BD
         await fetch(`/messages/${currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -550,14 +558,14 @@ const addCopyButtonListeners = () => {
     });
 };
 
+
 // --- DROPDOWN NIVEL ---
 const toggleDropdown = (event) => {
-    event.preventDefault(); // Evita comportamiento predeterminado
-    event.stopPropagation(); // Evita propagación para no cerrar el menú
     const dropdownMenu = getElement('.dropdown-menu');
     if (dropdownMenu) {
         dropdownMenu.classList.toggle('active');
-        console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado');
+        console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado'); // Depuración
+        // Verificar visibilidad y posición
         if (dropdownMenu.classList.contains('active')) {
             const computedStyle = window.getComputedStyle(dropdownMenu);
             const rect = dropdownMenu.getBoundingClientRect();
@@ -570,16 +578,13 @@ const toggleDropdown = (event) => {
                 zIndex: computedStyle.zIndex,
                 width: computedStyle.width,
                 height: computedStyle.height,
-                boundingClientRect: rect
+                boundingClientRect: rect // Coordenadas en la ventana
             });
+            // Verificar botones del menú
             const buttons = dropdownMenu.querySelectorAll('button');
             console.log('Botones en .dropdown-menu:', buttons.length, Array.from(buttons).map(b => b.textContent));
-            // Añadir listeners para depuración de clics/touch
-            buttons.forEach(btn => {
-                btn.addEventListener('click', () => console.log(`Clic en opción: ${btn.textContent}`));
-                btn.addEventListener('touchstart', () => console.log(`Touch en opción: ${btn.textContent}`));
-            });
         }
+        if (event) event.stopPropagation(); // Evita que el clic global cierre el menú
     } else {
         console.error('Elemento .dropdown-menu no encontrado');
         mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
@@ -587,7 +592,7 @@ const toggleDropdown = (event) => {
 };
 
 const setNivelExplicacion = (nivel) => {
-    console.log('setNivelExplicacion llamado con nivel:', nivel);
+    console.log('setNivelExplicacion llamado con nivel:', nivel); // Depuración
     if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
         console.error('Nivel inválido:', nivel);
         mostrarNotificacion('Error: Nivel inválido', 'error');
@@ -602,12 +607,13 @@ const setNivelExplicacion = (nivel) => {
             nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
             'Avanzada/Teórica';
         nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
-        console.log('Nivel actualizado a:', nivelText);
+        console.log('Nivel actualizado a:', nivelText); // Depuración
 
+        // Cierra el menú
         const dropdownMenu = getElement('.dropdown-menu');
         if (dropdownMenu && dropdownMenu.classList.contains('active')) {
             dropdownMenu.classList.remove('active');
-            console.log('Menú desplegable cerrado tras seleccionar nivel');
+            console.log('Menú desplegable cerrado tras seleccionar nivel'); // Depuración
         }
 
         if (typeof mostrarNotificacion === 'function') {
@@ -627,22 +633,27 @@ const isMobile = () => window.innerWidth < 768;
 document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
+    const dropdownContainer = getElement('.dropdown-container');
 
+    // Si clic en el botón de nivel, no cerrar el menú (toggleDropdown lo maneja)
     if (nivelBtn && nivelBtn.contains(event.target)) {
-        console.log('Clic en botón de nivel, toggling menú');
+        console.log('Clic en botón de nivel, toggling menú'); // Depuración
         return;
     }
 
+    // Si clic en una opción del menú, dejar que setNivelExplicacion maneje
     if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        console.log('Clic en opción del menú desplegable');
+        console.log('Clic en opción del menú desplegable'); // Depuración
         return;
     }
 
+    // Si menú abierto y clic fuera, cerrarlo
     if (dropdownMenu && dropdownMenu.classList.contains('active')) {
         dropdownMenu.classList.remove('active');
-        console.log('Menú desplegable cerrado por clic fuera');
+        console.log('Menú desplegable cerrado por clic fuera'); // Depuración
     }
 
+    // Menús móviles
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
@@ -658,28 +669,6 @@ document.addEventListener('click', (event) => {
             !getElement('.menu-toggle-right').contains(event.target)) {
             toggleRightMenu();
         }
-    }
-});
-
-// --- TOUCH GLOBAL PARA MOBILE ---
-document.addEventListener('touchstart', (event) => {
-    const dropdownMenu = getElement('.dropdown-menu');
-    const nivelBtn = getElement('#nivel-btn');
-
-    if (nivelBtn && nivelBtn.contains(event.target)) {
-        console.log('Touch en botón de nivel, toggling menú');
-        toggleDropdown(event);
-        return;
-    }
-
-    if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        console.log('Touch en opción del menú desplegable');
-        return;
-    }
-
-    if (dropdownMenu && dropdownMenu.classList.contains('active')) {
-        dropdownMenu.classList.remove('active');
-        console.log('Menú desplegable cerrado por touch fuera');
     }
 });
 
@@ -731,21 +720,14 @@ const toggleRightMenu = () => {
 
 // --- Estado inicial (recuperar nivel guardado) ---
 document.addEventListener('DOMContentLoaded', () => {
+    // Forzar nivel inicial a 'basica' si no está definido o es inválido
     let nivelGuardado = localStorage.getItem('nivelExplicacion');
     if (!['basica', 'ejemplos', 'avanzada'].includes(nivelGuardado)) {
         nivelGuardado = 'basica';
         localStorage.setItem('nivelExplicacion', nivelGuardado);
     }
-    console.log('Nivel guardado en localStorage:', nivelGuardado);
+    console.log('Nivel guardado en localStorage:', nivelGuardado); // Depuración
     setNivelExplicacion(nivelGuardado);
-
-    // Añadir eventos de touch y click al botón de nivel
-    const nivelBtn = getElement('#nivel-btn');
-    if (nivelBtn) {
-        nivelBtn.addEventListener('click', toggleDropdown);
-        nivelBtn.addEventListener('touchstart', toggleDropdown);
-    }
-
     init();
 });
 
@@ -759,7 +741,8 @@ const mostrarMensajeBienvenida = () => {
     }
 
     const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
-
+    
+    // 🔹 Solo agregar el saludo si el chat está vacío
     if (container.children.length === 0) {
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -769,6 +752,7 @@ const mostrarMensajeBienvenida = () => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
 
+        // 🔊 Voz (solo si activada)
         if (vozActiva && userHasInteracted) {
             speakText(mensaje);
         } else if (vozActiva) {
@@ -859,8 +843,10 @@ const obtenerRecomendacion = async () => {
 };
 
 const init = () => {
+    // Inicializar quizHistory
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
+    // Obtener temas desde el backend
     fetch('/temas', { method: 'GET' })
         .then(res => res.json())
         .then(data => {
@@ -909,6 +895,7 @@ const init = () => {
             ];
         });
 
+    // Resto de la función init (sin cambios)
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
@@ -918,6 +905,7 @@ const init = () => {
     const sendBtn = getElement('#send-btn');
     const newChatBtn = getElement('#new-chat-btn');
     const clearBtn = getElement('#btn-clear');
+    const nivelBtn = getElement('#nivel-btn');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
 
     if (menuToggle) {
@@ -1008,6 +996,11 @@ const init = () => {
         clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
         clearBtn.addEventListener('click', nuevaConversacion);
     }
+    if (nivelBtn) {
+        nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
+        nivelBtn.setAttribute('aria-label', 'Cambiar nivel de explicación');
+        nivelBtn.addEventListener('click', toggleDropdown);
+    }
     if (voiceToggleBtn) {
         voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
@@ -1022,12 +1015,13 @@ const init = () => {
             }
         });
     }
+    // Mostrar mensaje de bienvenida y mensaje de interacción para audio
     setTimeout(() => {
         mostrarMensajeBienvenida();
         if (vozActiva && !userHasInteracted) {
             toggleVoiceHint(true);
         }
-    }, 100);
+    }, 100); // Retraso para asegurar que el DOM esté cargado
     document.addEventListener('click', () => {
         if (!userHasInteracted) {
             userHasInteracted = true;
@@ -1045,32 +1039,3 @@ const init = () => {
 
 // Eliminar inicialización redundante fuera de DOMContentLoaded
 document.addEventListener('DOMContentLoaded', init);
-
-// Función auxiliar para guardar mensaje (usada en obtenerRecomendacion)
-const guardarMensaje = async (tipo, mensaje) => {
-    if (!currentConvId) {
-        try {
-            const res = await fetch('/conversations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            });
-            const data = await res.json();
-            currentConvId = data.id;
-            await cargarConversaciones();
-        } catch (error) {
-            console.error('Error creando conversación:', error);
-            mostrarNotificacion('Error al crear nueva conversación', 'error');
-            return;
-        }
-    }
-    try {
-        await fetch(`/messages/${currentConvId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "bot", content: mensaje })
-        });
-    } catch (error) {
-        console.error('Error guardando mensaje:', error);
-    }
-};
