@@ -14,6 +14,39 @@ let TEMAS_DISPONIBLES = [
     'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
 ];
 
+// Mejora 2: Función centralizada para manejar errores de fetch
+const handleFetchError = (error, context) => {
+    console.error(`Error en ${context}:`, error);
+    let message = 'Error inesperado';
+    if (!navigator.onLine) message = 'Sin conexión a internet';
+    else if (error.message.includes('503')) message = 'El servidor está ocupado, intenta de nuevo';
+    else if (error.message.includes('429')) message = 'Demasiadas solicitudes, espera un momento';
+    else if (error.message.includes('401')) message = 'No autorizado, verifica tu sesión';
+    else if (error.message) message = error.message;
+    mostrarNotificacion(`${context}: ${message}`, 'error');
+    return null;
+};
+
+// Mejora 3: Función debounce para eventos de clic
+const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+};
+
+// Mejora 4: Optimización de scrollToBottom
+const scrollToBottom = () => {
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!chatbox || !container) return;
+    const lastMessage = container.lastElementChild;
+    if (lastMessage) {
+        lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+};
+
 const showLoading = () => {
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container) return null;
@@ -47,7 +80,6 @@ const mostrarNotificacion = (mensaje, tipo) => {
     notificationCard.innerHTML = `<p>${mensaje}</p><button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación">Cerrar</button>`;
     notificationCard.classList.remove('info', 'success', 'error');
     notificationCard.classList.add(tipo, 'active');
-    // Ocultar después de 5 segundos
     setTimeout(() => {
         notificationCard.classList.remove('active');
     }, 5000);
@@ -64,19 +96,6 @@ const toggleVoiceHint = (show) => {
     voiceHint.style.display = show ? 'block' : 'none';
     voiceHint.classList.toggle('hidden', !show);
     if (show) lastVoiceHintTime = now;
-};
-
-const scrollToBottom = () => {
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!chatbox || !container) return;
-    requestAnimationFrame(() => {
-        chatbox.scrollTop = chatbox.scrollHeight;
-        const lastMessage = container.lastElementChild;
-        if (lastMessage) {
-            lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-    });
 };
 
 const updateAvatarDisplay = () => {
@@ -223,6 +242,7 @@ const stopSpeech = () => {
     if (botMessage) botMessage.classList.remove('speaking');
 };
 
+// Mejora 1: Optimización del reconocimiento de voz
 const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) return;
@@ -242,13 +262,15 @@ const toggleVoiceRecognition = () => {
         voiceToggleBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
         voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Detener reconocimiento de voz');
+        // Mejora: Animación de pulsación
+        voiceToggleBtn.classList.add('pulse');
         mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
         const resetTimeout = () => {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
                 if (isListening) stopSpeech();
                 mostrarNotificacion('Reconocimiento de voz detenido por inactividad', 'info');
-            }, 30000); // 30 segundos
+            }, 15000); // Mejora: Timeout reducido a 15s
         };
         resetTimeout();
         recognition.onresult = event => {
@@ -261,7 +283,7 @@ const toggleVoiceRecognition = () => {
                 recognition.stop();
                 isListening = false;
                 clearTimeout(timeoutId);
-                voiceToggleBtn.classList.remove('voice-active');
+                voiceToggleBtn.classList.remove('voice-active', 'pulse');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
                 voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
                 voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
@@ -276,7 +298,7 @@ const toggleVoiceRecognition = () => {
             mostrarNotificacion(errorMsg, 'error');
             recognition.stop();
             isListening = false;
-            voiceToggleBtn.classList.remove('voice-active');
+            voiceToggleBtn.classList.remove('voice-active', 'pulse');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
             voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
             voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
@@ -287,7 +309,7 @@ const toggleVoiceRecognition = () => {
                 resetTimeout();
             } else {
                 clearTimeout(timeoutId);
-                voiceToggleBtn.classList.remove('voice-active');
+                voiceToggleBtn.classList.remove('voice-active', 'pulse');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
                 voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
                 voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
@@ -332,8 +354,7 @@ const cargarAvatares = async () => {
         });
         updateAvatarDisplay();
     } catch (error) {
-        console.error('Error al cargar avatares:', error);
-        mostrarNotificacion('Error al cargar avatares', 'error');
+        handleFetchError(error, 'Carga de avatares');
     }
 };
 
@@ -391,8 +412,7 @@ const cargarConversaciones = async () => {
             mostrarMensajeBienvenida();
         }
     } catch (error) {
-        console.error('Error cargando conversaciones:', error);
-        mostrarNotificacion(`Error al cargar historial: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
+        handleFetchError(error, 'Carga de conversaciones');
     }
 };
 
@@ -425,8 +445,7 @@ const cargarMensajes = async (convId) => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
     } catch (error) {
-        console.error('Error cargando mensajes:', error);
-        mostrarNotificacion(`Error al cargar mensajes: ${error.message}`, 'error');
+        handleFetchError(error, 'Carga de mensajes');
     }
 };
 
@@ -450,8 +469,7 @@ const eliminarConversacion = async (convId) => {
             throw new Error(errorData.error || 'Error al eliminar conversación');
         }
     } catch (error) {
-        console.error('Error eliminando conversación:', error);
-        mostrarNotificacion(`Error al eliminar conversación: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
+        handleFetchError(error, 'Eliminación de conversación');
     }
 };
 
@@ -472,8 +490,7 @@ const renombrarConversacion = async (convId) => {
             throw new Error(errorData.error || 'Error al renombrar conversación');
         }
     } catch (error) {
-        console.error('Error renombrando conversación:', error);
-        mostrarNotificacion(`Error al renombrar conversación: ${error.message}. Verifica la conexión a la base de datos.`, 'error');
+        handleFetchError(error, 'Renombrar conversación');
     }
 };
 
@@ -504,9 +521,8 @@ const sendMessage = async () => {
             currentConvId = data.id;
             await cargarConversaciones();
         } catch (error) {
-            console.error('Error creando conversación:', error);
+            handleFetchError(error, 'Creación de conversación');
             hideLoading(loadingDiv);
-            mostrarNotificacion('Error al crear nueva conversación: ' + (error.message.includes('network') ? 'Sin conexión a internet' : error.message), 'error');
             return;
         }
     }
@@ -518,9 +534,8 @@ const sendMessage = async () => {
             body: JSON.stringify({ role: "user", content: pregunta })
         });
     } catch (error) {
-        console.error('Error guardando mensaje usuario:', error);
+        handleFetchError(error, 'Guardado de mensaje usuario');
         hideLoading(loadingDiv);
-        mostrarNotificacion('Error al guardar mensaje: ' + (error.message.includes('network') ? 'Sin conexión a internet' : error.message), 'error');
     }
 
     try {
@@ -534,11 +549,7 @@ const sendMessage = async () => {
                 conv_id: currentConvId
             })
         });
-        if (!res.ok) {
-            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
-            if (!navigator.onLine) throw new Error('Sin conexión a internet');
-            throw new Error('Error al procesar la solicitud: ' + res.status);
-        }
+        if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
         const data = await res.json();
         hideLoading(loadingDiv);
 
@@ -557,9 +568,8 @@ const sendMessage = async () => {
             body: JSON.stringify({ role: "bot", content: data.respuesta })
         });
     } catch (error) {
-        console.error('Error enviando mensaje:', error);
+        handleFetchError(error, 'Envío de mensaje');
         hideLoading(loadingDiv);
-        mostrarNotificacion('Error al enviar mensaje: ' + error.message, 'error');
     }
 };
 
@@ -576,8 +586,7 @@ const nuevaConversacion = async () => {
         await cargarConversaciones();
         mostrarMensajeBienvenida();
     } catch (error) {
-        console.error('Error creando nueva conversación:', error);
-        mostrarNotificacion('Error al crear nueva conversación', 'error');
+        handleFetchError(error, 'Creación de nueva conversación');
     }
 };
 
@@ -588,7 +597,7 @@ const vaciarChat = async () => {
 
 const addCopyButtonListeners = () => {
     getElements('.copy-btn').forEach(btn => {
-        btn.removeEventListener('click', handleCopy); // Remove any existing listeners
+        btn.removeEventListener('click', handleCopy);
         btn.addEventListener('click', handleCopy);
     });
 };
@@ -611,23 +620,6 @@ const toggleDropdown = (event) => {
     if (dropdownMenu) {
         dropdownMenu.classList.toggle('active');
         console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado');
-        if (dropdownMenu.classList.contains('active')) {
-            const computedStyle = window.getComputedStyle(dropdownMenu);
-            const rect = dropdownMenu.getBoundingClientRect();
-            console.log('Estilos computados de .dropdown-menu:', {
-                display: computedStyle.display,
-                visibility: computedStyle.visibility,
-                position: computedStyle.position,
-                top: computedStyle.top,
-                left: computedStyle.left,
-                zIndex: computedStyle.zIndex,
-                width: computedStyle.width,
-                height: computedStyle.height,
-                boundingClientRect: rect
-            });
-            const buttons = dropdownMenu.querySelectorAll('button');
-            console.log('Botones en .dropdown-menu:', buttons.length, Array.from(buttons).map(b => b.textContent));
-        }
         if (event) event.stopPropagation();
     } else {
         console.error('Elemento .dropdown-menu no encontrado');
@@ -671,7 +663,6 @@ const isMobile = () => window.innerWidth < 768;
 document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
-    const dropdownContainer = getElement('.dropdown-container');
 
     if (nivelBtn && nivelBtn.contains(event.target)) {
         console.log('Clic en botón de nivel, toggling menú');
@@ -789,18 +780,13 @@ const obtenerQuiz = async (tipo) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario: 'anonimo', nivel: localStorage.getItem('nivelExplicacion') || 'basica' })
         });
-        if (!res.ok) {
-            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
-            if (!navigator.onLine) throw new Error('Sin conexión a internet');
-            throw new Error('Error al obtener quiz: ' + res.status);
-        }
+        if (!res.ok) throw new Error(`Error al obtener quiz: ${res.status}`);
         const data = await res.json();
         hideLoading(loadingDiv);
         return data;
     } catch (error) {
-        console.error('Error obteniendo quiz:', error);
+        handleFetchError(error, 'Obtención de quiz');
         hideLoading(loadingDiv);
-        mostrarNotificacion('Error al obtener quiz: ' + error.message, 'error');
         return null;
     }
 };
@@ -811,7 +797,7 @@ const mostrarQuizEnChat = async (quizData) => {
     const container = getElement('#chatbox').querySelector('.message-container');
     const quizDiv = document.createElement('div');
     quizDiv.classList.add('bot');
-    quizDiv.setAttribute('aria-live', 'polite'); // Añadir accesibilidad
+    quizDiv.setAttribute('aria-live', 'polite');
     let optionsHtml = quizData.opciones.map((opcion, index) => `
         <div class="quiz-option" data-option="${opcion}" data-index="${index}" tabindex="0" role="button" aria-label="Opción ${opcion}">${opcion}</div>
     `).join('');
@@ -820,7 +806,7 @@ const mostrarQuizEnChat = async (quizData) => {
         <div class="quiz-options">${optionsHtml}</div>
         <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
-    quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta; // Guardar respuesta correcta
+    quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta;
     container.appendChild(quizDiv);
     scrollToBottom();
 
@@ -840,8 +826,8 @@ const handleQuizOption = async (event) => {
     const quizData = {
         pregunta: option.parentElement.previousElementSibling.textContent,
         opciones: Array.from(option.parentElement.children).map(opt => opt.dataset.option),
-        respuesta_correcta: option.parentElement.dataset.respuestaCorrecta || '', // Obtener del backend o dataset
-        tema: 'unknown' // Ajustar según datos reales del quiz
+        respuesta_correcta: option.parentElement.dataset.respuestaCorrecta || '',
+        tema: 'unknown'
     };
     if (!quizData.respuesta_correcta) {
         console.error('No se proporcionó respuesta_correcta');
@@ -862,11 +848,7 @@ const handleQuizOption = async (event) => {
                 tema: quizData.tema
             })
         });
-        if (!res.ok) {
-            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
-            if (!navigator.onLine) throw new Error('Sin conexión a internet');
-            throw new Error('Error al responder quiz: ' + res.status);
-        }
+        if (!res.ok) throw new Error(`Error al responder quiz: ${res.status}`);
         const data = await res.json();
         const isCorrect = data.es_correcta;
         option.classList.add(isCorrect ? 'correct' : 'incorrect');
@@ -886,9 +868,8 @@ const handleQuizOption = async (event) => {
         speakText(data.respuesta);
         addCopyButtonListeners();
     } catch (error) {
-        console.error('Error respondiendo quiz:', error);
+        handleFetchError(error, 'Respuesta de quiz');
         hideLoading(loadingDiv);
-        mostrarNotificacion('Error al responder quiz: ' + error.message, 'error');
     }
 };
 
@@ -901,19 +882,46 @@ const obtenerRecomendacion = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario: 'anonimo', historial: [] })
         });
-        if (!res.ok) {
-            if (res.status === 503) throw new Error('El servidor está ocupado, intenta de nuevo más tarde');
-            if (!navigator.onLine) throw new Error('Sin conexión a internet');
-            throw new Error('Error al obtener recomendación: ' + res.status);
-        }
+        if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
         const data = await res.json();
         hideLoading(loadingDiv);
         return data;
     } catch (error) {
-        console.error('Error obteniendo recomendación:', error);
+        handleFetchError(error, 'Obtención de recomendación');
         hideLoading(loadingDiv);
-        mostrarNotificacion('Error al obtener recomendación: ' + error.message, 'error');
         return { recommendation: 'No se pudo generar recomendación' };
+    }
+};
+
+// Mejora 6: Caché local para temas
+const cargarTemas = async () => {
+    const cacheKey = 'temasCache';
+    const cacheTimeKey = 'temasCacheTime';
+    const cacheDuration = 24 * 60 * 60 * 1000; // 24 horas
+    const cachedTemas = localStorage.getItem(cacheKey);
+    const cachedTime = localStorage.getItem(cacheTimeKey);
+
+    if (cachedTemas && cachedTime && Date.now() - parseInt(cachedTime) < cacheDuration) {
+        TEMAS_DISPONIBLES = JSON.parse(cachedTemas);
+        console.log('Temas cargados desde caché:', TEMAS_DISPONIBLES);
+        return;
+    }
+
+    try {
+        const res = await fetch('/temas', { method: 'GET' });
+        if (!res.ok) throw new Error(`Error al cargar temas: ${res.status}`);
+        const data = await res.json();
+        if (data.temas && Array.isArray(data.temas)) {
+            TEMAS_DISPONIBLES = data.temas;
+            localStorage.setItem(cacheKey, JSON.stringify(TEMAS_DISPONIBLES));
+            localStorage.setItem(cacheTimeKey, Date.now().toString());
+            console.log('Temas cargados desde servidor:', TEMAS_DISPONIBLES);
+        } else {
+            console.warn('No se pudieron cargar temas, usando lista por defecto');
+        }
+    } catch (error) {
+        handleFetchError(error, 'Carga de temas');
+        console.warn('Usando temas por defecto debido a error');
     }
 };
 
@@ -921,19 +929,7 @@ const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
-    fetch('/temas', { method: 'GET' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.temas && Array.isArray(data.temas)) {
-                TEMAS_DISPONIBLES = data.temas;
-                console.log('Temas cargados:', TEMAS_DISPONIBLES);
-            } else {
-                console.warn('No se pudieron cargar temas, usando lista por defecto');
-            }
-        })
-        .catch(error => {
-            console.error('Error al cargar temas:', error);
-        });
+    cargarTemas(); // Mejora 6: Cargar temas con caché
 
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
@@ -968,7 +964,7 @@ const init = () => {
             <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
         `;
         modoBtn.removeEventListener('click', handleModoToggle);
-        modoBtn.addEventListener('click', handleModoToggle);
+        modoBtn.addEventListener('click', debounce(handleModoToggle, 300)); // Mejora 3: Debounce
     }
     if (voiceBtn) {
         voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
@@ -984,31 +980,31 @@ const init = () => {
         quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
         quizBtn.setAttribute('aria-label', 'Generar un quiz');
         quizBtn.removeEventListener('click', handleQuizClick);
-        quizBtn.addEventListener('click', handleQuizClick);
+        quizBtn.addEventListener('click', debounce(handleQuizClick, 300)); // Mejora 3: Debounce
     }
     if (recommendBtn) {
         recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
         recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
         recommendBtn.removeEventListener('click', handleRecommendClick);
-        recommendBtn.addEventListener('click', handleRecommendClick);
+        recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300)); // Mejora 3: Debounce
     }
     if (sendBtn) {
         sendBtn.setAttribute('data-tooltip', 'Enviar');
         sendBtn.setAttribute('aria-label', 'Enviar mensaje');
         sendBtn.removeEventListener('click', sendMessage);
-        sendBtn.addEventListener('click', sendMessage);
+        sendBtn.addEventListener('click', debounce(sendMessage, 300)); // Mejora 3: Debounce
     }
     if (newChatBtn) {
         newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
         newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
         newChatBtn.removeEventListener('click', nuevaConversacion);
-        newChatBtn.addEventListener('click', nuevaConversacion);
+        newChatBtn.addEventListener('click', debounce(nuevaConversacion, 300)); // Mejora 3: Debounce
     }
     if (clearBtn) {
         clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
         clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
         clearBtn.removeEventListener('click', nuevaConversacion);
-        clearBtn.addEventListener('click', nuevaConversacion);
+        clearBtn.addEventListener('click', debounce(nuevaConversacion, 300)); // Mejora 3: Debounce
     }
     if (nivelBtn) {
         nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
@@ -1034,12 +1030,14 @@ const init = () => {
             toggleVoiceHint(true);
         }
     }, 100);
+    // Mejora 5: Agregar touchstart para interacción inicial en móvil
     document.removeEventListener('click', handleFirstInteraction);
+    document.removeEventListener('touchstart', handleFirstInteraction);
     document.addEventListener('click', handleFirstInteraction, { once: true });
+    document.addEventListener('touchstart', handleFirstInteraction, { once: true });
     cargarAvatares();
     cargarConversaciones();
 
-    // Initialize nivel dropdown
     let nivelGuardado = localStorage.getItem('nivelExplicacion');
     if (!['basica', 'ejemplos', 'avanzada'].includes(nivelGuardado)) {
         nivelGuardado = 'basica';
@@ -1130,7 +1128,7 @@ const guardarMensaje = async (tipo, mensaje) => {
             currentConvId = data.id;
             await cargarConversaciones();
         } catch (error) {
-            console.error('Error creando conversación para guardar mensaje:', error);
+            handleFetchError(error, 'Creación de conversación para guardar mensaje');
             return;
         }
     }
@@ -1141,11 +1139,10 @@ const guardarMensaje = async (tipo, mensaje) => {
             body: JSON.stringify({ role: 'bot', content: mensaje })
         });
     } catch (error) {
-        console.error('Error guardando mensaje:', error);
+        handleFetchError(error, 'Guardado de mensaje');
     }
 };
 
-// Initialize only once
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded disparado, inicializando aplicación');
     init();
