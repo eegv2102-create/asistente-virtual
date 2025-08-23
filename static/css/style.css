@@ -322,7 +322,7 @@ body {
   max-width: calc(100% - 80px);
 }
 
-#chat-list li .chat-actions {
+.chat-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
@@ -829,56 +829,45 @@ body.modo-oscuro .bot code {
     border-top: 1px solid var(--border);
     box-shadow: 0 -2px 10px var(--shadow);
     
-    /* Layout en dos filas */
-    display: grid;
-    grid-template-rows: auto auto;
+    /* Usar flexbox para la estructura de dos filas */
+    display: flex;
+    flex-direction: column;
     gap: 8px;
   }
 
   /* Primera fila: Botones organizados */
-  .mobile-top-row {
+  .input-group > *:not(#input) {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 6px;
-  }
-
-  .mobile-left-buttons {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-
-  #new-chat-btn {
-    order: -2;
-  }
-
-  #btn-clear {
-    order: 0;
-    margin: 0 auto;
-  }
-
-  .mobile-right-buttons {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-
-  #voice-toggle-btn {
-    order: 1;
-  }
-
-  #send-btn {
-    order: 2;
-  }
-
-  /* Segunda fila: Solo el input */
-  .mobile-bottom-row {
-    display: flex;
     width: 100%;
   }
 
+  .input-group .input-buttons.left {
+    order: 0;
+    gap: 4px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .input-group .dropdown-container {
+    order: 1;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .input-group .input-buttons.right {
+    order: 2;
+    gap: 4px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  
+  /* Segunda fila: Solo el input */
   #input {
+    order: 3;
     width: 100%;
     padding: 10px 16px;
     border: 1px solid var(--border);
@@ -895,8 +884,7 @@ body.modo-oscuro .bot code {
   }
 
   /* Estilos específicos para botones móviles */
-  #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, 
-  #new-chat-btn, #btn-clear, #voice-toggle-btn {
+  #send-btn, #new-chat-btn, #btn-clear, #voice-toggle-btn {
     padding: 8px 10px;
     font-size: 0.75rem;
     min-width: 38px;
@@ -931,10 +919,8 @@ body.modo-oscuro .bot code {
   }
 
   /* Ocultar texto en botones móviles */
-  #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
-    font-size: 0;
-    text-indent: -9999px;
-    overflow: hidden;
+  #new-chat-btn span, #btn-clear span, #voice-toggle-btn span, #send-btn span {
+    display: none;
   }
 
   #nivel-btn {
@@ -1158,7 +1144,7 @@ body.modo-oscuro .bot code {
     z-index: auto;
     box-shadow: none;
   }
-
+  
   .input-buttons.left, .input-buttons.right {
     display: flex;
     gap: 6px;
