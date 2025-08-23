@@ -770,8 +770,223 @@ body.modo-oscuro .bot code {
   margin-bottom: 5px;
 }
 
-/* OPTIMIZACIÓN MÓVIL MEJORADA */
+/* Responsive para móvil (≤768px) con footer fijo */
 @media (max-width: 768px) {
+  body {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom)); /* Espacio para el footer */
+    position: relative;
+    min-height: 100vh;
+  }
+
+  .input-group {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: var(--bg-primary);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 10px var(--shadow);
+    z-index: 1000;
+    padding: 8px;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 8px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .input-group .input-buttons.left,
+  .input-group .input-buttons.right {
+    display: none; /* Ocultar los contenedores originales de botones */
+  }
+
+  .input-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .input-left-buttons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  #new-chat-btn {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    border: none;
+    color: var(--button-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  #new-chat-btn::after {
+    content: "➕";
+    font-size: 0.9rem;
+  }
+
+  #new-chat-btn:hover, #new-chat-btn:focus {
+    background-color: var(--button-hover);
+    transform: scale(1.05);
+  }
+
+  #btn-clear {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    border: none;
+    color: var(--button-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  #btn-clear::after {
+    content: "🗑️";
+    font-size: 0.9rem;
+  }
+
+  #btn-clear:hover, #btn-clear:focus {
+    background-color: var(--button-hover);
+    transform: scale(1.05);
+  }
+
+  .input-center-select {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #nivel-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.9rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+  }
+
+  #nivel-btn:hover, #nivel-btn:focus {
+    background-color: var(--bg-secondary);
+    border-color: var(--accent);
+    transform: scale(1.05);
+  }
+
+  .dropdown-menu {
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 140px;
+  }
+
+  .input-right-buttons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  #voice-toggle-btn {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    border: none;
+    color: var(--button-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  #voice-toggle-btn::after {
+    content: "🎤";
+    font-size: 0.9rem;
+  }
+
+  #voice-toggle-btn:hover, #voice-toggle-btn:focus {
+    background-color: var(--button-hover);
+    transform: scale(1.05);
+  }
+
+  #send-btn {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    border: none;
+    color: var(--button-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  #send-btn::after {
+    content: "📤";
+    font-size: 0.9rem;
+  }
+
+  #send-btn:hover, #send-btn:focus {
+    background-color: var(--button-hover);
+    transform: scale(1.05);
+  }
+
+  .input-bottom-row {
+    display: flex;
+    width: 100%;
+  }
+
+  #input {
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: 25px;
+    font-size: 0.95rem;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    height: 44px;
+    resize: none;
+  }
+
+  #input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  /* Ajustar contenido para evitar que quede tapado */
+  .main-section {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+
+  #chatbox {
+    max-height: calc(100vh - 150px - env(safe-area-inset-bottom));
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+
   .container {
     flex-direction: column;
     height: calc(100vh - 90px);
@@ -814,213 +1029,8 @@ body.modo-oscuro .bot code {
     max-height: calc(100vh - 150px);
     width: 100%;
     padding: 8px;
-    padding-bottom: 70px; /* Espacio para los botones fijos */
   }
 
-  /* NUEVO DISEÑO DE INPUT GROUP PARA MÓVIL */
-  .input-group {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-    padding: 8px;
-    background-color: var(--bg-primary);
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -2px 10px var(--shadow);
-    
-    /* Layout en dos filas */
-    display: grid;
-    grid-template-rows: auto auto;
-    gap: 8px;
-  }
-
-  /* Primera fila: Botones organizados */
-  .mobile-top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .mobile-left-buttons {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-
-  #new-chat-btn {
-    order: -2;
-  }
-
-  #btn-clear {
-    order: 0;
-    margin: 0 auto;
-  }
-
-  .mobile-right-buttons {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-
-  #voice-toggle-btn {
-    order: 1;
-  }
-
-  #send-btn {
-    order: 2;
-  }
-
-  /* Segunda fila: Solo el input */
-  .mobile-bottom-row {
-    display: flex;
-    width: 100%;
-  }
-
-  #input {
-    width: 100%;
-    padding: 10px 16px;
-    border: 1px solid var(--border);
-    border-radius: 25px;
-    font-size: 0.95rem;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    height: 44px;
-  }
-
-  #input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  /* Estilos específicos para botones móviles */
-  #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, 
-  #new-chat-btn, #btn-clear, #voice-toggle-btn {
-    padding: 8px 10px;
-    font-size: 0.75rem;
-    min-width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    white-space: nowrap;
-  }
-
-  /* Mostrar solo iconos en botones móviles */
-  #new-chat-btn::after {
-    content: "➕";
-    font-size: 0.9rem;
-  }
-
-  #btn-clear::after {
-    content: "🗑️";
-    font-size: 0.9rem;
-  }
-
-  #voice-toggle-btn::after {
-    content: "🎤";
-    font-size: 0.9rem;
-  }
-
-  #send-btn::after {
-    content: "📤";
-    font-size: 0.9rem;
-  }
-
-  /* Ocultar texto en botones móviles */
-  #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
-    font-size: 0;
-    text-indent: -9999px;
-    overflow: hidden;
-  }
-
-  #nivel-btn {
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    color: var(--text-primary);
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    min-width: 90px;
-    height: 38px;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
-  }
-
-  /* Menú desplegable optimizado para móvil */
-  .dropdown-container {
-    position: relative;
-    display: block;
-    width: 100%;
-    max-width: 120px;
-  }
-
-  .dropdown-menu {
-    position: absolute;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px;
-    z-index: 10001;
-    box-shadow: 0 4px 12px var(--shadow);
-    min-width: 140px;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    display: none;
-  }
-
-  .dropdown-menu.active {
-    display: block;
-  }
-
-  .dropdown-menu button {
-    display: block;
-    width: 100%;
-    padding: 8px 10px;
-    background: none;
-    border: none;
-    text-align: left;
-    color: var(--text-primary);
-    font-size: 0.8rem;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-  }
-
-  .dropdown-menu button:hover, .dropdown-menu button:focus {
-    background-color: var(--accent);
-    color: var(--button-text);
-  }
-
-  /* Menús laterales móviles */
-  .menu-toggle, .menu-toggle-right {
-    display: flex;
-    background: var(--accent);
-    color: var(--button-text);
-    font-size: 0.8rem;
-    padding: 4px;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px var(--shadow);
-    width: 28px;
-    height: 28px;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-    border: none;
-  }
-
-  .menu-toggle:hover, .menu-toggle-right:hover {
-    transform: scale(1.1);
-  }
-
-  /* Header optimizado para móvil */
   .app-title {
     padding: 8px;
     position: fixed;
@@ -1043,12 +1053,6 @@ body.modo-oscuro .bot code {
     max-width: 100%;
   }
 
-  /* Ajustar body para header fijo */
-  body {
-    padding-top: 60px;
-  }
-
-  /* Mensajes optimizados */
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
@@ -1060,7 +1064,29 @@ body.modo-oscuro .bot code {
     padding: 8px;
   }
 
-  /* Tooltips móviles */
+  .chat-actions .rename-btn, .chat-actions .delete-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .voice-hint {
+    bottom: 70px;
+    font-size: 12px;
+    padding: 6px 12px;
+    max-width: 85%;
+  }
+
+  .sidebar-buttons button {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+  }
+
+  .avatar-options img {
+    width: 50px;
+    height: 50px;
+  }
+
   .chat-actions .rename-btn[data-tooltip]::after, 
   .chat-actions .delete-btn[data-tooltip]::after {
     top: -120%;
@@ -1071,34 +1097,6 @@ body.modo-oscuro .bot code {
     z-index: 3000;
   }
 
-  /* Voice hint móvil */
-  .voice-hint {
-    bottom: 70px;
-    font-size: 12px;
-    padding: 6px 12px;
-    max-width: 85%;
-  }
-
-  /* Sidebar buttons móvil */
-  .sidebar-buttons button {
-    font-size: 0.9rem;
-    padding: 8px 12px;
-  }
-
-  /* Avatar options móvil */
-  .avatar-options img {
-    width: 50px;
-    height: 50px;
-  }
-
-  /* Chat actions móvil */
-  .chat-actions .rename-btn, .chat-actions .delete-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 0.8rem;
-  }
-
-  /* Loading spinner móvil */
   .loading {
     padding: 8px;
     font-size: 0.9rem;
@@ -1110,7 +1108,6 @@ body.modo-oscuro .bot code {
     border-width: 2px;
   }
 
-  /* Notification card móvil */
   #notification-card {
     bottom: 80px;
     right: 10px;
@@ -1118,7 +1115,6 @@ body.modo-oscuro .bot code {
     max-width: none;
   }
 
-  /* Quiz options móvil */
   .quiz-option {
     padding: 10px;
     font-size: 0.9rem;
@@ -1142,7 +1138,6 @@ body.modo-oscuro .bot code {
     min-width: 150px;
   }
 
-  /* Restaurar layout original para PC */
   .input-group {
     display: flex;
     align-items: center;
@@ -1172,7 +1167,6 @@ body.modo-oscuro .bot code {
     position: relative;
   }
 
-  /* Mensajes optimizados */
   .user, .bot {
     max-width: 70%;
     font-size: 0.95rem;
