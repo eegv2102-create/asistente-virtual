@@ -7,6 +7,8 @@ import socket
 import webbrowser
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session
 from flask_session import Session
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 from groq import Groq
 import psycopg2
@@ -18,10 +20,27 @@ import io
 import retrying
 import re
 import uuid
+from cachetools import TTLCache
+from pydantic import BaseModel, ValidationError
+from typing import Annotated, List, Optional
+from pydantic.types import StringConstraints
 
+# Configurar logging con structlog
+import structlog
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_log_level,
+        structlog.processors.JSONRenderer()
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
+logger = structlog.get_logger()
+logging.basicConfig(level=logging.INFO)
 
 # Cargar variables de entorno
 load_dotenv()
@@ -32,19 +51,73 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'tu_clave_secreta')
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
-# Inicializar Groq client globalmente
+# Configurar rate limiting
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+
+# Configurar caché en memoria
+cache = TTLCache(maxsize=100, ttl=24 * 60 * 60)  # 24 horas
+
+# Configurar timeouts desde .env
+GROQ_RETRY_ATTEMPTS = int(os.getenv('GROQ_RETRY_ATTEMPTS', 3))
+GROQ_RETRY_WAIT = int(os.getenv('GROQ_RETRY_WAIT', 5000))
+GTTS_TIMEOUT = int(os.getenv('GTTS_TIMEOUT', 10))
+
+# Inicializar Groq client
 client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
-# Definir get_db_connection con reintentos
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
+# Modelos de validación con Pydantic
+class BuscarRespuestaInput(BaseModel):
+    pregunta: Annotated[str, StringConstraints(max_length=500)]
+    historial: List = []
+    nivel_explicacion: Annotated[str, StringConstraints(max_length=20)] = 'basica'
+    conv_id: Optional[int] = None
+
+class QuizInput(BaseModel):
+    usuario: Annotated[str, StringConstraints(max_length=50)] = 'anonimo'
+    historial: List = []
+    nivel: Annotated[str, StringConstraints(max_length=20)] = 'basica'
+    tema: Optional[Annotated[str, StringConstraints(max_length=100)]] = None
+
+class ResponderQuizInput(BaseModel):
+    pregunta: Annotated[str, StringConstraints(max_length=200)]
+    respuesta: Annotated[str, StringConstraints(max_length=100)]
+    respuesta_correcta: Annotated[str, StringConstraints(max_length=100)]
+    tema: Annotated[str, StringConstraints(max_length=50)] = 'General'
+
+class TTSInput(BaseModel):
+    text: Annotated[str, StringConstraints(max_length=1000)]
+
+class RecommendInput(BaseModel):
+    usuario: Annotated[str, StringConstraints(max_length=50)] = 'anonimo'
+    historial: List = []
+
+class ConversationInput(BaseModel):
+    nombre: Annotated[str, StringConstraints(max_length=100)] = 'Nuevo Chat'
+
+# Manejo global de errores
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logger.error("Error inesperado", error=str(e), exc_info=True)
+    if isinstance(e, httpx.ConnectTimeout):
+        return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet", "status": 504}), 504
+    if isinstance(e, ValidationError):
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
+    return jsonify({"error": f"Error interno del servidor: {str(e)}", "status": 500}), 500
+
+@retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def get_db_connection():
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         conn.set_session(autocommit=False)
-        logging.info("Conexión a la base de datos establecida")
+        logger.info("Conexión a la base de datos establecida")
         return conn
     except Exception as e:
-        logging.error(f"Error al conectar con la base de datos: {str(e)}")
+        logger.error("Error al conectar con la base de datos", error=str(e))
         raise
 
 def _col_exists(cursor, table, column):
@@ -55,7 +128,6 @@ def _col_exists(cursor, table, column):
     return cursor.fetchone() is not None
 
 def _ensure_created_at(cursor, table):
-    # Si existe "timestamp" pero no "created_at" => renombrar
     has_created = _col_exists(cursor, table, 'created_at')
     has_timestamp = _col_exists(cursor, table, 'timestamp')
     if has_timestamp and not has_created:
@@ -63,21 +135,20 @@ def _ensure_created_at(cursor, table):
             sql.SQL('ALTER TABLE {} RENAME COLUMN "timestamp" TO created_at')
                .format(sql.Identifier(table))
         )
-        logging.info(f"[migración] Renombrado timestamp -> created_at en {table}")
-    # Si no existe ninguno => añadir created_at
+        logger.info(f"[migración] Renombrado timestamp -> created_at en {table}")
     elif not has_timestamp and not has_created:
         cursor.execute(
             sql.SQL("ALTER TABLE {} ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
                .format(sql.Identifier(table))
         )
-        logging.info(f"[migración] Añadido created_at en {table}")
+        logger.info(f"[migración] Añadido created_at en {table}")
 
 # Validar variables de entorno
 if not os.getenv("GROQ_API_KEY"):
-    logging.error("GROQ_API_KEY no configurada")
+    logger.error("GROQ_API_KEY no configurada")
     exit(1)
 if not os.getenv("DATABASE_URL"):
-    logging.error("DATABASE_URL no configurada")
+    logger.error("DATABASE_URL no configurada")
     exit(1)
 
 def init_db():
@@ -86,7 +157,7 @@ def init_db():
         conn = get_db_connection()
         c = conn.cursor()
 
-        # Crear tablas si no existen
+        # Crear tablas
         c.execute('''CREATE TABLE IF NOT EXISTS progreso
                      (usuario TEXT PRIMARY KEY,
                       puntos INTEGER DEFAULT 0,
@@ -94,10 +165,9 @@ def init_db():
                       avatar_id TEXT DEFAULT 'default',
                       temas_recomendados TEXT DEFAULT '')''')
 
-        # Migración: Añadir temas_recomendados si no existe
         if not _col_exists(c, 'progreso', 'temas_recomendados'):
             c.execute("ALTER TABLE progreso ADD COLUMN temas_recomendados TEXT DEFAULT ''")
-            logging.info("[migración] Añadido temas_recomendados en progreso")
+            logger.info("[migración] Añadido temas_recomendados en progreso")
 
         c.execute('''CREATE TABLE IF NOT EXISTS logs
                      (id SERIAL PRIMARY KEY,
@@ -141,27 +211,25 @@ def init_db():
                       content TEXT NOT NULL,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
-        # Migrar tablas antiguas que tenían "timestamp"
+        # Migrar tablas antiguas
         for table in ["logs", "quiz_logs", "conversations", "messages"]:
             _ensure_created_at(c, table)
 
-        # Índices
+        # Índices existentes
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_logs ON logs(usuario, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_quiz_logs ON quiz_logs(usuario, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_conversations ON conversations(usuario, created_at)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_conv_messages ON messages(conv_id, created_at)')
 
+        # Índice adicional para búsquedas en messages.content
+        c.execute('CREATE INDEX IF NOT EXISTS idx_messages_content ON messages(content text_pattern_ops)')
+
         conn.commit()
-        logging.info("Base de datos inicializada correctamente (tablas + migraciones + índices)")
+        logger.info("Base de datos inicializada correctamente (tablas + migraciones + índices)")
         return True
     except PsycopgError as e:
-        logging.error(f"Error al inicializar la base de datos: {str(e)}")
-        if conn:
-            conn.rollback()
-        raise
-    except Exception as e:
-        logging.error(f"Error inesperado al inicializar la base de datos: {str(e)}")
+        logger.error("Error al inicializar la base de datos", error=str(e))
         if conn:
             conn.rollback()
         raise
@@ -169,37 +237,28 @@ def init_db():
         if conn:
             conn.close()
 
-def migrate_columns():
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        # Verificar y renombrar columnas antiguas
-        for table in ["logs", "quiz_logs", "messages"]:
-            c.execute("""
-                SELECT column_name FROM information_schema.columns
-                WHERE table_name = %s AND column_name = 'timestamp'
-            """, (table,))
-            if c.fetchone():
-                c.execute(f'ALTER TABLE {table} RENAME COLUMN "timestamp" TO created_at')
-                logging.info(f"Columna 'timestamp' renombrada a 'created_at' en {table}")
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        logging.error(f"Error en migración de columnas: {str(e)}")
-
-
 def cargar_temas():
     global temas
-    try:
-        with open('temas.json', 'r', encoding='utf-8') as f:
-            temas = json.load(f)
+    cache_key = 'temas'
+    if cache_key in cache:
+        temas = cache[cache_key]
+        logger.info("Temas cargados desde caché")
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
-        logging.info(f"Temas cargados: {temas_disponibles}")
+        return temas_disponibles
+
+    try:
+        with open('temas.json', 'r', encoding='utf-8') as f:
+            temas = json.load(f)
+        cache[cache_key] = temas
+        temas_disponibles = []
+        for unidad, subtemas in temas.items():
+            temas_disponibles.extend(subtemas.keys())
+        logger.info(f"Temas cargados: {temas_disponibles}")
         return temas_disponibles
     except FileNotFoundError:
-        logging.error("Archivo temas.json no encontrado")
+        logger.error("Archivo temas.json no encontrado")
         temas = {}
         return [
             'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
@@ -222,7 +281,7 @@ def cargar_progreso(usuario):
             return {"puntos": row[0], "temas_aprendidos": row[1], "avatar_id": row[2]}
         return {"puntos": 0, "temas_aprendidos": "", "avatar_id": "default"}
     except PsycopgError as e:
-        logging.error(f"Error al cargar progreso: {str(e)}")
+        logger.error("Error al cargar progreso", error=str(e))
         return {"puntos": 0, "temas_aprendidos": "", "avatar_id": "default"}
 
 def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
@@ -234,9 +293,9 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
                   (usuario, puntos, temas_aprendidos, avatar_id, puntos, temas_aprendidos, avatar_id))
         conn.commit()
         conn.close()
-        logging.info(f"Progreso guardado para usuario {usuario}: puntos={puntos}, temas={temas_aprendidos}")
+        logger.info(f"Progreso guardado", usuario=usuario, puntos=puntos, temas=temas_aprendidos)
     except PsycopgError as e:
-        logging.error(f"Error al guardar progreso: {str(e)}")
+        logger.error("Error al guardar progreso", error=str(e))
 
 def guardar_mensaje(usuario, conv_id, role, content):
     try:
@@ -245,11 +304,11 @@ def guardar_mensaje(usuario, conv_id, role, content):
         c.execute("INSERT INTO messages (conv_id, role, content) VALUES (%s, %s, %s)", (conv_id, role, content))
         conn.commit()
         conn.close()
-        logging.info(f"Mensaje guardado: usuario={usuario}, conv_id={conv_id}, role={role}")
+        logger.info(f"Mensaje guardado", usuario=usuario, conv_id=conv_id, role=role)
     except PsycopgError as e:
-        logging.error(f"Error al guardar mensaje: {str(e)}")
+        logger.error("Error al guardar mensaje", error=str(e))
 
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
+@retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def call_groq_api(messages, model, max_tokens, temperature):
     try:
         return client.chat.completions.create(
@@ -259,12 +318,13 @@ def call_groq_api(messages, model, max_tokens, temperature):
             temperature=temperature
         )
     except Exception as e:
-        logging.error(f"Error en Groq API: {str(e)}")
+        logger.error("Error en Groq API", error=str(e))
         if '503' in str(e):
             raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
 
 @app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
+@limiter.limit("50 per hour")
 def handle_messages(conv_id):
     usuario = session.get('usuario', 'anonimo')
 
@@ -289,20 +349,19 @@ def handle_messages(conv_id):
                     "created_at": (r[3].isoformat() if r[3] else None)
                 } for r in rows
             ]
+            logger.info("Mensajes obtenidos", conv_id=conv_id, usuario=usuario, message_count=len(messages))
             return jsonify({"messages": messages})
         except Exception as e:
-            logging.error(f"Error obteniendo mensajes: {str(e)}")
-            return jsonify({"error": "No se pudieron obtener los mensajes"}), 500
+            logger.error("Error obteniendo mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
+            return jsonify({"error": "No se pudieron obtener los mensajes", "status": 500}), 500
 
-    # POST
     try:
-        data = request.get_json()
-        role = data.get("role", "user")
-        content = data.get("content", "")
+        data = BuscarRespuestaInput(**request.get_json())
+        role = data.role
+        content = data.content
 
         conn = get_db_connection()
         c = conn.cursor()
-        # La tabla ya tiene created_at con DEFAULT CURRENT_TIMESTAMP
         c.execute("""
             INSERT INTO messages (conv_id, role, content)
             VALUES (%s, %s, %s)
@@ -312,17 +371,22 @@ def handle_messages(conv_id):
         conn.commit()
         conn.close()
 
+        logger.info("Mensaje guardado en messages", conv_id=conv_id, role=role, usuario=usuario)
         return jsonify({
             "id": row[0],
             "role": role,
             "content": content,
             "created_at": row[1].isoformat() if row[1] else None
         })
+    except ValidationError as e:
+        logger.error("Validación fallida en /messages", error=str(e), conv_id=conv_id, usuario=usuario)
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
-        logging.error(f"Error guardando mensaje: {str(e)}")
-        return jsonify({"error": "No se pudo guardar el mensaje"}), 500
+        logger.error("Error guardando mensaje", error=str(e), conv_id=conv_id, usuario=usuario)
+        return jsonify({"error": "No se pudo guardar el mensaje", "status": 500}), 500
 
 @app.route('/conversations', methods=['GET'])
+@limiter.limit("50 per hour")
 def list_conversations():
     usuario = session.get('usuario', 'anonimo')
     try:
@@ -344,14 +408,14 @@ def list_conversations():
                 "created_at": (r[2].isoformat() if r[2] else None)
             } for r in rows
         ]
+        logger.info("Conversaciones listadas", usuario=usuario, conversation_count=len(conversations))
         return jsonify({"conversations": conversations})
     except Exception as e:
-        logging.error(f"Error listando conversaciones: {str(e)}")
-        return jsonify({"error": "No se pudieron obtener las conversaciones"}), 500
+        logger.error("Error listando conversaciones", error=str(e), usuario=usuario)
+        return jsonify({"error": "No se pudieron obtener las conversaciones", "status": 500}), 500
 
-
-        
 @app.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
+@limiter.limit("50 per hour")
 def manage_conversation(conv_id):
     usuario = session.get('usuario', 'anonimo')
     if request.method == 'DELETE':
@@ -361,38 +425,46 @@ def manage_conversation(conv_id):
             c.execute("DELETE FROM conversations WHERE id = %s AND usuario = %s", (conv_id, usuario))
             if c.rowcount == 0:
                 conn.close()
-                return jsonify({'error': 'Conversación no encontrada o no autorizada'}), 404
+                logger.warning("Conversación no encontrada o no autorizada", conv_id=conv_id, usuario=usuario)
+                return jsonify({'error': 'Conversación no encontrada o no autorizada', "status": 404}), 404
             conn.commit()
             conn.close()
             if session.get('current_conv_id') == conv_id:
                 session.pop('current_conv_id', None)
+            logger.info("Conversación eliminada", conv_id=conv_id, usuario=usuario)
             return jsonify({'success': True})
         except Exception as e:
-            logging.error(f"Error eliminando conversación: {str(e)}")
-            return jsonify({'error': f"No se pudo eliminar la conversación: {str(e)}"}), 500
+            logger.error("Error eliminando conversación", error=str(e), conv_id=conv_id, usuario=usuario)
+            return jsonify({'error': f"No se pudo eliminar la conversación: {str(e)}", "status": 500}), 500
     elif request.method == 'PUT':
         try:
-            data = request.get_json()
-            nuevo_nombre = bleach.clean(data.get('nombre', 'Nuevo Chat')[:100])
+            data = ConversationInput(**request.get_json())
+            nuevo_nombre = data.nombre
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("UPDATE conversations SET nombre = %s WHERE id = %s AND usuario = %s", (nuevo_nombre, conv_id, usuario))
             if c.rowcount == 0:
                 conn.close()
-                return jsonify({'error': 'Conversación no encontrada o no autorizada'}), 404
+                logger.warning("Conversación no encontrada o no autorizada", conv_id=conv_id, usuario=usuario)
+                return jsonify({'error': 'Conversación no encontrada o no autorizada', "status": 404}), 404
             conn.commit()
             conn.close()
+            logger.info("Conversación renombrada", conv_id=conv_id, usuario=usuario, nuevo_nombre=nuevo_nombre)
             return jsonify({'success': True, 'nombre': nuevo_nombre})
+        except ValidationError as e:
+            logger.error("Validación fallida en /conversations PUT", error=str(e), conv_id=conv_id, usuario=usuario)
+            return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
         except Exception as e:
-            logging.error(f"Error renombrando conversación: {str(e)}")
-            return jsonify({'error': f"No se pudo renombrar la conversación: {str(e)}"}), 500
+            logger.error("Error renombrando conversación", error=str(e), conv_id=conv_id, usuario=usuario)
+            return jsonify({'error': f"No se pudo renombrar la conversación: {str(e)}", "status": 500}), 500
 
 @app.route('/conversations', methods=['POST'])
+@limiter.limit("50 per hour")
 def create_conversation():
     usuario = session.get('usuario', 'anonimo')
     try:
-        data = request.get_json(silent=True) or {}
-        nombre = bleach.clean(data.get("nombre", "Nuevo Chat")[:100])
+        data = ConversationInput(**request.get_json(silent=True) or {})
+        nombre = data.nombre
 
         conn = get_db_connection()
         c = conn.cursor()
@@ -403,168 +475,172 @@ def create_conversation():
         conn.commit()
         conn.close()
 
-        # Guardar en sesión como conversación activa
         session['current_conv_id'] = conv_id
-
+        logger.info("Conversación creada", conv_id=conv_id, usuario=usuario, nombre=nombre)
         return jsonify({"id": conv_id, "nombre": nombre, "created_at": row[1].isoformat()}), 201
+    except ValidationError as e:
+        logger.error("Validación fallida en /conversations POST", error=str(e), usuario=usuario)
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
-        logging.error(f"Error creando conversación: {str(e)}")
-        return jsonify({"error": "No se pudo crear la conversación"}), 500
-    
+        logger.error("Error creando conversación", error=str(e), usuario=usuario)
+        return jsonify({"error": "No se pudo crear la conversación", "status": 500}), 500
+
 @app.route('/buscar_respuesta', methods=['POST'])
+@limiter.limit("50 per hour")
 def buscar_respuesta():
-    data = request.get_json()
-    pregunta = bleach.clean(data.get('pregunta', '')[:500])
-    historial = data.get('historial', [])
-    nivel_explicacion = data.get('nivel_explicacion', 'basica')
-    usuario = session.get('usuario', 'anonimo')
+    try:
+        data = BuscarRespuestaInput(**request.get_json())
+        pregunta = data.pregunta
+        historial = data.historial
+        nivel_explicacion = data.nivel_explicacion
+        usuario = session.get('usuario', 'anonimo')
 
-    conv_id = session.get('current_conv_id')
-    if not conv_id and pregunta:
-        try:
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
-            conv_id = c.fetchone()[0]
-            conn.commit()
-            conn.close()
-            session['current_conv_id'] = conv_id
-        except Exception as e:
-            logging.error(f"Error creando conv en buscar_respuesta: {str(e)}")
-            # Continúa sin conv_id si falla, pero loguea
-            conv_id = None
+        conv_id = session.get('current_conv_id')
+        if not conv_id and pregunta:
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
+                conv_id = c.fetchone()[0]
+                conn.commit()
+                conn.close()
+                session['current_conv_id'] = conv_id
+                logger.info("Nueva conversación creada en /buscar_respuesta", conv_id=conv_id, usuario=usuario)
+            except Exception as e:
+                logger.error("Error creando conv en /buscar_respuesta", error=str(e), usuario=usuario)
+                conv_id = None
 
+        pregunta_norm = pregunta.lower().strip()
+        respuestas_simples = {
+            r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos)(.*por favor.*)?$": 
+                f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?",
+            r"^(gracias|muchas gracias|gracias por.*|thank you|te agradezco)$": 
+                f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada?",
+            r"^(adiós|bye|hasta luego|nos vemos|chau)$": 
+                f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses."
+        }
 
-    pregunta_norm = pregunta.lower().strip()
-    respuestas_simples = {
-        r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos)(.*por favor.*)?$": 
-            f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?",
-        r"^(gracias|muchas gracias|gracias por.*|thank you|te agradezco)$": 
-            f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada?",
-        r"^(adiós|bye|hasta luego|nos vemos|chau)$": 
-            f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses."
-    }
+        for patron, respuesta in respuestas_simples.items():
+            if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre|quiero aprender|saber más)", pregunta_norm):
+                if pregunta and conv_id:
+                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                    guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+                logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-    for patron, respuesta in respuestas_simples.items():
-        if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre|quiero aprender|saber más)", pregunta_norm):
+        if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
+            tema_sugerido = random.choice(TEMAS_DISPONIBLES)
+            respuesta = (
+                f"¡Qué buena pregunta, {usuario if usuario != 'anonimo' else 'amigo'}! Te recomiendo explorar {tema_sugerido}. "
+                f"Es un tema clave en Programación Avanzada que te ayudará a entender mejor cómo estructurar y optimizar tu código. "
+                f"¿Quieres que te explique más sobre {tema_sugerido}? ¿Tienes alguna pregunta adicional sobre este tema?"
+            )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+            logger.info("Sugerencia de tema enviada", tema=tema_sugerido, usuario=usuario, conv_id=conv_id)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-    if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
-        tema_sugerido = random.choice(TEMAS_DISPONIBLES)
-        respuesta = (
-            f"¡Qué buena pregunta, {usuario if usuario != 'anonimo' else 'amigo'}! Te recomiendo explorar {tema_sugerido}. "
-            f"Es un tema clave en Programación Avanzada que te ayudará a entender mejor cómo estructurar y optimizar tu código. "
-            f"¿Quieres que te explique más sobre {tema_sugerido}? ¿Tienes alguna pregunta adicional sobre este tema?"
+        prompt_relevancia = (
+            f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
+            f"Determina si la pregunta '{pregunta}' está relacionada con los siguientes temas de Programación Avanzada: {', '.join(TEMAS_DISPONIBLES)}. "
+            f"Responde solo 'Sí' o 'No'."
         )
-        if pregunta and conv_id:
-            guardar_mensaje(usuario, conv_id, 'user', pregunta)
-            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
-
-    prompt_relevancia = (
-        f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
-        f"Determina si la pregunta '{pregunta}' está relacionada con los siguientes temas de Programación Avanzada: {', '.join(TEMAS_DISPONIBLES)}. "
-        f"Responde solo 'Sí' o 'No'."
-    )
-    try:
-        completion = call_groq_api(
-            messages=[
-                {"role": "system", "content": prompt_relevancia},
-                {"role": "user", "content": pregunta}
-            ],
-            model="llama3-70b-8192",
-            max_tokens=10,
-            temperature=0.3
-        )
-        es_relevante = completion.choices[0].message.content.strip().lower() == 'sí'
-        if not es_relevante:
+        try:
+            completion = call_groq_api(
+                messages=[
+                    {"role": "system", "content": prompt_relevancia},
+                    {"role": "user", "content": pregunta}
+                ],
+                model="llama3-70b-8192",
+                max_tokens=10,
+                temperature=0.3
+            )
+            es_relevante = completion.choices[0].message.content.strip().lower() == 'sí'
+            if not es_relevante:
+                respuesta = (
+                    f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo puedo ayudarte con Programación Avanzada en Ingeniería en Telemática. "
+                    f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. ¿Qué deseas saber de la materia? "
+                    f"¿Tienes alguna pregunta adicional sobre este tema?"
+                )
+                if pregunta and conv_id:
+                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                    guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+                logger.info("Pregunta no relevante", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+        except Exception as e:
+            logger.error("Error al verificar relevancia", error=str(e), pregunta=pregunta, usuario=usuario)
             respuesta = (
-                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo puedo ayudarte con Programación Avanzada en Ingeniería en Telemática. "
-                f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. ¿Qué deseas saber de la materia? "
+                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
+                f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
                 f"¿Tienes alguna pregunta adicional sobre este tema?"
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
-    except Exception as e:
-        logging.error(f"Error al verificar relevancia: {str(e)}")
-        respuesta = (
-            f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-            f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
-            f"¿Tienes alguna pregunta adicional sobre este tema?"
-        )
-        if pregunta and conv_id:
-            guardar_mensaje(usuario, conv_id, 'user', pregunta)
-            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-    contexto = ""
-    if historial:
-        contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
+        contexto = ""
+        if historial:
+            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
-    prompt = (
-        f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-        f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta}'. "
-        f"Sigue estrictamente estas reglas:\n"
-        f"1. Responde solo sobre los temas: {', '.join(TEMAS_DISPONIBLES)}.\n"
-        f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
-        f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
-        f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
-        f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
-        f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
-        f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
-        f"5. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-        f"6. No uses emoticones ni emojis.\n"
-        f"7. Si no se puede responder, sugiere un tema de la lista.\n"
-        f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
-    )
+        prompt = (
+            f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+            f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta}'. "
+            f"Sigue estrictamente estas reglas:\n"
+            f"1. Responde solo sobre los temas: {', '.join(TEMAS_DISPONIBLES)}.\n"
+            f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
+            f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
+            f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
+            f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
+            f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
+            f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
+            f"5. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+            f"6. No uses emoticones ni emojis.\n"
+            f"7. Si no se puede responder, sugiere un tema de la lista.\n"
+            f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
+        )
 
-    try:
-        completion = call_groq_api(
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": pregunta}
-            ],
-            model="llama3-70b-8192",
-            max_tokens=300,
-            temperature=0.2
-        )
-        respuesta = completion.choices[0].message.content.strip()
-        if pregunta and conv_id:
-            guardar_mensaje(usuario, conv_id, 'user', pregunta)
-            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
-    except Exception as e:
-        logging.error(f"Error al procesar respuesta: {str(e)}")
-        respuesta = (
-            f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-            f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
-            f"¿Tienes alguna pregunta adicional sobre este tema?"
-        )
-        if pregunta and conv_id:
-            guardar_mensaje(usuario, conv_id, 'user', pregunta)
-            guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-        return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+        try:
+            completion = call_groq_api(
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": pregunta}
+                ],
+                model="llama3-70b-8192",
+                max_tokens=300,
+                temperature=0.2
+            )
+            respuesta = completion.choices[0].message.content.strip()
+            if pregunta and conv_id:
+                guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+            logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+        except Exception as e:
+            logger.error("Error al procesar respuesta", error=str(e), pregunta=pregunta, usuario=usuario)
+            respuesta = (
+                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
+                f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
+                f"¿Tienes alguna pregunta adicional sobre este tema?"
+            )
+            if pregunta and conv_id:
+                guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+    except ValidationError as e:
+        logger.error("Validación fallida en /buscar_respuesta", error=str(e), usuario=usuario)
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
 
 @app.route('/quiz', methods=['POST'])
+@limiter.limit("20 per hour")
 def quiz():
     try:
-        data = request.get_json()
-        if not data:
-            logging.error("Solicitud sin datos en /quiz")
-            return jsonify({"error": "Solicitud inválida: no se proporcionaron datos"}), 400
-
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        historial = data.get("historial", [])
-        nivel = bleach.clean(data.get("nivel", "basica")[:20]).lower()  # Normalizar a minúsculas
-        tema_seleccionado = bleach.clean(data.get("tema", random.choice(TEMAS_DISPONIBLES))[:100])
-        if tema_seleccionado not in TEMAS_DISPONIBLES:
-            logging.warning(f"Tema no válido: {tema_seleccionado}. Usando tema por defecto.")
-            tema_seleccionado = random.choice(TEMAS_DISPONIBLES)
+        data = QuizInput(**request.get_json())
+        usuario = data.usuario
+        historial = data.historial
+        nivel = data.nivel.lower()
+        tema_seleccionado = data.tema if data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)
 
         def validate_quiz_format(quiz_data):
             required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
@@ -607,7 +683,7 @@ def quiz():
             quiz_data = json.loads(completion.choices[0].message.content.strip())
             validate_quiz_format(quiz_data)
         except (json.JSONDecodeError, ValueError) as e:
-            logging.error(f"Error en el formato del quiz de Groq: {str(e)}")
+            logger.error("Error en el formato del quiz de Groq", error=str(e), usuario=usuario, tema=tema_seleccionado)
             quiz_data = {
                 "pregunta": f"¿Qué permite ocultar los detalles internos de una clase?" if tema_seleccionado == "Encapsulamiento" else f"¿Qué diagrama UML muestra la estructura estática?",
                 "opciones": ["Encapsulamiento", "Herencia", "Polimorfismo", "Abstracción"] if tema_seleccionado == "Encapsulamiento" else ["Diagrama de Clases", "Diagrama de Actividades", "Diagrama de Estados", "Diagrama de Componentes"],
@@ -618,38 +694,35 @@ def quiz():
             try:
                 validate_quiz_format(quiz_data)
             except ValueError as ve:
-                logging.error(f"Formato de quiz de respaldo inválido: {str(ve)}")
-                return jsonify({"error": "No se pudo generar un quiz válido"}), 500
+                logger.error("Formato de quiz de respaldo inválido", error=str(ve), usuario=usuario)
+                return jsonify({"error": "No se pudo generar un quiz válido", "status": 500}), 500
 
-        logging.info(f"Quiz generado para usuario {usuario} sobre tema {quiz_data['tema']}: {quiz_data}")
+        logger.info("Quiz generado", usuario=usuario, tema=quiz_data['tema'], nivel=nivel)
         return jsonify(quiz_data)
+    except ValidationError as e:
+        logger.error("Validación fallida en /quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
-        logging.error(f"Error en /quiz: {str(e)}")
+        logger.error("Error en /quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
         if '503' in str(e):
-            return jsonify({"error": "Groq API unavailable (503). Check https://groqstatus.com/"}), 503
-        return jsonify({"error": f"Error al generar quiz: {str(e)}"}), 500
+            return jsonify({"error": "Groq API unavailable (503). Check https://groqstatus.com/", "status": 503}), 503
+        return jsonify({"error": f"Error al generar quiz: {str(e)}", "status": 500}), 500
 
 @app.route('/responder_quiz', methods=['POST'])
+@limiter.limit("20 per hour")
 def responder_quiz():
     try:
-        data = request.get_json()
-        if not data:
-            logging.error("Solicitud sin datos en /responder_quiz")
-            return jsonify({'error': 'Solicitud inválida: no se proporcionaron datos'}), 400
-
-        respuesta = bleach.clean(data.get('respuesta', '')[:100])
-        respuesta_correcta = bleach.clean(data.get('respuesta_correcta', '')[:100])
-        tema = bleach.clean(data.get('tema', 'General')[:50])
-        pregunta = bleach.clean(data.get('pregunta', 'Sin pregunta')[:200])
-
-        if not respuesta or not respuesta_correcta or not pregunta:
-            logging.error("Faltan datos requeridos en /responder_quiz")
-            return jsonify({'error': 'Faltan respuesta, respuesta_correcta o pregunta'}), 400
+        data = ResponderQuizInput(**request.get_json())
+        respuesta = data.respuesta
+        respuesta_correcta = data.respuesta_correcta
+        tema = data.tema
+        pregunta = data.pregunta
+        usuario = session.get('usuario', 'anonimo')
 
         respuesta_norm = ''.join(respuesta.strip().lower().split())
         respuesta_correcta_norm = ''.join(respuesta_correcta.strip().lower().split())
         es_correcta = respuesta_norm == respuesta_correcta_norm
-        logging.info(f"Comparando respuesta: '{respuesta_norm}' con correcta: '{respuesta_correcta_norm}', es_correcta: {es_correcta}")
+        logger.info("Comparando respuesta", respuesta=respuesta_norm, respuesta_correcta=respuesta_correcta_norm, es_correcta=es_correcta, usuario=usuario)
 
         try:
             conn = get_db_connection()
@@ -657,15 +730,15 @@ def responder_quiz():
             puntos = 10 if es_correcta else 0
             cursor.execute(
                 'INSERT INTO quiz_logs (usuario, pregunta, respuesta, es_correcta, tema, puntos) VALUES (%s, %s, %s, %s, %s, %s)',
-                (session.get('usuario', 'anonimo'), pregunta, respuesta, es_correcta, tema, puntos)
+                (usuario, pregunta, respuesta, es_correcta, tema, puntos)
             )
             conn.commit()
             cursor.close()
             conn.close()
-            logging.info(f"Quiz guardado en quiz_logs: usuario={session.get('usuario', 'anonimo')}, pregunta={pregunta}, respuesta={respuesta}")
+            logger.info("Quiz guardado en quiz_logs", usuario=usuario, pregunta=pregunta, respuesta=respuesta)
         except PsycopgError as e:
-            logging.error(f"Error al guardar en quiz_logs: {str(e)}")
-            return jsonify({"error": f"Error de base de datos al guardar quiz: {str(e)}"}), 500
+            logger.error("Error al guardar en quiz_logs", error=str(e), usuario=usuario)
+            return jsonify({"error": f"Error de base de datos al guardar quiz: {str(e)}", "status": 500}), 500
 
         try:
             prompt = (
@@ -689,43 +762,51 @@ def responder_quiz():
             )
             explicacion = response.choices[0].message.content.strip()
         except Exception as e:
-            logging.error(f"Error al generar explicación con Groq: {str(e)}")
+            logger.error("Error al generar explicación con Groq", error=str(e), usuario=usuario)
             if '503' in str(e):
-                return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde"}), 503
-            if isinstance(e, httpx.ConnectTimeout):
-                return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
+                return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
             explicacion = (
                 f"**{'¡Felicidades, está bien! Seleccionaste: ' + respuesta + '.' if es_correcta else f'Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.'}** "
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
                 f"¿Deseas saber más del tema o de otro tema?"
             )
 
+        logger.info("Respuesta de quiz procesada", es_correcta=es_correcta, usuario=usuario)
         return jsonify({
             'es_correcta': es_correcta,
             'respuesta': explicacion,
             'respuesta_correcta': respuesta_correcta
         })
+    except ValidationError as e:
+        logger.error("Validación fallida en /responder_quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
-        logging.error(f"Error en /responder_quiz: {str(e)}")
+        logger.error("Error en /responder_quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
         if '503' in str(e):
-            return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde"}), 503
-        if isinstance(e, httpx.ConnectTimeout):
-            return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
-        return jsonify({"error": f"No se pudo procesar la respuesta del quiz: {str(e)}"}), 500
+            return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
+        return jsonify({"error": f"No se pudo procesar la respuesta del quiz: {str(e)}", "status": 500}), 500
 
 @app.route("/tts", methods=["POST"])
+@limiter.limit("30 per hour")
 def tts():
     try:
-        data = request.get_json()
-        text = bleach.clean(data.get("text", "")[:1000])
+        data = TTSInput(**request.get_json())
+        text = data.text
         if not text:
-            logging.error("Texto vacío en /tts")
-            return jsonify({"error": "El texto no puede estar vacío"}), 400
+            logger.error("Texto vacío en /tts", usuario=session.get('usuario', 'anonimo'))
+            return jsonify({"error": "El texto no puede estar vacío", "status": 400}), 400
         if not all(c.isprintable() or c.isspace() for c in text):
-            logging.error("Texto contiene caracteres no válidos")
-            return jsonify({"error": "El texto contiene caracteres no válidos"}), 400
+            logger.error("Texto contiene caracteres no válidos", usuario=session.get('usuario', 'anonimo'))
+            return jsonify({"error": "El texto contiene caracteres no válidos", "status": 400}), 400
 
-        # Reemplazos para mejorar pronunciación
+        # Caché de audio
+        cache_key = f"tts:{text}"
+        if cache_key in cache:
+            logger.info("Audio servido desde caché", text=text, usuario=session.get('usuario', 'anonimo'))
+            audio_io = cache[cache_key]
+            audio_io.seek(0)
+            return send_file(audio_io, mimetype='audio/mp3')
+
         reemplazos = {
             'POO': 'Programación Orientada a Objetos',
             'UML': 'U Em Ele',
@@ -737,30 +818,33 @@ def tts():
             text = re.sub(rf'\b{term}\b', replacement, text, flags=re.IGNORECASE)
 
         try:
-            tts = gTTS(text=text, lang='es', tld='com.mx', timeout=10)
+            tts = gTTS(text=text, lang='es', tld='com.mx', timeout=GTTS_TIMEOUT)
             audio_io = io.BytesIO()
             tts.write_to_fp(audio_io)
             audio_io.seek(0)
-            logging.info("Audio generado exitosamente")
+            cache[cache_key] = audio_io  # Guardar en caché
+            logger.info("Audio generado exitosamente", text=text, usuario=session.get('usuario', 'anonimo'))
             return send_file(audio_io, mimetype='audio/mp3')
         except Exception as gtts_error:
-            logging.error(f"Error en gTTS: {str(gtts_error)}")
+            logger.error("Error en gTTS", error=str(gtts_error), usuario=session.get('usuario', 'anonimo'))
             if isinstance(gtts_error, httpx.ConnectTimeout):
-                return jsonify({"error": "Tiempo de conexión agotado en gTTS, verifica tu conexión a internet"}), 504
-            return jsonify({"error": f"Error en la generación de audio: {str(gtts_error)}"}), 500
+                return jsonify({"error": "Tiempo de conexión agotado en gTTS, verifica tu conexión a internet", "status": 504}), 504
+            return jsonify({"error": f"Error en la generación de audio: {str(gtts_error)}", "status": 500}), 500
+    except ValidationError as e:
+        logger.error("Validación fallida en /tts", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
-        logging.error(f"Error en /tts: {str(e)}")
-        if isinstance(e, httpx.ConnectTimeout):
-            return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet"}), 504
-        return jsonify({"error": f"Error al procesar la solicitud: {str(e)}"}), 500
+        logger.error("Error en /tts", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({"error": f"Error al procesar la solicitud: {str(e)}", "status": 500}), 500
 
 @app.route("/recommend", methods=["POST"])
-@retrying.retry(wait_fixed=5000, stop_max_attempt_number=3)
+@limiter.limit("20 per hour")
+@retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def recommend():
     try:
-        data = request.get_json()
-        usuario = bleach.clean(data.get("usuario", "anonimo")[:50])
-        historial = data.get("historial", [])
+        data = RecommendInput(**request.get_json())
+        usuario = data.usuario
+        historial = data.historial
 
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
@@ -780,7 +864,7 @@ def recommend():
             temas_recomendados = row[0].split(",") if row and row[0] else []
             conn.close()
         except PsycopgError as e:
-            logging.error(f"Error al cargar temas recomendados: {str(e)}")
+            logger.error("Error al cargar temas recomendados", error=str(e), usuario=usuario)
             temas_recomendados = []
 
         temas_disponibles_para_recomendar = [t for t in temas_no_aprendidos if t not in temas_recomendados[-3:]]
@@ -816,9 +900,9 @@ def recommend():
             if not recomendacion:
                 raise json.JSONDecodeError("Recommendation vacía", "", 0)
         except json.JSONDecodeError as je:
-            logging.error(f"Error al decodificar JSON de Groq en /recommend: {str(je)}")
+            logger.error("Error al decodificar JSON de Groq en /recommend", error=str(je), usuario=usuario)
             recomendacion = random.choice(temas_disponibles_para_recomendar) if temas_disponibles_para_recomendar else random.choice(temas_disponibles)
-            logging.warning(f"Usando recomendación de fallback: {recomendacion}")
+            logger.warning(f"Usando recomendación de fallback: {recomendacion}", usuario=usuario)
 
         temas_recomendados.append(recomendacion)
         if len(temas_recomendados) > 5:
@@ -830,63 +914,84 @@ def recommend():
             conn.commit()
             conn.close()
         except PsycopgError as e:
-            logging.error(f"Error al guardar temas recomendados: {str(e)}")
+            logger.error("Error al guardar temas recomendados", error=str(e), usuario=usuario)
 
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         conv_id = session.get('current_conv_id')
         if conv_id:
             guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto)
-        logging.info(f"Recomendación para usuario {usuario}: {recomendacion_texto}")
+        logger.info("Recomendación generada", recomendacion=recomendacion_texto, usuario=usuario, conv_id=conv_id)
         return jsonify({"recommendation": recomendacion_texto, 'conv_id': conv_id if conv_id else None})
+    except ValidationError as e:
+        logger.error("Validación fallida en /recommend", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
-        logging.error(f"Error en /recommend: {str(e)}")
+        logger.error("Error en /recommend", error=str(e), usuario=session.get('usuario', 'anonimo'))
         recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
-        logging.warning(f"Usando recomendación de fallback por error: {recomendacion_texto}")
+        logger.warning(f"Usando recomendación de fallback: {recomendacion_texto}", usuario=session.get('usuario', 'anonimo'))
         return jsonify({"recommendation": recomendacion_texto})
 
 @app.route("/temas", methods=["GET"])
+@limiter.limit("100 per hour")
 def get_temas():
+    cache_key = 'temas_response'
+    if cache_key in cache:
+        logger.info("Temas servidos desde caché")
+        return cache[cache_key]
+
     try:
         temas_disponibles = []
         for unidad, subtemas in temas.items():
             temas_disponibles.extend(subtemas.keys())
-        logging.info(f"Temas disponibles enviados: {temas_disponibles}")
-        return jsonify({"temas": temas_disponibles})
+        response = jsonify({"temas": temas_disponibles})
+        cache[cache_key] = response
+        logger.info("Temas disponibles enviados", temas=temas_disponibles)
+        return response
     except Exception as e:
-        logging.error(f"Error en /temas: {str(e)}")
-        return jsonify({"error": "Error al obtener temas"}), 500
-    
+        logger.error("Error en /temas", error=str(e))
+        return jsonify({"error": "Error al obtener temas", "status": 500}), 500
+
 @app.route('/')
 def index():
     try:
         usuario = session.get('usuario', 'anonimo')
-        logging.info(f"Accediendo a la ruta raíz para usuario: {usuario}")
+        logger.info("Accediendo a la ruta raíz", usuario=usuario)
         return render_template('index.html')
     except Exception as e:
-        logging.error(f"Error al renderizar index.html: {str(e)}")
-        return jsonify({'error': 'Error al cargar la página principal'}), 500
-    
+        logger.error("Error al renderizar index.html", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({'error': 'Error al cargar la página principal', "status": 500}), 500
+
 @app.route('/avatars', methods=['GET'])
+@limiter.limit("100 per hour")
 def get_avatars():
+    cache_key = 'avatars_response'
+    if cache_key in cache:
+        logger.info("Avatares servidos desde caché")
+        return cache[cache_key]
+
     try:
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
         avatars = [{'avatar_id': row[0], 'nombre': row[1], 'url': row[2], 'animation_url': row[3]} for row in c.fetchall()]
         conn.close()
-        logging.info("Avatares enviados: %s", [avatar['nombre'] for avatar in avatars])
-        return jsonify({'avatars': avatars})
+        response = jsonify({'avatars': avatars})
+        cache[cache_key] = response
+        logger.info("Avatares enviados", avatars=[avatar['nombre'] for avatar in avatars])
+        return response
     except Exception as e:
-        logging.error(f"Error al obtener avatares: {str(e)}")
-        return jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]}), 200
+        logger.error("Error al obtener avatares", error=str(e))
+        response = jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]})
+        cache[cache_key] = response
+        return response, 200
 
 try:
-    logging.info("Iniciando inicialización de DB...")
-    init_db()  # se ejecuta siempre, ya uses python app.py o gunicorn
-    logging.info("DB inicializada con éxito")
+    logger.info("Iniciando inicialización de DB")
+    init_db()
+    logger.info("DB inicializada con éxito")
 except Exception as e:
-    logging.error(f"Falló inicialización de DB: {str(e)}. Verifica permisos en Render Postgres o DATABASE_URL.")
+    logger.error("Falló inicialización de DB", error=str(e))
     exit(1)
 
 if __name__ == "__main__":
