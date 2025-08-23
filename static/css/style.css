@@ -554,18 +554,18 @@ body.modo-oscuro .bot code {
 }
 
 .input-group {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 8px;
   padding: 12px;
   border-top: 1px solid var(--border);
   background-color: var(--bg-primary);
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
-.input-buttons.left, .input-buttons.right {
+.input-buttons {
   display: flex;
   gap: 6px;
+  align-items: center;
 }
 
 .dropdown-container {
@@ -611,7 +611,7 @@ body.modo-oscuro .bot code {
 }
 
 #input {
-  flex: 1;
+  width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -835,7 +835,7 @@ body.modo-oscuro .bot code {
     gap: 8px;
   }
 
-  /* Primera fila: Botones organizados */
+  /* Primera fila: Dropdown + Botones de acción */
   .mobile-top-row {
     display: flex;
     justify-content: space-between;
@@ -849,49 +849,22 @@ body.modo-oscuro .bot code {
     align-items: center;
   }
 
-  #new-chat-btn {
-    order: -2;
-  }
-
-  #btn-clear {
-    order: 0;
-    margin: 0 auto;
-  }
-
-  .mobile-right-buttons {
+  .mobile-center-section {
     display: flex;
     gap: 4px;
     align-items: center;
+    flex: 1;
+    justify-content: center;
   }
 
-  #voice-toggle-btn {
-    order: 1;
-  }
-
-  #send-btn {
-    order: 2;
+  .mobile-right-button {
+    display: flex;
   }
 
   /* Segunda fila: Solo el input */
   .mobile-bottom-row {
     display: flex;
     width: 100%;
-  }
-
-  #input {
-    width: 100%;
-    padding: 10px 16px;
-    border: 1px solid var(--border);
-    border-radius: 25px;
-    font-size: 0.95rem;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    height: 44px;
-  }
-
-  #input:focus {
-    outline: none;
-    border-color: var(--accent);
   }
 
   /* Estilos específicos para botones móviles */
@@ -1020,6 +993,23 @@ body.modo-oscuro .bot code {
     transform: scale(1.1);
   }
 
+  /* Input field móvil - ocupa todo el ancho */
+  #input {
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: 25px;
+    font-size: 0.95rem;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    height: 44px;
+  }
+
+  #input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
   /* Header optimizado para móvil */
   .app-title {
     padding: 8px;
@@ -1123,6 +1113,17 @@ body.modo-oscuro .bot code {
     padding: 10px;
     font-size: 0.9rem;
   }
+
+  /* Ocultar elementos no necesarios en móvil */
+  .input-buttons.left, .input-buttons.right {
+    display: none;
+  }
+
+  /* Ocultar elementos móviles no utilizados */
+  .mobile-nav-buttons, .mobile-center-dropdown, 
+  .mobile-input-container, .mobile-action-buttons {
+    display: none;
+  }
 }
 
 /* ESTILOS PARA PC (min-width: 769px) */
@@ -1142,15 +1143,14 @@ body.modo-oscuro .bot code {
     min-width: 150px;
   }
 
-  /* Restaurar layout original para PC */
+  /* Ajustar input-group para PC */
   .input-group {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 8px;
     padding: 12px;
     border-top: 1px solid var(--border);
     background-color: var(--bg-primary);
-    flex-wrap: wrap;
-    gap: 6px;
     position: relative;
     bottom: auto;
     left: auto;
@@ -1159,9 +1159,42 @@ body.modo-oscuro .bot code {
     box-shadow: none;
   }
 
-  .input-buttons.left, .input-buttons.right {
+  .input-buttons {
     display: flex;
     gap: 6px;
+    align-items: center;
+  }
+
+  /* Primera fila: Dropdown + Botones */
+  .mobile-top-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-left-buttons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .mobile-center-section {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .mobile-right-button {
+    display: flex;
+  }
+
+  /* Segunda fila: Solo el input */
+  .mobile-bottom-row {
+    display: flex;
+    width: 100%;
   }
 
   body {
