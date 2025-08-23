@@ -832,10 +832,10 @@ body.modo-oscuro .bot code {
     /* Layout en dos filas */
     display: grid;
     grid-template-rows: auto auto;
-    gap: 6px;
+    gap: 8px;
   }
 
-  /* Primera fila: Botones de navegación y nivel */
+  /* Primera fila: Menús laterales + Dropdown + Botones de acción */
   .mobile-top-row {
     display: flex;
     justify-content: space-between;
@@ -849,48 +849,76 @@ body.modo-oscuro .bot code {
     align-items: center;
   }
 
-  .mobile-center-dropdown {
-    flex: 1;
+  .mobile-center-section {
     display: flex;
+    gap: 4px;
+    align-items: center;
+    flex: 1;
     justify-content: center;
-    min-width: 0;
   }
 
   .mobile-right-button {
     display: flex;
   }
 
-  /* Segunda fila: Input y botones de acción */
+  /* Segunda fila: Solo el input */
   .mobile-bottom-row {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    width: 100%;
   }
 
   /* Estilos específicos para botones móviles */
   #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, 
   #new-chat-btn, #btn-clear, #voice-toggle-btn {
-    padding: 6px 8px;
-    font-size: 0.7rem;
-    min-width: 32px;
-    height: 32px;
-    border-radius: 16px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 0;
     white-space: nowrap;
+  }
+
+  /* Mostrar solo iconos en botones móviles */
+  #new-chat-btn::after {
+    content: "➕";
+    font-size: 0.9rem;
+  }
+
+  #btn-clear::after {
+    content: "🗑️";
+    font-size: 0.9rem;
+  }
+
+  #voice-toggle-btn::after {
+    content: "🎤";
+    font-size: 0.9rem;
+  }
+
+  #send-btn::after {
+    content: "📤";
+    font-size: 0.9rem;
+  }
+
+  /* Ocultar texto en botones móviles */
+  #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
+    font-size: 0;
+    text-indent: -9999px;
+    overflow: hidden;
   }
 
   #nivel-btn {
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    padding: 6px 12px;
-    font-size: 0.7rem;
-    min-width: 80px;
-    height: 32px;
-    border-radius: 16px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    min-width: 90px;
+    height: 38px;
+    border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -965,17 +993,16 @@ body.modo-oscuro .bot code {
     transform: scale(1.1);
   }
 
-  /* Input field móvil */
+  /* Input field móvil - ocupa todo el ancho */
   #input {
-    flex: 1;
-    padding: 8px 12px;
+    width: 100%;
+    padding: 10px 16px;
     border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: 0.9rem;
+    border-radius: 25px;
+    font-size: 0.95rem;
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    min-width: 0;
-    height: 36px;
+    height: 44px;
   }
 
   #input:focus {
@@ -1091,6 +1118,12 @@ body.modo-oscuro .bot code {
   .input-buttons.left, .input-buttons.right {
     display: none;
   }
+
+  /* Ocultar elementos móviles no utilizados */
+  .mobile-nav-buttons, .mobile-center-dropdown, 
+  .mobile-input-container, .mobile-action-buttons {
+    display: none;
+  }
 }
 
 /* ESTILOS PARA PC (min-width: 769px) */
@@ -1112,7 +1145,7 @@ body.modo-oscuro .bot code {
 
   /* Ocultar elementos móviles en PC */
   .mobile-top-row, .mobile-bottom-row,
-  .mobile-left-buttons, .mobile-center-dropdown, 
+  .mobile-left-buttons, .mobile-center-section, 
   .mobile-right-button {
     display: none;
   }
