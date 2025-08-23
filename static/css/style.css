@@ -24,7 +24,7 @@
 body.modo-oscuro {
   --bg-primary: #1a1a1a;
   --bg-secondary: #2c2c2c;
-  --text-primary: #e0e0e0;
+  --text-primary: #f5f5f5; /* Mejora: Mayor contraste para modo oscuro */
   --text-secondary: #a0a0a0;
   --accent: #1abc9c;
   --accent-hover: #16a085;
@@ -33,7 +33,7 @@ body.modo-oscuro {
   --message-user-bg: #3498db;
   --message-user-text: #ffffff;
   --message-bot-bg: #3a3a3a;
-  --message-bot-text: #e0e0e0;
+  --message-bot-text: #f5f5f5; /* Mejora: Mayor contraste */
   --button-bg: #1abc9c;
   --button-text: #ffffff;
   --button-hover: #16a085;
@@ -103,6 +103,12 @@ body {
   position: relative;
 }
 
+#modo-btn:active, #voice-btn:active, #quiz-btn:active, #recommend-btn:active,
+#send-btn:active, #new-chat-btn:active, #btn-clear:active, #voice-toggle-btn:active {
+  background-color: var(--accent-hover); /* Mejora: Feedback visual para botones activos */
+  transform: scale(0.95);
+}
+
 #nivel-btn {
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -118,6 +124,11 @@ body {
   pointer-events: auto;
   z-index: 1005;
   position: relative;
+}
+
+#nivel-btn:active {
+  background-color: var(--bg-secondary); /* Mejora: Feedback visual para botón activo */
+  transform: scale(0.95);
 }
 
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
@@ -144,7 +155,7 @@ body {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(0.8); /* Mejora: Animación inicial para tooltips */
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   padding: 4px 8px;
@@ -153,7 +164,7 @@ body {
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease; /* Mejora: Animación suave para tooltips */
   z-index: 1006;
   box-shadow: 0 2px 4px var(--shadow);
 }
@@ -164,6 +175,7 @@ body {
 #send-btn:focus::after, #voice-toggle-btn:focus::after {
   opacity: 1;
   visibility: visible;
+  transform: translateX(-50%) scale(1); /* Mejora: Animación al mostrar tooltips */
 }
 
 .voice-hint {
@@ -369,7 +381,7 @@ body {
   position: absolute;
   top: -100%;
   left: -100%;
-  transform: translate(-10px, -10px);
+  transform: translate(-10px, -10px) scale(0.8); /* Mejora: Animación inicial para tooltips */
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   padding: 4px 8px;
@@ -378,7 +390,7 @@ body {
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease; /* Mejora: Animación suave para tooltips */
   z-index: 3000;
   box-shadow: 0 2px 4px var(--shadow);
 }
@@ -387,6 +399,7 @@ body {
 .chat-actions .delete-btn:hover::after, .chat-actions .delete-btn:focus::after {
   opacity: 1;
   visibility: visible;
+  transform: translate(-10px, -10px) scale(1); /* Mejora: Animación al mostrar tooltips */
 }
 
 .main-section {
@@ -402,6 +415,7 @@ body {
   overflow-y: auto;
   background-color: var(--bg-secondary);
   max-height: calc(100vh - 140px);
+  scroll-behavior: smooth; /* Mejora: Desplazamiento suave */
 }
 
 .message-container {
@@ -584,10 +598,15 @@ body.modo-oscuro .bot code {
   min-width: 150px;
   bottom: calc(100% + 4px);
   left: 0;
+  opacity: 0;
+  transform: translateY(10px); /* Mejora: Animación inicial para menú desplegable */
+  transition: opacity 0.3s ease, transform 0.3s ease; /* Mejora: Animación suave para menú */
 }
 
 .dropdown-menu.active {
   display: block;
+  opacity: 1;
+  transform: translateY(0); /* Mejora: Animación al mostrar menú */
 }
 
 .dropdown-menu button {
@@ -814,6 +833,7 @@ body.modo-oscuro .bot code {
     width: 100%;
     padding: 8px;
     padding-bottom: 80px; /* Espacio para las dos filas */
+    scroll-behavior: smooth; /* Mejora: Desplazamiento suave */
   }
 
   /* NUEVO DISEÑO DE INPUT GROUP PARA MÓVIL */
@@ -872,13 +892,16 @@ body.modo-oscuro .bot code {
   .mobile-bottom-row > #input {
     display: block;
     width: 100%;
+    padding: 12px 16px; /* Mejora: Más padding para mejor interacción táctil */
+    font-size: 1rem; /* Mejora: Mayor tamaño de fuente */
+    height: 48px; /* Mejora: Mayor altura para mejor usabilidad */
   }
 
   /* Estilos para botones móviles */
   #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
-    padding: 8px;
-    min-width: 38px;
-    height: 38px;
+    padding: 10px; /* Mejora: Más padding para botones */
+    min-width: 44px; /* Mejora: Tamaño mínimo para interacción táctil */
+    height: 44px; /* Mejora: Tamaño mínimo para interacción táctil */
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -890,7 +913,7 @@ body.modo-oscuro .bot code {
   }
 
   #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
-    font-size: 0.9rem;
+    font-size: 1rem; /* Mejora: Mayor tamaño de iconos */
     display: inline-block;
   }
 
@@ -898,10 +921,10 @@ body.modo-oscuro .bot code {
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    min-width: 90px;
-    height: 38px;
+    padding: 10px 14px; /* Mejora: Más padding */
+    font-size: 1rem; /* Mejora: Mayor tamaño de fuente */
+    min-width: 100px;
+    height: 44px; /* Mejora: Tamaño mínimo para interacción táctil */
     border-radius: 20px;
     display: flex;
     align-items: center;
@@ -918,21 +941,25 @@ body.modo-oscuro .bot code {
 
   .dropdown-menu {
     position: absolute;
-    background: var(--bg-primary);
+    background: color-mix(in srgb, var(--bg-primary) 90%, #000 10%); /* Mejora: Fondo más distinguible */
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px;
     z-index: 10001;
-    box-shadow: 0 4px 12px var(--shadow);
+    box-shadow: 0 6px 14px var(--shadow); /* Mejora: Sombra más pronunciada */
     min-width: 140px;
     bottom: calc(100% + 6px);
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) scale(0.9); /* Mejora: Animación inicial */
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease; /* Mejora: Animación suave */
     display: none;
   }
 
   .dropdown-menu.active {
     display: block;
+    opacity: 1;
+    transform: translateX(-50%) scale(1); /* Mejora: Animación al mostrar */
   }
 
   .dropdown-menu button {
@@ -943,7 +970,7 @@ body.modo-oscuro .bot code {
     border: none;
     text-align: left;
     color: var(--text-primary);
-    font-size: 0.8rem;
+    font-size: 0.9rem; /* Mejora: Ligeramente más grande */
     cursor: pointer;
     border-radius: 4px;
     transition: background-color 0.2s ease;
@@ -974,23 +1001,6 @@ body.modo-oscuro .bot code {
 
   .menu-toggle:hover, .menu-toggle-right:hover {
     transform: scale(1.1);
-  }
-
-  /* Input field móvil */
-  #input {
-    width: 100%;
-    padding: 10px 16px;
-    border: 1px solid var(--border);
-    border-radius: 25px;
-    font-size: 0.95rem;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    height: 44px;
-  }
-
-  #input:focus {
-    outline: none;
-    border-color: var(--accent);
   }
 
   /* Header optimizado para móvil */
@@ -1038,10 +1048,18 @@ body.modo-oscuro .bot code {
   .chat-actions .delete-btn[data-tooltip]::after {
     top: -120%;
     left: -90%;
-    transform: translate(-5px, -5px);
+    transform: translate(-5px, -5px) scale(0.8); /* Mejora: Animación inicial */
     font-size: 0.7rem;
     padding: 3px 6px;
     z-index: 3000;
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease; /* Mejora: Animación suave */
+  }
+
+  .chat-actions .rename-btn:hover::after, .chat-actions .rename-btn:focus::after,
+  .chat-actions .delete-btn:hover::after, .chat-actions .delete-btn:focus::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-5px, -5px) scale(1); /* Mejora: Animación al mostrar */
   }
 
   /* Voice hint móvil */
@@ -1113,6 +1131,15 @@ body.modo-oscuro .bot code {
     left: 0;
     right: auto;
     min-width: 150px;
+    background: var(--bg-primary); /* Mejora: Fondo consistente con PC */
+    opacity: 0;
+    transform: translateY(10px); /* Mejora: Animación inicial */
+    transition: opacity 0.3s ease, transform 0.3s ease; /* Mejora: Animación suave */
+  }
+
+  .dropdown-menu.active {
+    opacity: 1;
+    transform: translateY(0); /* Mejora: Animación al mostrar */
   }
 
   /* Ocultar contenedores móviles en PC */
@@ -1153,6 +1180,8 @@ body.modo-oscuro .bot code {
   /* Asegurar visibilidad del input */
   .input-group > #input {
     display: block;
+    padding: 10px 14px; /* Mejora: Más padding para consistencia */
+    font-size: 1rem; /* Mejora: Mayor tamaño de fuente */
   }
 
   body {
@@ -1161,6 +1190,11 @@ body.modo-oscuro .bot code {
 
   .app-title {
     position: relative;
+  }
+
+  /* Tamaño de iconos en PC */
+  #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
+    font-size: 1rem; /* Mejora: Mayor tamaño de iconos */
   }
 }
 
