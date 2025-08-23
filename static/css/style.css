@@ -197,7 +197,6 @@ body {
   margin-top: 10px;
   background-color: var(--bg-primary);
   border-radius: 8px;
-  /* Removido overflow: hidden para evitar recorte del menú desplegable */
 }
 
 .left-section, .right-section {
@@ -584,7 +583,7 @@ body.modo-oscuro .bot code {
   z-index: 10000;
   box-shadow: 0 4px 8px var(--shadow);
   min-width: 150px;
-  bottom: calc(100% + 4px); /* Posiciona arriba del botón en PC y móvil */
+  bottom: calc(100% + 4px);
   left: 0;
 }
 
@@ -737,12 +736,29 @@ body.modo-oscuro .bot code {
   align-self: flex-start;
   margin-right: 10%;
   box-shadow: 0 2px 4px var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--text-primary);
+  border-top: 3px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes pulse {
   0% { opacity: 0.7; }
   50% { opacity: 1; }
   100% { opacity: 0.7; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .bot ul {
@@ -754,7 +770,7 @@ body.modo-oscuro .bot code {
   margin-bottom: 5px;
 }
 
-/* Media queries para móvil (max-width: 768px) - Estilos específicos para dispositivos móviles */
+/* OPTIMIZACIÓN MÓVIL MEJORADA */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -790,7 +806,7 @@ body.modo-oscuro .bot code {
 
   .main-section {
     width: 100%;
-    height: calc(100vh - 90px);
+    height: calc(100vh - 150px);
     margin: 0;
   }
 
@@ -798,138 +814,186 @@ body.modo-oscuro .bot code {
     max-height: calc(100vh - 150px);
     width: 100%;
     padding: 8px;
+    padding-bottom: 70px; /* Espacio para los botones fijos */
   }
 
+  /* NUEVO DISEÑO DE INPUT GROUP PARA MÓVIL */
   .input-group {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
     z-index: 1000;
-    padding: 6px;
+    padding: 8px;
     background-color: var(--bg-primary);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 10px var(--shadow);
+    
+    /* Layout en dos filas */
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 6px;
+  }
+
+  /* Primera fila: Botones de navegación y nivel */
+  .mobile-top-row {
     display: flex;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-left-buttons {
+    display: flex;
     gap: 4px;
+    align-items: center;
   }
 
-  #input {
+  .mobile-center-dropdown {
     flex: 1;
-    padding: 6px 10px;
-    margin: 2px;
-    font-size: 0.8rem;
+    display: flex;
+    justify-content: center;
     min-width: 0;
-    border-radius: 16px;
   }
 
-  #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, #new-chat-btn, #btn-clear, #voice-toggle-btn {
-    padding: 4px 8px;
-    font-size: 0.75rem;
-    min-width: 60px;
-    line-height: 1;
+  .mobile-right-button {
+    display: flex;
+  }
+
+  /* Segunda fila: Input y botones de acción */
+  .mobile-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Estilos específicos para botones móviles */
+  #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, 
+  #new-chat-btn, #btn-clear, #voice-toggle-btn {
+    padding: 6px 8px;
+    font-size: 0.7rem;
+    min-width: 32px;
+    height: 32px;
     border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    white-space: nowrap;
   }
 
   #nivel-btn {
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    padding: 4px 8px;
-    font-size: 0.75rem;
-    min-width: 60px;
+    padding: 6px 12px;
+    font-size: 0.7rem;
+    min-width: 80px;
+    height: 32px;
     border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: background-color 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
   }
 
-  #nivel-btn:hover, #nivel-btn:focus {
-    background-color: var(--bg-secondary);
-    border-color: var(--accent);
-    transform: scale(1.05);
-  }
-
+  /* Menú desplegable optimizado para móvil */
   .dropdown-container {
     position: relative;
     display: block;
+    width: 100%;
+    max-width: 120px;
   }
 
   .dropdown-menu {
-    display: none;
     position: absolute;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 8px;
-    z-index: 10001; /* Aumentado para evitar superposición */
-    box-shadow: 0 4px 8px var(--shadow);
-    min-width: 150px;
-    bottom: calc(100% + 4px); /* Arriba del botón en móvil */
-    left: 0;
-    visibility: visible; /* Visible por defecto */
+    padding: 6px;
+    z-index: 10001;
+    box-shadow: 0 4px 12px var(--shadow);
+    min-width: 140px;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
   }
 
   .dropdown-menu.active {
     display: block;
-    visibility: visible; /* Visible cuando activo */
   }
 
   .dropdown-menu button {
     display: block;
     width: 100%;
-    padding: 8px 12px;
+    padding: 8px 10px;
     background: none;
     border: none;
     text-align: left;
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     cursor: pointer;
-    pointer-events: auto;
     border-radius: 4px;
+    transition: background-color 0.2s ease;
   }
 
+  .dropdown-menu button:hover, .dropdown-menu button:focus {
+    background-color: var(--accent);
+    color: var(--button-text);
+  }
+
+  /* Menús laterales móviles */
   .menu-toggle, .menu-toggle-right {
     display: flex;
     background: var(--accent);
     color: var(--button-text);
-    font-size: 0.9rem;
-    padding: 6px;
+    font-size: 0.8rem;
+    padding: 4px;
     border-radius: 50%;
     box-shadow: 0 2px 4px var(--shadow);
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     align-items: center;
     justify-content: center;
-    pointer-events: auto;
+    cursor: pointer;
     transition: transform 0.2s ease;
+    border: none;
   }
 
   .menu-toggle:hover, .menu-toggle-right:hover {
     transform: scale(1.1);
   }
 
-  .menu-toggle {
-    order: -2;
-    margin-right: 6px;
+  /* Input field móvil */
+  #input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.9rem;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    min-width: 0;
+    height: 36px;
   }
 
-  .menu-toggle-right {
-    order: 2;
-    margin-left: 6px;
+  #input:focus {
+    outline: none;
+    border-color: var(--accent);
   }
 
-  #modo-btn {
-    order: -1;
-    margin-right: 4px;
-  }
-
-  #voice-btn {
-    order: 1;
-    margin-left: 4px;
+  /* Header optimizado para móvil */
+  .app-title {
+    padding: 8px;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1004;
   }
 
   .app-title h1 {
-    font-size: clamp(1.2rem, 3vw, 1.5rem);
-    order: 0;
-    flex: 1;
+    font-size: clamp(1.1rem, 3.5vw, 1.4rem);
     text-align: center;
   }
 
@@ -937,13 +1001,21 @@ body.modo-oscuro .bot code {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 4px;
+    gap: 6px;
     padding: 0 8px;
+    max-width: 100%;
   }
 
+  /* Ajustar body para header fijo */
+  body {
+    padding-top: 60px;
+  }
+
+  /* Mensajes optimizados */
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
+    padding: 10px 12px;
   }
 
   .bot pre {
@@ -951,39 +1023,9 @@ body.modo-oscuro .bot code {
     padding: 8px;
   }
 
-  .chat-actions .rename-btn, .chat-actions .delete-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 0.9rem;
-  }
-
-  .voice-hint {
-    bottom: 80px;
-    font-size: 12px;
-    padding: 6px 12px;
-    max-width: 85%;
-  }
-
-  .sidebar-buttons button {
-    font-size: 0.9rem;
-    padding: 6px;
-  }
-
-  .app-title {
-    padding: 10px 8px;
-  }
-
-  .avatar-options {
-    width: 100%;
-    align-items: center;
-  }
-
-  .avatar-options img {
-    width: 50px;
-    height: 50px;
-  }
-
-  .chat-actions .rename-btn[data-tooltip]::after, .chat-actions .delete-btn[data-tooltip]::after {
+  /* Tooltips móviles */
+  .chat-actions .rename-btn[data-tooltip]::after, 
+  .chat-actions .delete-btn[data-tooltip]::after {
     top: -120%;
     left: -90%;
     transform: translate(-5px, -5px);
@@ -991,9 +1033,67 @@ body.modo-oscuro .bot code {
     padding: 3px 6px;
     z-index: 3000;
   }
+
+  /* Voice hint móvil */
+  .voice-hint {
+    bottom: 70px;
+    font-size: 12px;
+    padding: 6px 12px;
+    max-width: 85%;
+  }
+
+  /* Sidebar buttons móvil */
+  .sidebar-buttons button {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+  }
+
+  /* Avatar options móvil */
+  .avatar-options img {
+    width: 50px;
+    height: 50px;
+  }
+
+  /* Chat actions móvil */
+  .chat-actions .rename-btn, .chat-actions .delete-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  /* Loading spinner móvil */
+  .loading {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+  }
+
+  /* Notification card móvil */
+  #notification-card {
+    bottom: 80px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  /* Quiz options móvil */
+  .quiz-option {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+
+  /* Ocultar elementos no necesarios en móvil */
+  .input-buttons.left, .input-buttons.right {
+    display: none;
+  }
 }
 
-/* Media queries para PC (min-width: 769px) - Estilos específicos para escritorios */
+/* ESTILOS PARA PC (min-width: 769px) */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
@@ -1004,87 +1104,62 @@ body.modo-oscuro .bot code {
   }
 
   .dropdown-menu {
-    bottom: calc(100% + 4px); /* Asegura que aparezca arriba del botón */
+    bottom: calc(100% + 4px);
     left: 0;
     right: auto;
     min-width: 150px;
   }
+
+  /* Ocultar elementos móviles en PC */
+  .mobile-top-row, .mobile-bottom-row,
+  .mobile-left-buttons, .mobile-center-dropdown, 
+  .mobile-right-button {
+    display: none;
+  }
+
+  /* Restaurar layout original para PC */
+  .input-group {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background-color: var(--bg-primary);
+    flex-wrap: wrap;
+    gap: 6px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    z-index: auto;
+    box-shadow: none;
+  }
+
+  .input-buttons.left, .input-buttons.right {
+    display: flex;
+    gap: 6px;
+  }
+
+  body {
+    padding-top: 0;
+  }
+
+  .app-title {
+    position: relative;
+  }
 }
 
-/* Estilo para el botón de nivel */
-#nivel-btn {
-  padding: 8px 12px;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-/* Asegurar que el contenedor padre no recorte el menú */
+/* Asegurar que todos los contenedores permitan overflow visible para menús */
 .container, .main-section, .right-section, .left-section {
   overflow: visible !important;
 }
-/* Añadir al final de tu archivo styles.css */
-.loading {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
-    color: var(--text-primary);
-    font-style: italic;
-}
 
-.spinner {
-    width: 20px;
-    height: 20px;
-    border: 3px solid var(--text-primary);
-    border-top: 3px solid var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-.quiz-option {
-    cursor: pointer;
-    padding: 8px;
-    margin: 5px 0;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.quiz-option:hover {
-    background-color: color-mix(in srgb, var(--bg-primary) 80%, var(--primary));
-}
-
-.quiz-option:focus {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-}
-
-.quiz-option.selected {
-    background-color: color-mix(in srgb, var(--bg-primary) 70%, var(--primary));
-}
-
+/* Estilos adicionales para quiz */
 .quiz-option.correct {
-    border-color: var(--success);
-    background-color: color-mix(in srgb, var(--success) 20%, var(--bg-primary));
+  border-color: var(--success);
+  background-color: color-mix(in srgb, var(--success) 20%, var(--bg-primary));
 }
 
 .quiz-option.incorrect {
-    border-color: var(--error);
-    background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-@media (max-width: 768px) {
-    .loading {
-        padding: 8px;
-        font-size: 0.9rem;
-    }
-    .spinner {
-        width: 16px;
-        height: 16px;
-        border-width: 2px;
-    }
+  border-color: var(--error);
+  background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
 }
