@@ -769,7 +769,7 @@ body.modo-oscuro .bot code {
   margin-bottom: 5px;
 }
 
-/* OPTIMIZACIÓN MÓVIL MEJORADA */
+/* OPTIMIZACIÓN MÓVIL */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -832,9 +832,22 @@ body.modo-oscuro .bot code {
     gap: 8px;
   }
 
+  /* Ocultar elementos sueltos en móvil */
+  .input-group > .input-buttons.left,
+  .input-group > .dropdown-container,
+  .input-group > #input,
+  .input-group > .input-buttons.right {
+    display: none;
+  }
+
+  /* Mostrar contenedores móviles */
+  .mobile-top-row,
+  .mobile-bottom-row {
+    display: flex;
+  }
+
   /* Primera fila: Desplegable y botones */
   .mobile-top-row {
-    display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
@@ -853,25 +866,7 @@ body.modo-oscuro .bot code {
 
   /* Segunda fila: Input */
   .mobile-bottom-row {
-    display: flex;
     width: 100%;
-  }
-
-  /* Mover elementos al contenedor correcto */
-  .input-group > .input-buttons.left,
-  .input-group > .dropdown-container,
-  .input-group > .input-buttons.right {
-    display: none; /* Ocultar elementos sueltos */
-  }
-
-  .mobile-top-row > .input-buttons.left,
-  .mobile-top-row > .dropdown-container,
-  .mobile-top-row > .input-buttons.right {
-    display: flex; /* Mostrar solo en mobile-top-row */
-  }
-
-  .input-group > #input {
-    display: none; /* Ocultar input suelto */
   }
 
   .mobile-bottom-row > #input {
@@ -892,7 +887,6 @@ body.modo-oscuro .bot code {
     color: var(--button-text);
     border: none;
     cursor: pointer;
-    font-size: 0;
   }
 
   #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
@@ -1104,7 +1098,7 @@ body.modo-oscuro .bot code {
   }
 }
 
-/* ESTILOS PARA PC (min-width: 769px) */
+/* ESTILOS PARA PC */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
@@ -1121,7 +1115,7 @@ body.modo-oscuro .bot code {
     min-width: 150px;
   }
 
-  /* Ocultar elementos móviles en PC */
+  /* Ocultar contenedores móviles en PC */
   .mobile-top-row, .mobile-bottom-row {
     display: none;
   }
@@ -1148,20 +1142,25 @@ body.modo-oscuro .bot code {
     gap: 6px;
   }
 
-  body {
-    padding-top: 0;
-  }
-
-  .app-title {
-    position: relative;
-  }
-
   /* Mostrar elementos sueltos en PC */
   .input-group > .input-buttons.left,
   .input-group > .dropdown-container,
   .input-group > #input,
   .input-group > .input-buttons.right {
     display: flex;
+  }
+
+  /* Asegurar visibilidad del input */
+  .input-group > #input {
+    display: block;
+  }
+
+  body {
+    padding-top: 0;
+  }
+
+  .app-title {
+    position: relative;
   }
 }
 
