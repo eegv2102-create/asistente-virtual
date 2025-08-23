@@ -555,16 +555,17 @@ body.modo-oscuro .bot code {
 
 .input-group {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   padding: 12px;
   border-top: 1px solid var(--border);
   background-color: var(--bg-primary);
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
-.input-buttons.left, .input-buttons.right {
+.input-buttons {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 6px;
 }
 
@@ -806,12 +807,12 @@ body.modo-oscuro .bot code {
 
   .main-section {
     width: 100%;
-    height: calc(100vh - 150px); /* Adjusted for input group */
+    height: calc(100vh - 150px);
     margin: 0;
   }
 
   #chatbox {
-    max-height: calc(100vh - 200px); /* Adjusted to push lower and fit above input */
+    max-height: calc(100vh - 200px);
     width: 100%;
     padding: 8px;
     padding-bottom: 70px;
@@ -833,39 +834,28 @@ body.modo-oscuro .bot code {
     gap: 8px;
   }
 
-  /* Primera fila: Botones organizados */
-  .input-group > *:not(#input) {
+  .input-buttons {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 6px;
-    width: 100%;
-  }
-
-  .input-group .input-buttons.left {
     order: 0;
-    gap: 4px;
-    align-items: center;
-    justify-content: flex-start;
   }
 
-  .input-group .dropdown-container {
+  .input-buttons.left, .input-buttons.right {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dropdown-container {
     order: 1;
     flex: 1;
     display: flex;
     justify-content: center;
   }
 
-  .input-group .input-buttons.right {
-    order: 2;
-    gap: 4px;
-    align-items: center;
-    justify-content: flex-end;
-  }
-  
-  /* Segunda fila: Solo el input */
   #input {
-    order: 3;
+    order: 2;
     width: 100%;
     padding: 10px 16px;
     border: 1px solid var(--border);
