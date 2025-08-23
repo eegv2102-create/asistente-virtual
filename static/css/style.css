@@ -559,7 +559,6 @@ body.modo-oscuro .bot code {
   padding: 12px;
   border-top: 1px solid var(--border);
   background-color: var(--bg-primary);
-  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -814,7 +813,7 @@ body.modo-oscuro .bot code {
     max-height: calc(100vh - 150px);
     width: 100%;
     padding: 8px;
-    padding-bottom: 70px; /* Espacio para los botones fijos */
+    padding-bottom: 80px; /* Espacio para las dos filas */
   }
 
   /* NUEVO DISEÑO DE INPUT GROUP PARA MÓVIL */
@@ -838,17 +837,45 @@ body.modo-oscuro .bot code {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    width: 100%;
   }
 
-  .input-buttons.left, .input-buttons.right {
+  .mobile-top-row .input-buttons.left,
+  .mobile-top-row .input-buttons.right {
     display: flex;
     gap: 4px;
+  }
+
+  .mobile-top-row .dropdown-container {
+    display: block;
   }
 
   /* Segunda fila: Input */
   .mobile-bottom-row {
     display: flex;
+    width: 100%;
+  }
+
+  /* Mover elementos al contenedor correcto */
+  .input-group > .input-buttons.left,
+  .input-group > .dropdown-container,
+  .input-group > .input-buttons.right {
+    display: none; /* Ocultar elementos sueltos */
+  }
+
+  .mobile-top-row > .input-buttons.left,
+  .mobile-top-row > .dropdown-container,
+  .mobile-top-row > .input-buttons.right {
+    display: flex; /* Mostrar solo en mobile-top-row */
+  }
+
+  .input-group > #input {
+    display: none; /* Ocultar input suelto */
+  }
+
+  .mobile-bottom-row > #input {
+    display: block;
     width: 100%;
   }
 
@@ -861,13 +888,11 @@ body.modo-oscuro .bot code {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
     background: var(--button-bg);
     color: var(--button-text);
     border: none;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-size: 0;
   }
 
   #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
@@ -1027,7 +1052,7 @@ body.modo-oscuro .bot code {
 
   /* Voice hint móvil */
   .voice-hint {
-    bottom: 70px;
+    bottom: 90px;
     font-size: 12px;
     padding: 6px 12px;
     max-width: 85%;
@@ -1066,7 +1091,7 @@ body.modo-oscuro .bot code {
 
   /* Notification card móvil */
   #notification-card {
-    bottom: 80px;
+    bottom: 90px;
     right: 10px;
     left: 10px;
     max-width: none;
@@ -1129,6 +1154,14 @@ body.modo-oscuro .bot code {
 
   .app-title {
     position: relative;
+  }
+
+  /* Mostrar elementos sueltos en PC */
+  .input-group > .input-buttons.left,
+  .input-group > .dropdown-container,
+  .input-group > #input,
+  .input-group > .input-buttons.right {
+    display: flex;
   }
 }
 
