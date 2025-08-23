@@ -833,7 +833,7 @@ body.modo-oscuro .bot code {
     gap: 8px;
   }
 
-  /* Primera fila: Botones y desplegable */
+  /* Primera fila: Desplegable y botones */
   .mobile-top-row {
     display: flex;
     justify-content: space-between;
@@ -843,8 +843,8 @@ body.modo-oscuro .bot code {
 
   .mobile-left-buttons {
     display: flex;
-    gap: 4px;
     align-items: center;
+    gap: 6px;
   }
 
   .input-buttons.left, .input-buttons.right {
@@ -853,15 +853,12 @@ body.modo-oscuro .bot code {
   }
 
   .mobile-center-section {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    flex: 1;
-    justify-content: center;
+    display: none; /* No se usa en este diseño */
   }
 
   .mobile-right-button {
     display: flex;
+    gap: 4px;
   }
 
   /* Segunda fila: Input */
@@ -1102,7 +1099,7 @@ body.modo-oscuro .bot code {
   }
 
   /* Notification card móvil */
-  #notification-card {
+  .notification-card {
     bottom: 80px;
     right: 10px;
     left: 10px;
