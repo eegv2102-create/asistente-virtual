@@ -193,7 +193,7 @@ body {
   justify-content: space-between;
   width: 100%;
   max-width: 1200px;
-  height: calc(100vh - 100px); /* Adjusted to leave space for input group */
+  height: calc(100vh - 80px);
   margin-top: 10px;
   background-color: var(--bg-primary);
   border-radius: 8px;
@@ -401,7 +401,7 @@ body {
   padding: 16px;
   overflow-y: auto;
   background-color: var(--bg-secondary);
-  max-height: calc(100vh - 180px); /* Adjusted to push it lower and leave space for input */
+  max-height: calc(100vh - 140px);
 }
 
 .message-container {
@@ -561,12 +561,6 @@ body.modo-oscuro .bot code {
   background-color: var(--bg-primary);
   flex-wrap: wrap;
   gap: 6px;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  position: relative;
-  bottom: 0;
-  z-index: 1000;
 }
 
 .input-buttons.left, .input-buttons.right {
@@ -780,7 +774,7 @@ body.modo-oscuro .bot code {
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
-    height: calc(100vh - 100px); /* Adjusted for input group */
+    height: calc(100vh - 90px);
     margin-top: 10px;
     margin-left: 0;
     margin-right: 0;
@@ -789,7 +783,7 @@ body.modo-oscuro .bot code {
   .left-section, .right-section {
     position: fixed;
     top: 90px;
-    height: calc(100vh - 100px);
+    height: calc(100vh - 90px);
     width: 80%;
     max-width: 300px;
     z-index: 1001;
@@ -812,12 +806,12 @@ body.modo-oscuro .bot code {
 
   .main-section {
     width: 100%;
-    height: calc(100vh - 160px); /* Adjusted for input group */
+    height: calc(100vh - 150px); /* Adjusted for input group */
     margin: 0;
   }
 
   #chatbox {
-    max-height: calc(100vh - 180px); /* Adjusted to push lower */
+    max-height: calc(100vh - 200px); /* Adjusted to push lower and fit above input */
     width: 100%;
     padding: 8px;
     padding-bottom: 70px;
@@ -1142,13 +1136,11 @@ body.modo-oscuro .bot code {
     flex-wrap: wrap;
     gap: 6px;
     position: relative;
-    bottom: 0;
+    bottom: auto;
     left: auto;
     width: auto;
     z-index: auto;
     box-shadow: none;
-    margin: 0 auto;
-    max-width: 1200px;
   }
   
   .input-buttons.left, .input-buttons.right {
