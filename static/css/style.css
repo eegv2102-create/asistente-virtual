@@ -193,7 +193,7 @@ body {
   justify-content: space-between;
   width: 100%;
   max-width: 1200px;
-  height: calc(100vh - 100px); /* Adjusted to leave space for input group */
+  height: calc(100vh - 80px);
   margin-top: 10px;
   background-color: var(--bg-primary);
   border-radius: 8px;
@@ -322,7 +322,7 @@ body {
   max-width: calc(100% - 80px);
 }
 
-.chat-actions {
+#chat-list li .chat-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
@@ -401,7 +401,7 @@ body {
   padding: 16px;
   overflow-y: auto;
   background-color: var(--bg-secondary);
-  max-height: calc(100vh - 180px); /* Adjusted to push it lower and leave space for input */
+  max-height: calc(100vh - 140px);
 }
 
 .message-container {
@@ -561,12 +561,6 @@ body.modo-oscuro .bot code {
   background-color: var(--bg-primary);
   flex-wrap: wrap;
   gap: 6px;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  position: relative;
-  bottom: 0;
-  z-index: 1000;
 }
 
 .input-buttons.left, .input-buttons.right {
@@ -780,7 +774,7 @@ body.modo-oscuro .bot code {
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
-    height: calc(100vh - 100px); /* Adjusted for input group */
+    height: calc(100vh - 90px);
     margin-top: 10px;
     margin-left: 0;
     margin-right: 0;
@@ -789,7 +783,7 @@ body.modo-oscuro .bot code {
   .left-section, .right-section {
     position: fixed;
     top: 90px;
-    height: calc(100vh - 100px);
+    height: calc(100vh - 90px);
     width: 80%;
     max-width: 300px;
     z-index: 1001;
@@ -812,15 +806,15 @@ body.modo-oscuro .bot code {
 
   .main-section {
     width: 100%;
-    height: calc(100vh - 160px); /* Adjusted for input group */
+    height: calc(100vh - 150px);
     margin: 0;
   }
 
   #chatbox {
-    max-height: calc(100vh - 180px); /* Adjusted to push lower */
+    max-height: calc(100vh - 150px);
     width: 100%;
     padding: 8px;
-    padding-bottom: 70px;
+    padding-bottom: 70px; /* Espacio para los botones fijos */
   }
 
   /* NUEVO DISEÑO DE INPUT GROUP PARA MÓVIL */
@@ -834,44 +828,57 @@ body.modo-oscuro .bot code {
     background-color: var(--bg-primary);
     border-top: 1px solid var(--border);
     box-shadow: 0 -2px 10px var(--shadow);
-    display: flex;
-    flex-direction: column;
+    
+    /* Layout en dos filas */
+    display: grid;
+    grid-template-rows: auto auto;
     gap: 8px;
   }
 
   /* Primera fila: Botones organizados */
-  .input-group > *:not(#input) {
+  .mobile-top-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 6px;
+  }
+
+  .mobile-left-buttons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  #new-chat-btn {
+    order: -2;
+  }
+
+  #btn-clear {
+    order: 0;
+    margin: 0 auto;
+  }
+
+  .mobile-right-buttons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  #voice-toggle-btn {
+    order: 1;
+  }
+
+  #send-btn {
+    order: 2;
+  }
+
+  /* Segunda fila: Solo el input */
+  .mobile-bottom-row {
+    display: flex;
     width: 100%;
   }
 
-  .input-group .input-buttons.left {
-    order: 0;
-    gap: 4px;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .input-group .dropdown-container {
-    order: 1;
-    flex: 1;
-    display: flex;
-    justify-content: center;
-  }
-
-  .input-group .input-buttons.right {
-    order: 2;
-    gap: 4px;
-    align-items: center;
-    justify-content: flex-end;
-  }
-  
-  /* Segunda fila: Solo el input */
   #input {
-    order: 3;
     width: 100%;
     padding: 10px 16px;
     border: 1px solid var(--border);
@@ -888,7 +895,8 @@ body.modo-oscuro .bot code {
   }
 
   /* Estilos específicos para botones móviles */
-  #send-btn, #new-chat-btn, #btn-clear, #voice-toggle-btn {
+  #modo-btn, #voice-btn, #quiz-btn, #recommend-btn, #send-btn, 
+  #new-chat-btn, #btn-clear, #voice-toggle-btn {
     padding: 8px 10px;
     font-size: 0.75rem;
     min-width: 38px;
@@ -923,8 +931,10 @@ body.modo-oscuro .bot code {
   }
 
   /* Ocultar texto en botones móviles */
-  #new-chat-btn span, #btn-clear span, #voice-toggle-btn span, #send-btn span {
-    display: none;
+  #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
+    font-size: 0;
+    text-indent: -9999px;
+    overflow: hidden;
   }
 
   #nivel-btn {
@@ -1142,15 +1152,13 @@ body.modo-oscuro .bot code {
     flex-wrap: wrap;
     gap: 6px;
     position: relative;
-    bottom: 0;
+    bottom: auto;
     left: auto;
     width: auto;
     z-index: auto;
     box-shadow: none;
-    margin: 0 auto;
-    max-width: 1200px;
   }
-  
+
   .input-buttons.left, .input-buttons.right {
     display: flex;
     gap: 6px;
