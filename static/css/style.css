@@ -829,40 +829,42 @@ body.modo-oscuro .bot code {
     border-top: 1px solid var(--border);
     box-shadow: 0 -2px 10px var(--shadow);
     
-    /* Layout en una sola fila */
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: nowrap;
+    /* Layout en dos filas */
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 6px;
   }
 
-  /* Botones de navegación lateral */
-  .mobile-nav-buttons {
+  /* Primera fila: Botones de navegación y nivel */
+  .mobile-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-left-buttons {
     display: flex;
     gap: 4px;
     align-items: center;
-    flex-shrink: 0;
   }
 
-  /* Dropdown centrado */
   .mobile-center-dropdown {
+    flex: 1;
     display: flex;
     justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* Input field que se expande */
-  .mobile-input-container {
-    flex: 1;
     min-width: 0;
   }
 
-  /* Botones de acción */
-  .mobile-action-buttons {
+  .mobile-right-button {
     display: flex;
-    gap: 4px;
+  }
+
+  /* Segunda fila: Input y botones de acción */
+  .mobile-bottom-row {
+    display: flex;
     align-items: center;
-    flex-shrink: 0;
+    gap: 6px;
   }
 
   /* Estilos específicos para botones móviles */
@@ -965,13 +967,14 @@ body.modo-oscuro .bot code {
 
   /* Input field móvil */
   #input {
-    width: 100%;
+    flex: 1;
     padding: 8px 12px;
     border: 1px solid var(--border);
     border-radius: 20px;
     font-size: 0.9rem;
     background-color: var(--bg-primary);
     color: var(--text-primary);
+    min-width: 0;
     height: 36px;
   }
 
@@ -1088,12 +1091,6 @@ body.modo-oscuro .bot code {
   .input-buttons.left, .input-buttons.right {
     display: none;
   }
-
-  /* Ocultar elementos móviles no utilizados */
-  .mobile-top-row, .mobile-bottom-row,
-  .mobile-left-buttons, .mobile-right-button {
-    display: none;
-  }
 }
 
 /* ESTILOS PARA PC (min-width: 769px) */
@@ -1114,8 +1111,9 @@ body.modo-oscuro .bot code {
   }
 
   /* Ocultar elementos móviles en PC */
-  .mobile-nav-buttons, .mobile-center-dropdown, 
-  .mobile-input-container, .mobile-action-buttons {
+  .mobile-top-row, .mobile-bottom-row,
+  .mobile-left-buttons, .mobile-center-dropdown, 
+  .mobile-right-button {
     display: none;
   }
 
