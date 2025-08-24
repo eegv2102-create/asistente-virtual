@@ -803,8 +803,8 @@ def tts():
         cache_key = f"tts:{text}"
         if cache_key in cache:
             logger.info("Audio servido desde caché", text=text, usuario=session.get('usuario', 'anonimo'))
-            audio_io = cache[cache_key]
-            audio_io.seek(0)
+            audio_bytes = cache[cache_key]
+            audio_io = io.BytesIO(audio_bytes)  # Crear nuevo BytesIO desde bytes
             return send_file(audio_io, mimetype='audio/mp3')
 
         reemplazos = {
@@ -821,8 +821,9 @@ def tts():
             tts = gTTS(text=text, lang='es', tld='com.mx', timeout=GTTS_TIMEOUT)
             audio_io = io.BytesIO()
             tts.write_to_fp(audio_io)
+            audio_bytes = audio_io.getvalue()  # Obtener bytes del audio
+            cache[cache_key] = audio_bytes  # Guardar bytes en caché
             audio_io.seek(0)
-            cache[cache_key] = audio_io  # Guardar en caché
             logger.info("Audio generado exitosamente", text=text, usuario=session.get('usuario', 'anonimo'))
             return send_file(audio_io, mimetype='audio/mp3')
         except Exception as gtts_error:
