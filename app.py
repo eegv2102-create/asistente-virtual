@@ -1005,12 +1005,23 @@ def recommend():
         except PsycopgError as e:
             logger.error("Error al guardar temas recomendados", error=str(e), usuario=usuario)
 
-        recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
+        # Crear conversación si no existe
         conv_id = session.get('current_conv_id')
-        if conv_id:
-            guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto, tema=recomendacion)
+        if not conv_id:
+            conn = get_db_connection()
+            c = conn.cursor()
+            nombre = 'Chat Recomendación'
+            c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id", (usuario, nombre))
+            conv_id = c.fetchone()[0]
+            conn.commit()
+            conn.close()
+            session['current_conv_id'] = conv_id
+            logger.info("Conversación creada automáticamente para recomendación", conv_id=conv_id, usuario=usuario)
+
+        recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
+        guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto, tema=recomendacion)
         logger.info("Recomendación generada", recomendacion=recomendacion_texto, usuario=usuario, conv_id=conv_id)
-        return jsonify({"recommendation": recomendacion_texto, 'conv_id': conv_id if conv_id else None})
+        return jsonify({"recommendation": recomendacion_texto, 'conv_id': conv_id})
     except ValidationError as e:
         logger.error("Validación fallida en /recommend", error=str(e), usuario=session.get('usuario', 'anonimo'))
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400

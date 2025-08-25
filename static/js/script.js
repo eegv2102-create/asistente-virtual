@@ -1108,7 +1108,7 @@ const handleRecommendClick = async () => {
         const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || '';
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.dataset.tema = tema; // Guardar el tema en el div
+        botDiv.dataset.tema = tema;
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
             `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         const container = getElement('#chatbox').querySelector('.message-container');
@@ -1133,6 +1133,8 @@ const handleRecommendClick = async () => {
                     tema: tema
                 })
             });
+            // Actualizar historial de chats
+            await cargarConversaciones();
         }
 
         // Actualizar historial con el tema
