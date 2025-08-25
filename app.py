@@ -1018,8 +1018,6 @@ def recommend():
         logger.error("Error en /recommend", error=str(e), usuario=session.get('usuario', 'anonimo'))
         recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
-        if conv_id := session.get('current_conv_id'):
-            guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto, tema=recomendacion)
         logger.warning(f"Usando recomendación de fallback: {recomendacion_texto}", usuario=session.get('usuario', 'anonimo'))
         return jsonify({"recommendation": recomendacion_texto})
 
