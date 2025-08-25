@@ -47,6 +47,16 @@ const scrollToBottom = () => {
     }
 };
 
+const getHistorial = () => {
+    try {
+        const historial = JSON.parse(localStorage.getItem('historial') || '[]');
+        return Array.isArray(historial) ? historial : [];
+    } catch (error) {
+        console.error('Error al obtener historial:', error);
+        return [];
+    }
+};
+
 const showLoading = () => {
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container) return null;
