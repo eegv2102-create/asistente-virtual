@@ -823,12 +823,12 @@ const mostrarQuizEnChat = async (quizData) => {
 const handleQuizOption = async (event) => {
     const option = event.currentTarget;
     const selectedOption = option.dataset.option;
-    const quizContainer = option.closest('.bot');  // Acceder al div.bot padre
+    const quizContainer = option.closest('.bot');
     const quizData = {
         pregunta: quizContainer.querySelector('p').textContent,
         opciones: Array.from(quizContainer.querySelectorAll('.quiz-option')).map(opt => opt.dataset.option),
         respuesta_correcta: quizContainer.dataset.respuestaCorrecta || '',
-        tema: 'unknown'
+        tema: quizContainer.dataset.tema || 'unknown'
     };
     if (!quizData.respuesta_correcta) {
         console.error('No se proporcionó respuesta_correcta');
@@ -861,6 +861,7 @@ const handleQuizOption = async (event) => {
         const container = getElement('#chatbox').querySelector('.message-container');
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('bot');
+        feedbackDiv.dataset.tema = quizData.tema; // Guardar el tema en el div
         feedbackDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
             `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar respuesta"><i class="fas fa-copy"></i></button>`;
         container.appendChild(feedbackDiv);
@@ -868,6 +869,10 @@ const handleQuizOption = async (event) => {
         if (window.Prism) Prism.highlightAll();
         speakText(data.respuesta);
         addCopyButtonListeners();
+
+        // Actualizar historial con el tema
+        historial.push({ pregunta: quizData.pregunta, respuesta: data.respuesta, tema: quizData.tema });
+        if (historial.length > 10) historial.shift();
     } catch (error) {
         handleFetchError(error, 'Respuesta de quiz');
         hideLoading(loadingDiv);
@@ -1082,10 +1087,25 @@ const handleQuizClick = () => {
     obtenerQuiz('opciones').then(mostrarQuizEnChat);
 };
 
-const handleRecommendClick = () => {
+const handleRecommendClick = async () => {
     console.log('Botón de recomendación clickeado');
-    obtenerRecomendacion().then(data => {
-        const mensaje = `Recomendación: ${data.recommendation}`;
+    const usuario = sessionStorage.getItem('usuario') || 'anonimo';
+    const historial = getHistorial();
+    const convId = currentConvId;
+
+    const loadingDiv = showLoading();
+    try {
+        const res = await fetch('/recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario, historial })
+        });
+        if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
+        const data = await res.json();
+        currentConvId = data.conv_id || currentConvId;
+
+        const mensaje = data.recommendation;
+        const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || '';
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
@@ -1093,17 +1113,16 @@ const handleRecommendClick = () => {
         getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
         scrollToBottom();
         speakText(mensaje);
-        // Cambiar a fetch directo con {role: 'bot', content: mensaje}
-        fetch(`/messages/${currentConvId}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({role: 'bot', content: mensaje})
-        });
         addCopyButtonListeners();
-        // Añadir a historial para contexto en /buscar_respuesta
-        // Asumiendo que tienes una variable global historial
-        historial.push({pregunta: '', respuesta: mensaje});  // Añadir recomendación como respuesta
-    });
+
+        // Actualizar historial con el tema
+        historial.push({ pregunta: '', respuesta: mensaje, tema });
+        if (historial.length > 10) historial.shift();
+    } catch (error) {
+        handleFetchError(error, 'Obtener recomendación');
+    } finally {
+        hideLoading(loadingDiv);
+    }
 };
 
 const handleInputKeydown = (event) => {

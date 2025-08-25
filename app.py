@@ -209,11 +209,17 @@ def init_db():
                       conv_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
                       role TEXT NOT NULL,
                       content TEXT NOT NULL,
+                      tema TEXT,  -- Campo añadido para almacenar el tema
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
         # Migrar tablas antiguas
         for table in ["logs", "quiz_logs", "conversations", "messages"]:
             _ensure_created_at(c, table)
+
+        # Añadir campo tema si no existe
+        if not _col_exists(c, 'messages', 'tema'):
+            c.execute("ALTER TABLE messages ADD COLUMN tema TEXT")
+            logger.info("[migración] Añadido campo tema en messages")
 
         # Índices existentes
         c.execute('CREATE INDEX IF NOT EXISTS idx_usuario_progreso ON progreso(usuario)')
@@ -297,14 +303,15 @@ def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
     except PsycopgError as e:
         logger.error("Error al guardar progreso", error=str(e))
 
-def guardar_mensaje(usuario, conv_id, role, content):
+def guardar_mensaje(usuario, conv_id, role, content, tema=None):
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("INSERT INTO messages (conv_id, role, content) VALUES (%s, %s, %s)", (conv_id, role, content))
+        c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)", 
+                  (conv_id, role, content, tema))
         conn.commit()
         conn.close()
-        logger.info(f"Mensaje guardado", usuario=usuario, conv_id=conv_id, role=role)
+        logger.info(f"Mensaje guardado", usuario=usuario, conv_id=conv_id, role=role, tema=tema)
     except PsycopgError as e:
         logger.error("Error al guardar mensaje", error=str(e))
 
@@ -322,6 +329,10 @@ def call_groq_api(messages, model, max_tokens, temperature):
         if '503' in str(e):
             raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
+
+class MessageInput(BaseModel):
+    role: str
+    content: str
 
 @app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
 @limiter.limit("50 per hour")
@@ -356,7 +367,7 @@ def handle_messages(conv_id):
             return jsonify({"error": "No se pudieron obtener los mensajes", "status": 500}), 500
 
     try:
-        data = BuscarRespuestaInput(**request.get_json())
+        data = MessageInput(**request.get_json())
         role = data.role
         content = data.content
 
@@ -528,6 +539,77 @@ def buscar_respuesta():
                 logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
+        # Detectar si la pregunta pide más información sobre un tema previo
+        tema_contexto = None
+        if re.match(r"^(sí deseo saber más|sí quiero saber más|explícame eso|quiero estudiar eso|cuéntame más|saber más|dime más|explicame más|explícame más|continúa)$", pregunta_norm):
+            # Buscar el tema en el historial reciente o en los mensajes de la conversación
+            if historial:
+                # Buscar el último mensaje con un tema relevante
+                for msg in reversed(historial):
+                    if 'tema' in msg and msg['tema'] in TEMAS_DISPONIBLES:
+                        tema_contexto = msg['tema']
+                        break
+            if not tema_contexto and conv_id:
+                try:
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("""
+                        SELECT tema FROM messages
+                        WHERE conv_id = %s AND tema IS NOT NULL
+                        ORDER BY created_at DESC LIMIT 1
+                    """, (conv_id,))
+                    row = c.fetchone()
+                    conn.close()
+                    if row:
+                        tema_contexto = row[0] if row[0] in TEMAS_DISPONIBLES else None
+                except Exception as e:
+                    logger.error("Error obteniendo tema del historial de mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
+
+        if tema_contexto:
+            # Si se detectó un tema en el contexto, generar una explicación específica
+            prompt = (
+                f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+                f"Proporciona una explicación sobre el tema '{tema_contexto}' en el nivel '{nivel_explicacion}'. "
+                f"Sigue estrictamente estas reglas:\n"
+                f"1. Responde solo sobre el tema: {tema_contexto}.\n"
+                f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
+                f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
+                f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
+                f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
+                f"3. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
+                f"4. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+                f"5. No uses emoticones ni emojis.\n"
+                f"Contexto: Tema solicitado es '{tema_contexto}'.\nTimestamp: {int(time.time())}"
+            )
+
+            try:
+                completion = call_groq_api(
+                    messages=[
+                        {"role": "system", "content": prompt},
+                        {"role": "user", "content": f"Explica {tema_contexto}"}
+                    ],
+                    model="llama3-70b-8192",
+                    max_tokens=300,
+                    temperature=0.2
+                )
+                respuesta = completion.choices[0].message.content.strip()
+                if pregunta and conv_id:
+                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_contexto)
+                logger.info("Explicación generada para tema contextual", tema=tema_contexto, pregunta=pregunta, usuario=usuario, conv_id=conv_id)
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+            except Exception as e:
+                logger.error("Error al procesar explicación contextual", error=str(e), tema=tema_contexto, usuario=usuario)
+                respuesta = (
+                    f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar la explicación de {tema_contexto}. "
+                    f"Intenta con otra pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
+                    f"¿Tienes alguna pregunta adicional sobre este tema?"
+                )
+                if pregunta and conv_id:
+                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_contexto)
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+
         if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
             tema_sugerido = random.choice(TEMAS_DISPONIBLES)
             respuesta = (
@@ -537,7 +619,7 @@ def buscar_respuesta():
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_sugerido)
             logger.info("Sugerencia de tema enviada", tema=tema_sugerido, usuario=usuario, conv_id=conv_id)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
@@ -612,10 +694,11 @@ def buscar_respuesta():
                 temperature=0.2
             )
             respuesta = completion.choices[0].message.content.strip()
+            tema_identificado = next((tema for tema in TEMAS_DISPONIBLES if tema.lower() in pregunta_norm), None)
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-            logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
+            logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
         except Exception as e:
             logger.error("Error al procesar respuesta", error=str(e), pregunta=pregunta, usuario=usuario)
@@ -696,6 +779,11 @@ def quiz():
             except ValueError as ve:
                 logger.error("Formato de quiz de respaldo inválido", error=str(ve), usuario=usuario)
                 return jsonify({"error": "No se pudo generar un quiz válido", "status": 500}), 500
+
+        # Guardar la pregunta del quiz como mensaje
+        if conv_id := session.get('current_conv_id'):
+            pregunta_texto = f"{quiz_data['pregunta']} Opciones: {', '.join(quiz_data['opciones'])}"
+            guardar_mensaje(usuario, conv_id, 'bot', pregunta_texto, tema=quiz_data['tema'])
 
         logger.info("Quiz generado", usuario=usuario, tema=quiz_data['tema'], nivel=nivel)
         return jsonify(quiz_data)
@@ -920,7 +1008,7 @@ def recommend():
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         conv_id = session.get('current_conv_id')
         if conv_id:
-            guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto)
+            guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto, tema=recomendacion)
         logger.info("Recomendación generada", recomendacion=recomendacion_texto, usuario=usuario, conv_id=conv_id)
         return jsonify({"recommendation": recomendacion_texto, 'conv_id': conv_id if conv_id else None})
     except ValidationError as e:
@@ -930,6 +1018,8 @@ def recommend():
         logger.error("Error en /recommend", error=str(e), usuario=session.get('usuario', 'anonimo'))
         recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
+        if conv_id := session.get('current_conv_id'):
+            guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto, tema=recomendacion)
         logger.warning(f"Usando recomendación de fallback: {recomendacion_texto}", usuario=session.get('usuario', 'anonimo'))
         return jsonify({"recommendation": recomendacion_texto})
 
