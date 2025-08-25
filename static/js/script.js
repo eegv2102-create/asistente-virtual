@@ -1092,7 +1092,6 @@ const handleRecommendClick = async () => {
     const usuario = sessionStorage.getItem('usuario') || 'anonimo';
     const historial = getHistorial();
     const convId = currentConvId;
-
     const loadingDiv = showLoading();
     try {
         console.log('Enviando solicitud a /recommend', { usuario, historial, convId });
@@ -1109,11 +1108,8 @@ const handleRecommendClick = async () => {
         const data = await res.json();
         console.log('Datos recibidos:', data);
         currentConvId = data.conv_id || currentConvId;
-
         const mensaje = data.recommendation;
-        if (!mensaje) {
-            throw new Error('No se recibió recomendación válida');
-        }
+        if (!mensaje) throw new Error('No se recibió recomendación válida');
         const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || '';
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -1130,8 +1126,6 @@ const handleRecommendClick = async () => {
         scrollToBottom();
         speakText(mensaje);
         addCopyButtonListeners();
-
-        // Guardar el mensaje con el tema
         if (currentConvId) {
             console.log('Guardando mensaje en /messages/', currentConvId);
             await fetch(`/messages/${currentConvId}`, {
@@ -1143,15 +1137,12 @@ const handleRecommendClick = async () => {
                     tema: tema
                 })
             });
-            // Actualizar historial de chats
             console.log('Actualizando historial de chats');
             await cargarConversaciones();
         } else {
             console.warn('No hay currentConvId, no se puede guardar el mensaje');
             mostrarNotificacion('No se pudo guardar la conversación', 'error');
         }
-
-        // Actualizar historial con el tema
         historial.push({ pregunta: '', respuesta: mensaje, tema });
         if (historial.length > 10) historial.shift();
         localStorage.setItem('historial', JSON.stringify(historial));
