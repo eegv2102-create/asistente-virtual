@@ -323,6 +323,10 @@ def call_groq_api(messages, model, max_tokens, temperature):
             raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
 
+class MessageInput(BaseModel):
+    role: str
+    content: str
+
 @app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
 @limiter.limit("50 per hour")
 def handle_messages(conv_id):
@@ -354,6 +358,98 @@ def handle_messages(conv_id):
         except Exception as e:
             logger.error("Error obteniendo mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
             return jsonify({"error": "No se pudieron obtener los mensajes", "status": 500}), 500
+
+    try:
+        data = MessageInput(**request.get_json())
+        role = data.role
+        content = data.content
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO messages (conv_id, role, content)
+            VALUES (%s, %s, %s)
+            RETURNING id, created_at
+        """, (conv_id, role, content))
+        row = c.fetchone()
+        conn.commit()
+        conn.close()
+
+        logger.info("Mensaje guardado en messages", conv_id=conv_id, role=role, usuario=usuario)
+        return jsonify({
+            "id": row[0],
+            "role": role,
+            "content": content,
+            "created_at": row[1].isoformat() if row[1] else None
+        })
+    except ValidationError as e:
+        logger.error("Validación fallida en /messages", error=str(e), conv_id=conv_id, usuario=usuario)
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
+    except Exception as e:
+        logger.error("Error guardando mensaje", error=str(e), conv_id=conv_id, usuario=usuario)
+        return jsonify({"error": "No se pudo guardar el mensaje", "status": 500}), 500
+    
+@app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
+@limiter.limit("50 per hour")
+def handle_messages(conv_id):
+    usuario = session.get('usuario', 'anonimo')
+
+    if request.method == 'GET':
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("""
+                SELECT id, role, content, created_at
+                FROM messages
+                WHERE conv_id = %s
+                ORDER BY created_at ASC
+            """, (conv_id,))
+            rows = c.fetchall()
+            conn.close()
+
+            messages = [
+                {
+                    "id": r[0],
+                    "role": r[1],
+                    "content": r[2],
+                    "created_at": (r[3].isoformat() if r[3] else None)
+                } for r in rows
+            ]
+            logger.info("Mensajes obtenidos", conv_id=conv_id, usuario=usuario, message_count=len(messages))
+            return jsonify({"messages": messages})
+        except Exception as e:
+            logger.error("Error obteniendo mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
+            return jsonify({"error": "No se pudieron obtener los mensajes", "status": 500}), 500
+
+    try:
+        data = MessageInput(**request.get_json())
+        role = data.role
+        content = data.content
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO messages (conv_id, role, content)
+            VALUES (%s, %s, %s)
+            RETURNING id, created_at
+        """, (conv_id, role, content))
+        row = c.fetchone()
+        conn.commit()
+        conn.close()
+
+        logger.info("Mensaje guardado en messages", conv_id=conv_id, role=role, usuario=usuario)
+        return jsonify({
+            "id": row[0],
+            "role": role,
+            "content": content,
+            "created_at": row[1].isoformat() if row[1] else None
+        })
+    except ValidationError as e:
+        logger.error("Validación fallida en /messages", error=str(e), conv_id=conv_id, usuario=usuario)
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
+    except Exception as e:
+        logger.error("Error guardando mensaje", error=str(e), conv_id=conv_id, usuario=usuario)
+        return jsonify({"error": "No se pudo guardar el mensaje", "status": 500}), 500
 
     try:
         data = BuscarRespuestaInput(**request.get_json())

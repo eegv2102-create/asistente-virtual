@@ -823,10 +823,11 @@ const mostrarQuizEnChat = async (quizData) => {
 const handleQuizOption = async (event) => {
     const option = event.currentTarget;
     const selectedOption = option.dataset.option;
+    const quizContainer = option.closest('.bot');  // Acceder al div.bot padre
     const quizData = {
-        pregunta: option.parentElement.previousElementSibling.textContent,
-        opciones: Array.from(option.parentElement.children).map(opt => opt.dataset.option),
-        respuesta_correcta: option.parentElement.dataset.respuestaCorrecta || '',
+        pregunta: quizContainer.querySelector('p').textContent,
+        opciones: Array.from(quizContainer.querySelectorAll('.quiz-option')).map(opt => opt.dataset.option),
+        respuesta_correcta: quizContainer.dataset.respuestaCorrecta || '',
         tema: 'unknown'
     };
     if (!quizData.respuesta_correcta) {
@@ -853,7 +854,7 @@ const handleQuizOption = async (event) => {
         const isCorrect = data.es_correcta;
         option.classList.add(isCorrect ? 'correct' : 'incorrect');
         if (!isCorrect) {
-            const correctOption = option.parentElement.querySelector(`.quiz-option[data-option="${data.respuesta_correcta}"]`);
+            const correctOption = quizContainer.querySelector(`.quiz-option[data-option="${data.respuesta_correcta}"]`);
             if (correctOption) correctOption.classList.add('correct');
         }
         hideLoading(loadingDiv);
@@ -1092,8 +1093,16 @@ const handleRecommendClick = () => {
         getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
         scrollToBottom();
         speakText(mensaje);
-        guardarMensaje('Recomendación', mensaje);
+        // Cambiar a fetch directo con {role: 'bot', content: mensaje}
+        fetch(`/messages/${currentConvId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({role: 'bot', content: mensaje})
+        });
         addCopyButtonListeners();
+        // Añadir a historial para contexto en /buscar_respuesta
+        // Asumiendo que tienes una variable global historial
+        historial.push({pregunta: '', respuesta: mensaje});  // Añadir recomendación como respuesta
     });
 };
 
