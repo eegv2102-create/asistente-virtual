@@ -29,11 +29,8 @@
             </button>
         </div>
     </header>
-
     <div class="header-divider"></div>
-
     <div id="voice-hint" class="voice-hint hidden">Haz clic en cualquier lugar para habilitar el audio</div>
-
     <div class="container">
         <aside class="left-section">
             <div class="sidebar-content">
@@ -47,7 +44,6 @@
                         <span>Recomendar Tema</span>
                     </button>
                 </div>
-
                 <h3>Historial de Chats</h3>
                 <div class="chat-history">
                     <ul id="chat-list">
@@ -56,7 +52,6 @@
                 </div>
             </div>
         </aside>
-
         <section class="main-section">
             <div id="chatbox">
                 <div class="message-container"></div>
@@ -81,7 +76,7 @@
                         <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
                     </div>
                 </div>
-                <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
+                <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
                 <div class="input-buttons right">
                     <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
                         <i class="fas fa-paper-plane"></i>
@@ -120,11 +115,10 @@
                     </div>
                 </div>
                 <div class="mobile-bottom-row">
-                    <input type="text" id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta">
+                    <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
                 </div>
             </div>
         </section>
-
         <aside class="right-section">
             <h3>Selección de Avatar</h3>
             <div class="avatar-options">
@@ -132,12 +126,10 @@
             </div>
         </aside>
     </div>
-
     <div id="notification-card">
         <p>Notificación</p>
         <button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación">Cerrar</button>
     </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script src="/static/js/script.js"></script>
