@@ -1108,16 +1108,37 @@ const handleRecommendClick = async () => {
         const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || '';
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
+        botDiv.dataset.tema = tema; // Guardar el tema en el div
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
             `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        getElement('#chatbox').querySelector('.message-container').appendChild(botDiv);
+        const container = getElement('#chatbox').querySelector('.message-container');
+        if (!container) {
+            console.error('Contenedor .message-container no encontrado');
+            mostrarNotificacion('Error: No se encontró el contenedor del chat', 'error');
+            return;
+        }
+        container.appendChild(botDiv);
         scrollToBottom();
         speakText(mensaje);
         addCopyButtonListeners();
 
+        // Guardar el mensaje con el tema
+        if (currentConvId) {
+            await fetch(`/messages/${currentConvId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    role: 'bot',
+                    content: mensaje,
+                    tema: tema
+                })
+            });
+        }
+
         // Actualizar historial con el tema
         historial.push({ pregunta: '', respuesta: mensaje, tema });
         if (historial.length > 10) historial.shift();
+        localStorage.setItem('historial', JSON.stringify(historial));
     } catch (error) {
         handleFetchError(error, 'Obtener recomendación');
     } finally {
