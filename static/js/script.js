@@ -1088,23 +1088,32 @@ const handleQuizClick = () => {
 };
 
 const handleRecommendClick = async () => {
-    console.log('Botón de recomendación clickeado');
+    console.log('Botón de recomendación clickeado, iniciando proceso');
     const usuario = sessionStorage.getItem('usuario') || 'anonimo';
     const historial = getHistorial();
     const convId = currentConvId;
 
     const loadingDiv = showLoading();
     try {
+        console.log('Enviando solicitud a /recommend', { usuario, historial, convId });
         const res = await fetch('/recommend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario, historial })
         });
-        if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
+        console.log('Respuesta recibida de /recommend', { status: res.status });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(`Error al obtener recomendación: ${res.status} - ${errData.error || res.statusText}`);
+        }
         const data = await res.json();
+        console.log('Datos recibidos:', data);
         currentConvId = data.conv_id || currentConvId;
 
         const mensaje = data.recommendation;
+        if (!mensaje) {
+            throw new Error('No se recibió recomendación válida');
+        }
         const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || '';
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -1124,6 +1133,7 @@ const handleRecommendClick = async () => {
 
         // Guardar el mensaje con el tema
         if (currentConvId) {
+            console.log('Guardando mensaje en /messages/', currentConvId);
             await fetch(`/messages/${currentConvId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1134,15 +1144,22 @@ const handleRecommendClick = async () => {
                 })
             });
             // Actualizar historial de chats
+            console.log('Actualizando historial de chats');
             await cargarConversaciones();
+        } else {
+            console.warn('No hay currentConvId, no se puede guardar el mensaje');
+            mostrarNotificacion('No se pudo guardar la conversación', 'error');
         }
 
         // Actualizar historial con el tema
         historial.push({ pregunta: '', respuesta: mensaje, tema });
         if (historial.length > 10) historial.shift();
         localStorage.setItem('historial', JSON.stringify(historial));
+        console.log('Historial actualizado y guardado en localStorage');
     } catch (error) {
+        console.error('Error en handleRecommendClick:', error);
         handleFetchError(error, 'Obtener recomendación');
+        mostrarNotificacion(`Error al obtener recomendación: ${error.message}`, 'error');
     } finally {
         hideLoading(loadingDiv);
     }
