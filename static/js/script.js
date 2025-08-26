@@ -970,7 +970,7 @@ const cargarTemas = async () => {
 // Configuración de la escena 3D para el avatar
 let scene, camera, renderer, avatarModel;
 
-function setupAvatarScene() {
+async function setupAvatarScene() {
     try {
         const container = getElement('#avatar-container');
         if (!container) {
@@ -978,6 +978,12 @@ function setupAvatarScene() {
             mostrarNotificacion('No se encontró el contenedor del avatar', 'error');
             return;
         }
+
+        // Obtener API Key
+        const keyRes = await fetch('/get_rpm_api_key');
+        if (!keyRes.ok) throw new Error(`Error al obtener la API Key: ${keyRes.statusText}`);
+        const keyData = await keyRes.json();
+        const apiKey = keyData.rpm_api_key;
 
         // Crear escena, cámara y renderizador
         scene = new THREE.Scene();
@@ -993,29 +999,40 @@ function setupAvatarScene() {
         directionalLight.position.set(0, 1, 1);
         scene.add(directionalLight);
 
-        // Cargar modelo GLB
+        // Cargar modelo GLB con autenticación
+        const avatarUrl = `https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb?apiKey=${apiKey}`;
         const loader = new THREE.GLTFLoader();
         loader.load(
-            'https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb',
+            avatarUrl,
             (gltf) => {
                 avatarModel = gltf.scene;
                 avatarModel.scale.set(1.5, 1.5, 1.5);
                 avatarModel.position.set(0, -1, 0);
                 scene.add(avatarModel);
-                console.log('Modelo GLB cargado');
+                console.log('Modelo GLB cargado:', avatarUrl);
+                container.classList.remove('error', 'loading');
                 animate();
             },
-            undefined,
+            (xhr) => {
+                const percentComplete = (xhr.loaded / xhr.total) * 100;
+                console.log(`Cargando avatar: ${percentComplete}%`);
+                container.classList.add('loading');
+            },
             (error) => {
                 console.error('Error al cargar el modelo GLB:', error);
                 mostrarNotificacion('Error al cargar el avatar 3D', 'error');
+                container.classList.add('error');
+                const fallbackImg = document.createElement('img');
+                fallbackImg.src = '/static/avatars/fallback.png';
+                fallbackImg.alt = 'Avatar no disponible';
+                fallbackImg.style.width = '100%';
+                fallbackImg.style.height = '100%';
+                container.appendChild(fallbackImg);
             }
         );
 
-        // Posicionar cámara
         camera.position.z = 2;
 
-        // Manejar redimensionamiento
         window.addEventListener('resize', () => {
             const width = container.clientWidth;
             const height = container.clientHeight;
@@ -1024,7 +1041,6 @@ function setupAvatarScene() {
             camera.updateProjectionMatrix();
         });
 
-        // Animación
         function animate() {
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
@@ -1032,6 +1048,16 @@ function setupAvatarScene() {
     } catch (error) {
         console.error('Error en setupAvatarScene:', error);
         mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
+        const container = getElement('#avatar-container');
+        if (container) {
+            container.classList.add('error');
+            const fallbackImg = document.createElement('img');
+            fallbackImg.src = '/static/avatars/fallback.png';
+            fallbackImg.alt = 'Avatar no disponible';
+            fallbackImg.style.width = '100%';
+            fallbackImg.style.height = '100%';
+            container.appendChild(fallbackImg);
+        }
     }
 }
 

@@ -1302,3 +1302,26 @@ body.modo-oscuro .bot code {
 .container, .main-section, .right-section, .left-section {
   overflow: visible !important;
 }
+
+#avatar-container.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-secondary);
+}
+#avatar-container.loading::after {
+    content: 'Cargando avatar...';
+    color: var(--text-color);
+    font-size: 1rem;
+}
+#avatar-container.error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--error-bg, #ffe6e6);
+}
+#avatar-container.error::after {
+    content: 'Error al cargar el avatar';
+    color: var(--error-color, #d32f2f);
+    font-size: 1rem;
+}
