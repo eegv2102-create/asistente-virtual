@@ -1022,17 +1022,13 @@ async function setupAvatarScene() {
                 console.error('Error al cargar el modelo GLB:', error);
                 mostrarNotificacion('Error al cargar el avatar 3D', 'error');
                 container.classList.add('error');
-                const fallbackImg = document.createElement('img');
-                fallbackImg.src = '/static/avatars/fallback.png';
-                fallbackImg.alt = 'Avatar no disponible';
-                fallbackImg.style.width = '100%';
-                fallbackImg.style.height = '100%';
-                container.appendChild(fallbackImg);
             }
         );
 
+        // Posicionar cámara
         camera.position.z = 2;
 
+        // Manejar redimensionamiento
         window.addEventListener('resize', () => {
             const width = container.clientWidth;
             const height = container.clientHeight;
@@ -1041,6 +1037,7 @@ async function setupAvatarScene() {
             camera.updateProjectionMatrix();
         });
 
+        // Animación
         function animate() {
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
@@ -1051,16 +1048,9 @@ async function setupAvatarScene() {
         const container = getElement('#avatar-container');
         if (container) {
             container.classList.add('error');
-            const fallbackImg = document.createElement('img');
-            fallbackImg.src = '/static/avatars/fallback.png';
-            fallbackImg.alt = 'Avatar no disponible';
-            fallbackImg.style.width = '100%';
-            fallbackImg.style.height = '100%';
-            container.appendChild(fallbackImg);
         }
     }
 }
-
 const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
