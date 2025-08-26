@@ -1086,6 +1086,19 @@ def get_avatars():
         cache[cache_key] = response
         return response, 200
 
+@app.route('/get_rpm_api_key', methods=['GET'])
+@limiter.limit("10 per minute")
+def get_rpm_api_key():
+    try:
+        api_key = os.getenv('RPM_API_KEY')
+        if not api_key:
+            logger.error("RPM_API_KEY no configurada")
+            return jsonify({"error": "API Key no configurada", "status": 500}), 500
+        return jsonify({"rpm_api_key": api_key})
+    except Exception as e:
+        logger.error("Error al obtener RPM_API_KEY", error=str(e))
+        return jsonify({"error": f"Error al obtener API Key: {str(e)}", "status": 500}), 500
+    
 try:
     logger.info("Iniciando inicialización de DB")
     init_db()

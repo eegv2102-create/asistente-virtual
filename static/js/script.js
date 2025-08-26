@@ -1211,8 +1211,176 @@ const guardarMensaje = async (tipo, mensaje) => {
         handleFetchError(error, 'Guardado de mensaje');
     }
 };
+// Configuración de la escena 3D para el avatar
+let scene, camera, renderer, avatarModel;
 
+function setupAvatarScene() {
+    const container = getElement('#avatar-container');
+    if (!container) {
+        console.error('Contenedor #avatar-container no encontrado');
+        mostrarNotificacion('No se encontró el contenedor del avatar', 'error');
+        return;
+    }
+
+    // Crear escena, cámara y renderizador
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    // Añadir luces
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(0, 1, 1);
+    scene.add(directionalLight);
+
+    // Cargar modelo GLB
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+        'https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb',
+        (gltf) => {
+            avatarModel = gltf.scene;
+            avatarModel.scale.set(1.5, 1.5, 1.5);
+            avatarModel.position.set(0, -1, 0);
+            scene.add(avatarModel);
+            console.log('Modelo GLB cargado');
+            animate();
+        },
+        undefined,
+        (error) => {
+            console.error('Error al cargar el modelo GLB:', error);
+            mostrarNotificacion('Error al cargar el avatar 3D', 'error');
+        }
+    );
+
+    // Posicionar cámara
+    camera.position.z = 2;
+
+    // Manejar redimensionamiento
+    window.addEventListener('resize', () => {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+    });
+
+    // Animación
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+}
+
+// Modificar sendMessage para integrar animaciones
+const originalSendMessage = sendMessage;
+sendMessage = async function () {
+    const inputElement = getElement('#input');
+    const nivelBtn = getElement('#nivel-btn');
+    if (!inputElement || !nivelBtn) return;
+
+    const pregunta = inputElement.value.trim();
+    if (!pregunta) return;
+
+    const usuario = sessionStorage.getItem('usuario') || 'anonimo';
+    const nivel = nivelBtn.textContent.trim().toLowerCase().includes('básica') ? 'basica' :
+                  nivelBtn.textContent.trim().toLowerCase().includes('ejemplos') ? 'ejemplos' : 'avanzada';
+    const historial = getHistorial();
+
+    const userDiv = document.createElement('div');
+    userDiv.classList.add('user');
+    userDiv.innerHTML = marked.parse(pregunta);
+    const container = getElement('#chatbox').querySelector('.message-container');
+    container.appendChild(userDiv);
+    scrollToBottom();
+
+    const loadingDiv = showLoading();
+
+    try {
+        const res = await fetch('/buscar_respuesta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pregunta, historial, nivel_explicacion: nivel, conv_id: currentConvId })
+        });
+        if (!res.ok) throw new Error(`Error en /buscar_respuesta: ${res.statusText}`);
+        const data = await res.json();
+        currentConvId = data.conv_id || currentConvId;
+
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
+            `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        container.appendChild(botDiv);
+        scrollToBottom();
+
+        // Obtener API Key desde el servidor
+        let rpmApiKey;
+        try {
+            const keyRes = await fetch('/get_rpm_api_key');
+            if (!keyRes.ok) throw new Error('Error al obtener la API Key');
+            const keyData = await keyRes.json();
+            rpmApiKey = keyData.rpm_api_key;
+        } catch (error) {
+            console.error('Error al obtener RPM_API_KEY:', error);
+            mostrarNotificacion('No se pudo obtener la clave para animación', 'error');
+            return;
+        }
+
+        // Llamada a la API de Ready Player Me para animación
+        const animationRes = await fetch('https://api.readyplayer.me/v1/animation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${rpmApiKey}`
+            },
+            body: JSON.stringify({ text: data.respuesta })
+        });
+        if (!animationRes.ok) throw new Error('Error al obtener animación de Ready Player Me');
+        const animationData = await animationRes.json();
+        const { audioUrl, visemes } = animationData;
+
+        // Reproducir audio
+        currentAudio = new Audio(audioUrl);
+        currentAudio.play().catch(error => {
+            console.error('Error al reproducir audio:', error);
+            mostrarNotificacion('Error al reproducir audio', 'error');
+        });
+
+        // Aplicar visemas (simplificado, depende del SDK de Ready Player Me)
+        if (avatarModel && visemes) {
+            let visemeIndex = 0;
+            const visemeInterval = setInterval(() => {
+                if (visemeIndex >= visemes.length) {
+                    clearInterval(visemeInterval);
+                    return;
+                }
+                const viseme = visemes[visemeIndex];
+                console.log('Aplicando visema:', viseme); // Implementar lógica de visemas con SDK
+                visemeIndex++;
+            }, 100); // Ajustar según la duración de los visemas
+        }
+
+        // Actualizar historial y guardar mensaje
+        historial.push({ pregunta, respuesta: data.respuesta });
+        if (historial.length > 10) historial.shift();
+        localStorage.setItem('historial', JSON.stringify(historial));
+        await fetch(`/messages/${currentConvId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'bot', content: data.respuesta })
+        });
+        await cargarConversaciones();
+    } catch (error) {
+        handleFetchError(error, 'Enviar mensaje');
+    } finally {
+        hideLoading(loadingDiv);
+    }
+};
+
+// Inicializar escena al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded disparado, inicializando aplicación');
-    init();
+    setupAvatarScene();
+    init(); // Llama a la función init existente
 });
