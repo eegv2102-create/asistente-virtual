@@ -120,8 +120,6 @@ const speakText = async (text, audioUrl = null) => {
         pendingWelcomeMessage = text;
         return;
     }
-    const botMessage = getElement('.bot:last-child');
-    if (botMessage) botMessage.classList.add('speaking');
     if (currentAudio) {
         if (currentAudio instanceof Audio) {
             currentAudio.pause();
@@ -133,19 +131,19 @@ const speakText = async (text, audioUrl = null) => {
     }
     try {
         if (audioUrl) {
-            // Usar audio de Ready Player Me si se proporciona
             currentAudio = new Audio(audioUrl);
             currentAudio.play().catch(error => {
                 console.error('Error al reproducir audio de Ready Player Me:', error);
                 mostrarNotificacion('Error al reproducir audio', 'error');
+                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
             });
             currentAudio.onended = () => {
+                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
                 currentAudio = null;
             };
         } else {
-            // Usar endpoint /tts existente
             const reemplazosTTS = {
                 'POO': 'Programación Orientada a Objetos',
                 'UML': 'U Em Ele',
@@ -181,9 +179,11 @@ const speakText = async (text, audioUrl = null) => {
             currentAudio.play().catch(error => {
                 console.error('Error al reproducir audio:', error);
                 mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
+                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
             });
             currentAudio.onended = () => {
+                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
                 currentAudio = null;
             };
@@ -196,6 +196,7 @@ const speakText = async (text, audioUrl = null) => {
             if (!esVoice) {
                 console.warn('No se encontró voz en español');
                 mostrarNotificacion('No se encontró voz en español', 'error');
+                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
                 return;
             }
@@ -205,6 +206,7 @@ const speakText = async (text, audioUrl = null) => {
             utterance.pitch = 1;
             utterance.rate = 0.9;
             utterance.onend = () => {
+                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
                 currentAudio = null;
             };
@@ -214,6 +216,7 @@ const speakText = async (text, audioUrl = null) => {
                 if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página primero';
                 if (event.error === 'network') errorMsg = 'Error de red en síntesis de voz';
                 mostrarNotificacion(errorMsg, 'error');
+                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
@@ -221,6 +224,7 @@ const speakText = async (text, audioUrl = null) => {
         } else {
             console.warn('speechSynthesis no soportado');
             mostrarNotificacion('Audio no soportado en este navegador', 'error');
+            const botMessage = getElement('.bot:last-child');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
@@ -465,7 +469,7 @@ const renombrarConversacion = async (convId) => {
     }
 };
 
-const sendMessage = async () => {
+async function sendMessage() {
     const input = getElement('#input');
     const nivelBtn = getElement('#nivel-btn');
     if (!input || !nivelBtn) {
@@ -540,31 +544,12 @@ const sendMessage = async () => {
         if (window.Prism) Prism.highlightAll();
         addCopyButtonListeners();
 
-        // Obtener API Key desde el servidor para Ready Player Me
-        let rpmApiKey;
+        // Llamada al proxy para la API de Ready Player Me
         try {
-            const keyRes = await fetch('/get_rpm_api_key');
-            if (!keyRes.ok) throw new Error(`Error al obtener la API Key: ${keyRes.statusText}`);
-            const keyData = await keyRes.json();
-            rpmApiKey = keyData.rpm_api_key;
-        } catch (error) {
-            console.error('Error al obtener RPM_API_KEY:', error);
-            mostrarNotificacion('No se pudo obtener la clave para animación', 'error');
-            // Continuar con audio TTS si la API falla
-            speakText(data.respuesta);
-            hideLoading(loadingDiv);
-            return;
-        }
-
-        // Llamada a la API de Ready Player Me para animación
-        try {
-            const animationRes = await fetch('https://api.readyplayer.me/v1/animation', {
+            const animationRes = await fetch('/proxy_rpm_animation', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${rpmApiKey}`
-                },
-                body: JSON.stringify({ text: data.respuesta })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: data.respuesta, voiceId: 'es-MX-JorgeNeural' })
             });
             if (!animationRes.ok) throw new Error('Error al obtener animación de Ready Player Me');
             const animationData = await animationRes.json();
@@ -608,7 +593,7 @@ const sendMessage = async () => {
     } finally {
         hideLoading(loadingDiv);
     }
-};
+}
 
 const nuevaConversacion = async () => {
     try {
@@ -1051,6 +1036,7 @@ async function setupAvatarScene() {
         }
     }
 }
+
 const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');

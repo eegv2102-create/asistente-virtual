@@ -347,6 +347,13 @@ def handle_messages(conv_id):
         try:
             conn = get_db_connection()
             c = conn.cursor()
+            # Verificar si la conversación existe y pertenece al usuario
+            c.execute("SELECT 1 FROM conversations WHERE id = %s AND usuario = %s", (conv_id, usuario))
+            if not c.fetchone():
+                conn.close()
+                logger.warning("Conversación no encontrada o no autorizada", conv_id=conv_id, usuario=usuario)
+                return jsonify({"error": "Conversación no encontrada o no autorizada", "status": 404}), 404
+
             c.execute("""
                 SELECT id, role, content, created_at
                 FROM messages
@@ -366,6 +373,9 @@ def handle_messages(conv_id):
             ]
             logger.info("Mensajes obtenidos", conv_id=conv_id, usuario=usuario, message_count=len(messages))
             return jsonify({"messages": messages})
+        except PsycopgError as e:
+            logger.error("Error de base de datos al obtener mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
+            return jsonify({"error": f"Error de base de datos: {str(e)}", "status": 500}), 500
         except Exception as e:
             logger.error("Error obteniendo mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
             return jsonify({"error": "No se pudieron obtener los mensajes", "status": 500}), 500
@@ -375,8 +385,15 @@ def handle_messages(conv_id):
         role = data.role
         content = data.content
 
+        # Verificar si la conversación existe
         conn = get_db_connection()
         c = conn.cursor()
+        c.execute("SELECT 1 FROM conversations WHERE id = %s AND usuario = %s", (conv_id, usuario))
+        if not c.fetchone():
+            conn.close()
+            logger.warning("Conversación no encontrada o no autorizada", conv_id=conv_id, usuario=usuario)
+            return jsonify({"error": "Conversación no encontrada o no autorizada", "status": 404}), 404
+
         c.execute("""
             INSERT INTO messages (conv_id, role, content)
             VALUES (%s, %s, %s)
@@ -396,6 +413,9 @@ def handle_messages(conv_id):
     except ValidationError as e:
         logger.error("Validación fallida en /messages", error=str(e), conv_id=conv_id, usuario=usuario)
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
+    except PsycopgError as e:
+        logger.error("Error de base de datos al guardar mensaje", error=str(e), conv_id=conv_id, usuario=usuario)
+        return jsonify({"error": f"Error de base de datos: {str(e)}", "status": 500}), 500
     except Exception as e:
         logger.error("Error guardando mensaje", error=str(e), conv_id=conv_id, usuario=usuario)
         return jsonify({"error": "No se pudo guardar el mensaje", "status": 500}), 500
@@ -1118,5 +1138,33 @@ except Exception as e:
     logger.error("Falló inicialización de DB", error=str(e))
     exit(1)
 
+@app.route('/proxy_rpm_animation', methods=['POST'])
+@limiter.limit("30 per hour")
+async def proxy_rpm_animation():
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            logger.error("Datos inválidos en /proxy_rpm_animation", usuario=session.get('usuario', 'anonimo'))
+            return jsonify({"error": "Texto requerido", "status": 400}), 400
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                'https://api.readyplayer.me/v1/animation',
+                headers={
+                    'Authorization': f'Bearer {os.getenv("RPM_API_KEY")}',
+                    'Content-Type': 'application/json'
+                },
+                json=data
+            )
+            if not response.is_success:
+                logger.error("Error en la API de Ready Player Me", status=response.status_code, usuario=session.get('usuario', 'anonimo'))
+                return jsonify({"error": f"Error en Ready Player Me: {response.status_code}", "status": response.status_code}), response.status_code
+
+            logger.info("Animación obtenida de Ready Player Me", usuario=session.get('usuario', 'anonimo'))
+            return jsonify(response.json()), 200
+    except Exception as e:
+        logger.error("Error en /proxy_rpm_animation", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({"error": f"Error al procesar animación: {str(e)}", "status": 500}), 500
+    
 if __name__ == "__main__":
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
