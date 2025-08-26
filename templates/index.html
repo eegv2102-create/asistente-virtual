@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🧠 YELIA 🤖</title>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Fira_Code:wght@400;500&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
@@ -18,14 +19,14 @@
 <body>
     <header class="app-title">
         <div class="title-container">
-            <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i></button>
-            <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i></button>
-            <button id="modo-btn" data-tooltip="Cambiar Modo" aria-label="Cambiar modo">
+            <button class="menu-toggle" aria-label="Abrir menú izquierdo" role="button"><i class="fas fa-bars"></i></button>
+            <button class="menu-toggle-right" aria-label="Abrir menú derecho" role="button"><i class="fas fa-bars"></i></button>
+            <button id="modo-btn" data-tooltip="Cambiar Modo" aria-label="Cambiar modo" role="button">
                 <i class="fas fa-moon"></i>
                 <span id="modo-text"></span>
             </button>
             <h1>🧠 YELIA 🤖</h1>
-            <button id="voice-btn" data-tooltip="Activar Audio" aria-label="Activar/Desactivar audio">
+            <button id="voice-btn" data-tooltip="Activar Audio" aria-label="Activar/Desactivar audio" role="button">
                 <i class="fas fa-volume-up"></i>
                 <span id="voice-text"></span>
             </button>
@@ -37,11 +38,11 @@
         <aside class="left-section">
             <div class="sidebar-content">
                 <div class="sidebar-buttons">
-                    <button id="quiz-btn" data-tooltip="Iniciar Quiz" aria-label="Iniciar Quiz">
+                    <button id="quiz-btn" data-tooltip="Iniciar Quiz" aria-label="Iniciar Quiz" role="button">
                         <i class="fas fa-question-circle"></i>
                         <span>Iniciar Quiz</span>
                     </button>
-                    <button id="recommend-btn" data-tooltip="Recomendar Tema" aria-label="Recomendar Tema">
+                    <button id="recommend-btn" data-tooltip="Recomendar Tema" aria-label="Recomendar Tema" role="button">
                         <i class="fas fa-lightbulb"></i>
                         <span>Recomendar Tema</span>
                     </button>
@@ -61,15 +62,15 @@
             <div class="input-group">
                 <!-- Elementos para PC -->
                 <div class="input-buttons left">
-                    <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
+                    <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat" role="button">
                         <i class="fas fa-plus"></i>
                     </button>
-                    <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
+                    <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat" role="button">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
                 <div class="dropdown-container">
-                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">
+                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación" role="button">
                         Explicación Básica <i class="fas fa-caret-down"></i>
                     </button>
                     <div class="dropdown-menu">
@@ -80,25 +81,25 @@
                 </div>
                 <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
                 <div class="input-buttons right">
-                    <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
+                    <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje" role="button">
                         <i class="fas fa-paper-plane"></i>
                     </button>
-                    <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
+                    <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz" role="button">
                         <i class="fas fa-microphone"></i>
                     </button>
                 </div>
                 <!-- Elementos para móvil -->
                 <div class="mobile-top-row">
                     <div class="input-buttons left">
-                        <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
+                        <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat" role="button">
                             <i class="fas fa-plus"></i>
                         </button>
-                        <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
+                        <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat" role="button">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
                     <div class="dropdown-container">
-                        <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">
+                        <button id="nivel-btn" aria-label="Seleccionar nivel de explicación" role="button">
                             Explicación Básica <i class="fas fa-caret-down"></i>
                         </button>
                         <div class="dropdown-menu">
@@ -108,10 +109,10 @@
                         </div>
                     </div>
                     <div class="input-buttons right">
-                        <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
+                        <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje" role="button">
                             <i class="fas fa-paper-plane"></i>
                         </button>
-                        <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
+                        <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz" role="button">
                             <i class="fas fa-microphone"></i>
                         </button>
                     </div>
@@ -122,13 +123,13 @@
             </div>
         </section>
         <aside class="right-section">
-            <h3>Selección de Avatar</h3>
-            <div id="avatar-container" style="width: 100%; height: 300px;"></div>
+            <h3>Avatar</h3>
+            <div id="avatar-container" aria-label="Avatar 3D"></div>
         </aside>
     </div>
     <div id="notification-card">
         <p>Notificación</p>
-        <button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación">Cerrar</button>
+        <button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación" role="button">Cerrar</button>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>

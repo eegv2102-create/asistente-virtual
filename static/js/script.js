@@ -1,7 +1,6 @@
 let vozActiva = localStorage.getItem('vozActiva') === 'true';
 let isListening = false;
 let recognition = null;
-let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
 let userHasInteracted = false;
 let pendingWelcomeMessage = null;
@@ -108,21 +107,8 @@ const toggleVoiceHint = (show) => {
     if (show) lastVoiceHintTime = now;
 };
 
-const updateAvatarDisplay = () => {
-    const avatarImg = getElement('#avatar-img');
-    if (!avatarImg) {
-        console.warn('Elemento #avatar-img no encontrado, omitiendo actualización');
-        return;
-    }
-    const avatars = JSON.parse(localStorage.getItem('avatars') || '[]');
-    const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: '/static/img/default-avatar.png' };
-    avatarImg.src = selected.url;
-    avatarImg.classList.add('animate-avatar');
-    setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
-};
-
-const speakText = async (text) => {
-    console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted });
+const speakText = async (text, audioUrl = null) => {
+    console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted, audioUrl });
     if (!vozActiva || !text) {
         console.warn('Audio desactivado o texto vacío', { vozActiva, text });
         mostrarNotificacion('Audio desactivado o texto vacío', 'error');
@@ -134,27 +120,6 @@ const speakText = async (text) => {
         pendingWelcomeMessage = text;
         return;
     }
-    const reemplazosTTS = {
-        'POO': 'Programación Orientada a Objetos',
-        'UML': 'U Em Ele',
-        'MVC': 'Em Vi Ci',
-        'ORM': 'Mapeo Objeto Relacional',
-        'BD': 'Base de Datos',
-        'API': 'A Pi I',
-        'SQL': 'Esquiu Ele'
-    };
-    let textoParaVoz = text
-        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '')
-        .replace(/```[\s\S]*?```/g, '')
-        .replace(/`[^`]+`/g, '')
-        .replace(/\*\*([^*]+)\*\*/g, '$1')
-        .replace(/\*([^*]+)\*/g, '$1')
-        .replace(/#+\s*/g, '')
-        .replace(/-\s*/g, '')
-        .replace(/\n+/g, ' ')
-        .replace(/\b(POO|UML|MVC|ORM|BD)\b/g, match => reemplazosTTS[match] || match)
-        .replace(/\bYELIA\b/g, 'Yelia')
-        .trim();
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
     if (currentAudio) {
@@ -167,29 +132,64 @@ const speakText = async (text) => {
         currentAudio = null;
     }
     try {
-        console.log('Enviando solicitud al endpoint /tts');
-        const res = await fetch('/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: textoParaVoz })
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
+        if (audioUrl) {
+            // Usar audio de Ready Player Me si se proporciona
+            currentAudio = new Audio(audioUrl);
+            currentAudio.play().catch(error => {
+                console.error('Error al reproducir audio de Ready Player Me:', error);
+                mostrarNotificacion('Error al reproducir audio', 'error');
+                if (botMessage) botMessage.classList.remove('speaking');
+            });
+            currentAudio.onended = () => {
+                if (botMessage) botMessage.classList.remove('speaking');
+                currentAudio = null;
+            };
+        } else {
+            // Usar endpoint /tts existente
+            const reemplazosTTS = {
+                'POO': 'Programación Orientada a Objetos',
+                'UML': 'U Em Ele',
+                'MVC': 'Em Vi Ci',
+                'ORM': 'Mapeo Objeto Relacional',
+                'BD': 'Base de Datos',
+                'API': 'A Pi I',
+                'SQL': 'Esquiu Ele'
+            };
+            let textoParaVoz = text
+                .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '')
+                .replace(/```[\s\S]*?```/g, '')
+                .replace(/`[^`]+`/g, '')
+                .replace(/\*\*([^*]+)\*\*/g, '$1')
+                .replace(/\*([^*]+)\*/g, '$1')
+                .replace(/#+\s*/g, '')
+                .replace(/-\s*/g, '')
+                .replace(/\n+/g, ' ')
+                .replace(/\b(POO|UML|MVC|ORM|BD)\b/g, match => reemplazosTTS[match] || match)
+                .replace(/\bYELIA\b/g, 'Yelia')
+                .trim();
+            const res = await fetch('/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: textoParaVoz })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
+            }
+            const blob = await res.blob();
+            currentAudio = new Audio(URL.createObjectURL(blob));
+            currentAudio.play().catch(error => {
+                console.error('Error al reproducir audio:', error);
+                mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
+                if (botMessage) botMessage.classList.remove('speaking');
+            });
+            currentAudio.onended = () => {
+                if (botMessage) botMessage.classList.remove('speaking');
+                currentAudio = null;
+            };
         }
-        const blob = await res.blob();
-        currentAudio = new Audio(URL.createObjectURL(blob));
-        currentAudio.play().catch(error => {
-            console.error('Error al reproducir audio:', error);
-            mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
-            if (botMessage) botMessage.classList.remove('speaking');
-        });
-        currentAudio.onended = () => {
-            if (botMessage) botMessage.classList.remove('speaking');
-            currentAudio = null;
-        };
     } catch (error) {
-        console.error('Fallo en /tts, intentando speechSynthesis:', error);
+        console.error('Fallo en reproducción de audio, intentando speechSynthesis:', error);
         if ('speechSynthesis' in window) {
             const voices = speechSynthesis.getVoices();
             const esVoice = voices.find(v => v.lang.includes('es'));
@@ -199,7 +199,7 @@ const speakText = async (text) => {
                 if (botMessage) botMessage.classList.remove('speaking');
                 return;
             }
-            const utterance = new SpeechSynthesisUtterance(textoParaVoz);
+            const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'es-ES';
             utterance.voice = esVoice;
             utterance.pitch = 1;
@@ -272,7 +272,6 @@ const toggleVoiceRecognition = () => {
         voiceToggleBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
         voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Detener reconocimiento de voz');
-        // Mejora: Animación de pulsación
         voiceToggleBtn.classList.add('pulse');
         mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
         const resetTimeout = () => {
@@ -280,7 +279,7 @@ const toggleVoiceRecognition = () => {
             timeoutId = setTimeout(() => {
                 if (isListening) stopSpeech();
                 mostrarNotificacion('Reconocimiento de voz detenido por inactividad', 'info');
-            }, 15000); // Mejora: Timeout reducido a 15s
+            }, 15000);
         };
         resetTimeout();
         recognition.onresult = event => {
@@ -327,44 +326,6 @@ const toggleVoiceRecognition = () => {
         };
     } else {
         stopSpeech();
-    }
-};
-
-const cargarAvatares = async () => {
-    const avatarContainer = getElement('.avatar-options');
-    if (!avatarContainer) return;
-    try {
-        const response = await fetch('/avatars', { cache: 'no-store' });
-        let avatares = [];
-        if (response.ok) {
-            const data = await response.json();
-            avatares = data.avatars || [];
-        } else {
-            avatares = [{ avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png', animation_url: '' }];
-        }
-        localStorage.setItem('avatars', JSON.stringify(avatares));
-        avatarContainer.innerHTML = '';
-        avatares.forEach(avatar => {
-            const img = document.createElement('img');
-            img.src = avatar.url;
-            img.classList.add('avatar-option');
-            img.dataset.avatar = avatar.avatar_id;
-            img.alt = `Avatar ${avatar.nombre}`;
-            img.title = avatar.nombre;
-            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
-            avatarContainer.appendChild(img);
-            img.addEventListener('click', () => {
-                getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-                img.classList.add('selected');
-                selectedAvatar = avatar.avatar_id;
-                localStorage.setItem('selectedAvatar', selectedAvatar);
-                updateAvatarDisplay();
-                mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
-            });
-        });
-        updateAvatarDisplay();
-    } catch (error) {
-        handleFetchError(error, 'Carga de avatares');
     }
 };
 
@@ -506,6 +467,12 @@ const renombrarConversacion = async (convId) => {
 
 const sendMessage = async () => {
     const input = getElement('#input');
+    const nivelBtn = getElement('#nivel-btn');
+    if (!input || !nivelBtn) {
+        console.error('Elementos #input o #nivel-btn no encontrados');
+        mostrarNotificacion('Error: Elementos de entrada no encontrados', 'error');
+        return;
+    }
     const pregunta = input.value.trim();
     if (!pregunta) return;
     input.value = '';
@@ -513,7 +480,7 @@ const sendMessage = async () => {
     const container = getElement('#chatbox').querySelector('.message-container');
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
-    userDiv.innerHTML = pregunta + 
+    userDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta) : pregunta) +
         `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
     const loadingDiv = showLoading();
@@ -554,14 +521,15 @@ const sendMessage = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 pregunta,
-                historial: [],
-                nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
+                historial: getHistorial(),
+                nivel_explicacion: nivelBtn.textContent.trim().toLowerCase().includes('básica') ? 'basica' :
+                                  nivelBtn.textContent.trim().toLowerCase().includes('ejemplos') ? 'ejemplos' : 'avanzada',
                 conv_id: currentConvId
             })
         });
         if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
         const data = await res.json();
-        hideLoading(loadingDiv);
+        currentConvId = data.conv_id || currentConvId;
 
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -570,15 +538,74 @@ const sendMessage = async () => {
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
-        speakText(data.respuesta);
+        addCopyButtonListeners();
 
+        // Obtener API Key desde el servidor para Ready Player Me
+        let rpmApiKey;
+        try {
+            const keyRes = await fetch('/get_rpm_api_key');
+            if (!keyRes.ok) throw new Error(`Error al obtener la API Key: ${keyRes.statusText}`);
+            const keyData = await keyRes.json();
+            rpmApiKey = keyData.rpm_api_key;
+        } catch (error) {
+            console.error('Error al obtener RPM_API_KEY:', error);
+            mostrarNotificacion('No se pudo obtener la clave para animación', 'error');
+            // Continuar con audio TTS si la API falla
+            speakText(data.respuesta);
+            hideLoading(loadingDiv);
+            return;
+        }
+
+        // Llamada a la API de Ready Player Me para animación
+        try {
+            const animationRes = await fetch('https://api.readyplayer.me/v1/animation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${rpmApiKey}`
+                },
+                body: JSON.stringify({ text: data.respuesta })
+            });
+            if (!animationRes.ok) throw new Error('Error al obtener animación de Ready Player Me');
+            const animationData = await animationRes.json();
+            const { audioUrl, visemes } = animationData;
+
+            // Reproducir audio usando speakText
+            speakText(data.respuesta, audioUrl);
+
+            // Aplicar visemas (simplificado, depende del SDK de Ready Player Me)
+            if (avatarModel && visemes) {
+                let visemeIndex = 0;
+                const visemeInterval = setInterval(() => {
+                    if (visemeIndex >= visemes.length) {
+                        clearInterval(visemeInterval);
+                        return;
+                    }
+                    const viseme = visemes[visemeIndex];
+                    console.log('Aplicando visema:', viseme); // Implementar lógica de visemas con SDK
+                    visemeIndex++;
+                }, 100); // Ajustar según la duración de los visemas
+            }
+        } catch (error) {
+            console.error('Error en la API de Ready Player Me:', error);
+            mostrarNotificacion('Error al obtener animación del avatar, usando audio TTS', 'error');
+            speakText(data.respuesta); // Usar TTS como respaldo
+        }
+
+        // Actualizar historial y guardar mensaje
+        const historial = getHistorial();
+        historial.push({ pregunta, respuesta: data.respuesta });
+        if (historial.length > 10) historial.shift();
+        localStorage.setItem('historial', JSON.stringify(historial));
         await fetch(`/messages/${currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "bot", content: data.respuesta })
+            body: JSON.stringify({ role: 'bot', content: data.respuesta })
         });
+        await cargarConversaciones();
     } catch (error) {
         handleFetchError(error, 'Envío de mensaje');
+    } finally {
         hideLoading(loadingDiv);
     }
 };
@@ -871,7 +898,7 @@ const handleQuizOption = async (event) => {
         const container = getElement('#chatbox').querySelector('.message-container');
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('bot');
-        feedbackDiv.dataset.tema = quizData.tema; // Guardar el tema en el div
+        feedbackDiv.dataset.tema = quizData.tema;
         feedbackDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
             `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar respuesta"><i class="fas fa-copy"></i></button>`;
         container.appendChild(feedbackDiv);
@@ -880,7 +907,7 @@ const handleQuizOption = async (event) => {
         speakText(data.respuesta);
         addCopyButtonListeners();
 
-        // Actualizar historial con el tema
+        const historial = getHistorial();
         historial.push({ pregunta: quizData.pregunta, respuesta: data.respuesta, tema: quizData.tema });
         if (historial.length > 10) historial.shift();
     } catch (error) {
@@ -896,7 +923,7 @@ const obtenerRecomendacion = async () => {
         const res = await fetch('/recommend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', historial: [] })
+            body: JSON.stringify({ usuario: 'anonimo', historial: getHistorial() })
         });
         if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
         const data = await res.json();
@@ -909,7 +936,6 @@ const obtenerRecomendacion = async () => {
     }
 };
 
-// Mejora 6: Caché local para temas
 const cargarTemas = async () => {
     const cacheKey = 'temasCache';
     const cacheTimeKey = 'temasCacheTime';
@@ -941,11 +967,79 @@ const cargarTemas = async () => {
     }
 };
 
+// Configuración de la escena 3D para el avatar
+let scene, camera, renderer, avatarModel;
+
+function setupAvatarScene() {
+    try {
+        const container = getElement('#avatar-container');
+        if (!container) {
+            console.error('Contenedor #avatar-container no encontrado');
+            mostrarNotificacion('No se encontró el contenedor del avatar', 'error');
+            return;
+        }
+
+        // Crear escena, cámara y renderizador
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // Añadir luces
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        directionalLight.position.set(0, 1, 1);
+        scene.add(directionalLight);
+
+        // Cargar modelo GLB
+        const loader = new THREE.GLTFLoader();
+        loader.load(
+            'https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb',
+            (gltf) => {
+                avatarModel = gltf.scene;
+                avatarModel.scale.set(1.5, 1.5, 1.5);
+                avatarModel.position.set(0, -1, 0);
+                scene.add(avatarModel);
+                console.log('Modelo GLB cargado');
+                animate();
+            },
+            undefined,
+            (error) => {
+                console.error('Error al cargar el modelo GLB:', error);
+                mostrarNotificacion('Error al cargar el avatar 3D', 'error');
+            }
+        );
+
+        // Posicionar cámara
+        camera.position.z = 2;
+
+        // Manejar redimensionamiento
+        window.addEventListener('resize', () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
+
+        // Animación
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+    } catch (error) {
+        console.error('Error en setupAvatarScene:', error);
+        mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
+    }
+}
+
 const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
-    cargarTemas(); // Mejora 6: Cargar temas con caché
+    cargarTemas();
 
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
@@ -980,7 +1074,7 @@ const init = () => {
             <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
         `;
         modoBtn.removeEventListener('click', handleModoToggle);
-        modoBtn.addEventListener('click', debounce(handleModoToggle, 300)); // Mejora 3: Debounce
+        modoBtn.addEventListener('click', debounce(handleModoToggle, 300));
     }
     if (voiceBtn) {
         voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
@@ -996,31 +1090,31 @@ const init = () => {
         quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
         quizBtn.setAttribute('aria-label', 'Generar un quiz');
         quizBtn.removeEventListener('click', handleQuizClick);
-        quizBtn.addEventListener('click', debounce(handleQuizClick, 300)); // Mejora 3: Debounce
+        quizBtn.addEventListener('click', debounce(handleQuizClick, 300));
     }
     if (recommendBtn) {
         recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
         recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
         recommendBtn.removeEventListener('click', handleRecommendClick);
-        recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300)); // Mejora 3: Debounce
+        recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300));
     }
     if (sendBtn) {
         sendBtn.setAttribute('data-tooltip', 'Enviar');
         sendBtn.setAttribute('aria-label', 'Enviar mensaje');
         sendBtn.removeEventListener('click', sendMessage);
-        sendBtn.addEventListener('click', debounce(sendMessage, 300)); // Mejora 3: Debounce
+        sendBtn.addEventListener('click', debounce(sendMessage, 300));
     }
     if (newChatBtn) {
         newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
         newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
         newChatBtn.removeEventListener('click', nuevaConversacion);
-        newChatBtn.addEventListener('click', debounce(nuevaConversacion, 300)); // Mejora 3: Debounce
+        newChatBtn.addEventListener('click', debounce(nuevaConversacion, 300));
     }
     if (clearBtn) {
         clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
         clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
         clearBtn.removeEventListener('click', nuevaConversacion);
-        clearBtn.addEventListener('click', debounce(nuevaConversacion, 300)); // Mejora 3: Debounce
+        clearBtn.addEventListener('click', debounce(nuevaConversacion, 300));
     }
     if (nivelBtn) {
         nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
@@ -1040,18 +1134,24 @@ const init = () => {
         inputElement.addEventListener('keydown', handleInputKeydown);
     }
 
+    // Inicializar escena del avatar
+    try {
+        setupAvatarScene();
+    } catch (error) {
+        console.error('Error al inicializar setupAvatarScene:', error);
+        mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
+    }
+
     setTimeout(() => {
         mostrarMensajeBienvenida();
         if (vozActiva && !userHasInteracted) {
             toggleVoiceHint(true);
         }
     }, 100);
-    // Mejora 5: Agregar touchstart para interacción inicial en móvil
     document.removeEventListener('click', handleFirstInteraction);
     document.removeEventListener('touchstart', handleFirstInteraction);
     document.addEventListener('click', handleFirstInteraction, { once: true });
     document.addEventListener('touchstart', handleFirstInteraction, { once: true });
-    cargarAvatares();
     cargarConversaciones();
 
     let nivelGuardado = localStorage.getItem('nivelExplicacion');
@@ -1185,202 +1285,6 @@ const handleFirstInteraction = () => {
     }
 };
 
-const guardarMensaje = async (tipo, mensaje) => {
-    if (!currentConvId) {
-        try {
-            const res = await fetch('/conversations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            });
-            const data = await res.json();
-            currentConvId = data.id;
-            await cargarConversaciones();
-        } catch (error) {
-            handleFetchError(error, 'Creación de conversación para guardar mensaje');
-            return;
-        }
-    }
-    try {
-        await fetch(`/messages/${currentConvId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'bot', content: mensaje })
-        });
-    } catch (error) {
-        handleFetchError(error, 'Guardado de mensaje');
-    }
-};
-// Configuración de la escena 3D para el avatar
-let scene, camera, renderer, avatarModel;
-
-function setupAvatarScene() {
-    const container = getElement('#avatar-container');
-    if (!container) {
-        console.error('Contenedor #avatar-container no encontrado');
-        mostrarNotificacion('No se encontró el contenedor del avatar', 'error');
-        return;
-    }
-
-    // Crear escena, cámara y renderizador
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
-
-    // Añadir luces
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight.position.set(0, 1, 1);
-    scene.add(directionalLight);
-
-    // Cargar modelo GLB
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-        'https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb',
-        (gltf) => {
-            avatarModel = gltf.scene;
-            avatarModel.scale.set(1.5, 1.5, 1.5);
-            avatarModel.position.set(0, -1, 0);
-            scene.add(avatarModel);
-            console.log('Modelo GLB cargado');
-            animate();
-        },
-        undefined,
-        (error) => {
-            console.error('Error al cargar el modelo GLB:', error);
-            mostrarNotificacion('Error al cargar el avatar 3D', 'error');
-        }
-    );
-
-    // Posicionar cámara
-    camera.position.z = 2;
-
-    // Manejar redimensionamiento
-    window.addEventListener('resize', () => {
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-    });
-
-    // Animación
-    function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
-    }
-}
-
-// Modificar sendMessage para integrar animaciones
-const originalSendMessage = sendMessage;
-sendMessage = async function () {
-    const inputElement = getElement('#input');
-    const nivelBtn = getElement('#nivel-btn');
-    if (!inputElement || !nivelBtn) return;
-
-    const pregunta = inputElement.value.trim();
-    if (!pregunta) return;
-
-    const usuario = sessionStorage.getItem('usuario') || 'anonimo';
-    const nivel = nivelBtn.textContent.trim().toLowerCase().includes('básica') ? 'basica' :
-                  nivelBtn.textContent.trim().toLowerCase().includes('ejemplos') ? 'ejemplos' : 'avanzada';
-    const historial = getHistorial();
-
-    const userDiv = document.createElement('div');
-    userDiv.classList.add('user');
-    userDiv.innerHTML = marked.parse(pregunta);
-    const container = getElement('#chatbox').querySelector('.message-container');
-    container.appendChild(userDiv);
-    scrollToBottom();
-
-    const loadingDiv = showLoading();
-
-    try {
-        const res = await fetch('/buscar_respuesta', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pregunta, historial, nivel_explicacion: nivel, conv_id: currentConvId })
-        });
-        if (!res.ok) throw new Error(`Error en /buscar_respuesta: ${res.statusText}`);
-        const data = await res.json();
-        currentConvId = data.conv_id || currentConvId;
-
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        container.appendChild(botDiv);
-        scrollToBottom();
-
-        // Obtener API Key desde el servidor
-        let rpmApiKey;
-        try {
-            const keyRes = await fetch('/get_rpm_api_key');
-            if (!keyRes.ok) throw new Error('Error al obtener la API Key');
-            const keyData = await keyRes.json();
-            rpmApiKey = keyData.rpm_api_key;
-        } catch (error) {
-            console.error('Error al obtener RPM_API_KEY:', error);
-            mostrarNotificacion('No se pudo obtener la clave para animación', 'error');
-            return;
-        }
-
-        // Llamada a la API de Ready Player Me para animación
-        const animationRes = await fetch('https://api.readyplayer.me/v1/animation', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${rpmApiKey}`
-            },
-            body: JSON.stringify({ text: data.respuesta })
-        });
-        if (!animationRes.ok) throw new Error('Error al obtener animación de Ready Player Me');
-        const animationData = await animationRes.json();
-        const { audioUrl, visemes } = animationData;
-
-        // Reproducir audio
-        currentAudio = new Audio(audioUrl);
-        currentAudio.play().catch(error => {
-            console.error('Error al reproducir audio:', error);
-            mostrarNotificacion('Error al reproducir audio', 'error');
-        });
-
-        // Aplicar visemas (simplificado, depende del SDK de Ready Player Me)
-        if (avatarModel && visemes) {
-            let visemeIndex = 0;
-            const visemeInterval = setInterval(() => {
-                if (visemeIndex >= visemes.length) {
-                    clearInterval(visemeInterval);
-                    return;
-                }
-                const viseme = visemes[visemeIndex];
-                console.log('Aplicando visema:', viseme); // Implementar lógica de visemas con SDK
-                visemeIndex++;
-            }, 100); // Ajustar según la duración de los visemas
-        }
-
-        // Actualizar historial y guardar mensaje
-        historial.push({ pregunta, respuesta: data.respuesta });
-        if (historial.length > 10) historial.shift();
-        localStorage.setItem('historial', JSON.stringify(historial));
-        await fetch(`/messages/${currentConvId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'bot', content: data.respuesta })
-        });
-        await cargarConversaciones();
-    } catch (error) {
-        handleFetchError(error, 'Enviar mensaje');
-    } finally {
-        hideLoading(loadingDiv);
-    }
-};
-
-// Inicializar escena al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
-    setupAvatarScene();
-    init(); // Llama a la función init existente
+    init();
 });

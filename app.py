@@ -76,6 +76,7 @@ class BuscarRespuestaInput(BaseModel):
     historial: List = []
     nivel_explicacion: Annotated[str, StringConstraints(max_length=20)] = 'basica'
     conv_id: Optional[int] = None
+    animation_id: Optional[Annotated[str, StringConstraints(max_length=50)]] = None  # Nuevo: soporte para animación
 
 class QuizInput(BaseModel):
     usuario: Annotated[str, StringConstraints(max_length=50)] = 'anonimo'
@@ -150,6 +151,9 @@ if not os.getenv("GROQ_API_KEY"):
 if not os.getenv("DATABASE_URL"):
     logger.error("DATABASE_URL no configurada")
     exit(1)
+if not os.getenv("RPM_API_KEY"):
+    logger.error("RPM_API_KEY no configurada")
+    exit(1)
 
 def init_db():
     conn = None
@@ -209,7 +213,7 @@ def init_db():
                       conv_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
                       role TEXT NOT NULL,
                       content TEXT NOT NULL,
-                      tema TEXT,  -- Campo añadido para almacenar el tema
+                      tema TEXT,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
         # Migrar tablas antiguas
@@ -505,6 +509,7 @@ def buscar_respuesta():
         historial = data.historial
         nivel_explicacion = data.nivel_explicacion
         usuario = session.get('usuario', 'anonimo')
+        animation_id = data.animation_id  # Nuevo: soporte para ID de animación
 
         conv_id = session.get('current_conv_id')
         if not conv_id and pregunta:
@@ -536,15 +541,13 @@ def buscar_respuesta():
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
                     guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-                logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+                logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, nivel_explicacion=nivel_explicacion)
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
 
         # Detectar si la pregunta pide más información sobre un tema previo
         tema_contexto = None
         if re.match(r"^(sí deseo saber más|sí quiero saber más|explícame eso|quiero estudiar eso|cuéntame más|saber más|dime más|explicame más|explícame más|continúa)$", pregunta_norm):
-            # Buscar el tema en el historial reciente o en los mensajes de la conversación
             if historial:
-                # Buscar el último mensaje con un tema relevante
                 for msg in reversed(historial):
                     if 'tema' in msg and msg['tema'] in TEMAS_DISPONIBLES:
                         tema_contexto = msg['tema']
@@ -566,7 +569,6 @@ def buscar_respuesta():
                     logger.error("Error obteniendo tema del historial de mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
 
         if tema_contexto:
-            # Si se detectó un tema en el contexto, generar una explicación específica
             prompt = (
                 f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
                 f"Proporciona una explicación sobre el tema '{tema_contexto}' en el nivel '{nivel_explicacion}'. "
@@ -596,10 +598,10 @@ def buscar_respuesta():
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
                     guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_contexto)
-                logger.info("Explicación generada para tema contextual", tema=tema_contexto, pregunta=pregunta, usuario=usuario, conv_id=conv_id)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+                logger.info("Explicación generada para tema contextual", tema=tema_contexto, pregunta=pregunta, usuario=usuario, conv_id=conv_id, nivel_explicacion=nivel_explicacion)
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
             except Exception as e:
-                logger.error("Error al procesar explicación contextual", error=str(e), tema=tema_contexto, usuario=usuario)
+                logger.error("Error al procesar explicación contextual", error=str(e), tema=tema_contexto, usuario=usuario, nivel_explicacion=nivel_explicacion)
                 respuesta = (
                     f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar la explicación de {tema_contexto}. "
                     f"Intenta con otra pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
@@ -608,7 +610,7 @@ def buscar_respuesta():
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
                     guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_contexto)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
 
         if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
             tema_sugerido = random.choice(TEMAS_DISPONIBLES)
@@ -620,8 +622,8 @@ def buscar_respuesta():
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_sugerido)
-            logger.info("Sugerencia de tema enviada", tema=tema_sugerido, usuario=usuario, conv_id=conv_id)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+            logger.info("Sugerencia de tema enviada", tema=tema_sugerido, usuario=usuario, conv_id=conv_id, nivel_explicacion=nivel_explicacion)
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
 
         prompt_relevancia = (
             f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
@@ -648,10 +650,10 @@ def buscar_respuesta():
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
                     guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-                logger.info("Pregunta no relevante", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+                logger.info("Pregunta no relevante", pregunta=pregunta, usuario=usuario, conv_id=conv_id, nivel_explicacion=nivel_explicacion)
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
         except Exception as e:
-            logger.error("Error al verificar relevancia", error=str(e), pregunta=pregunta, usuario=usuario)
+            logger.error("Error al verificar relevancia", error=str(e), pregunta=pregunta, usuario=usuario, nivel_explicacion=nivel_explicacion)
             respuesta = (
                 f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
                 f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
@@ -660,7 +662,7 @@ def buscar_respuesta():
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
 
         contexto = ""
         if historial:
@@ -698,10 +700,10 @@ def buscar_respuesta():
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
-            logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+            logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado, nivel_explicacion=nivel_explicacion)
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
         except Exception as e:
-            logger.error("Error al procesar respuesta", error=str(e), pregunta=pregunta, usuario=usuario)
+            logger.error("Error al procesar respuesta", error=str(e), pregunta=pregunta, usuario=usuario, nivel_explicacion=nivel_explicacion)
             respuesta = (
                 f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
                 f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
@@ -710,7 +712,7 @@ def buscar_respuesta():
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
     except ValidationError as e:
         logger.error("Validación fallida en /buscar_respuesta", error=str(e), usuario=usuario)
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
@@ -723,7 +725,7 @@ def quiz():
         usuario = data.usuario
         historial = data.historial
         nivel = data.nivel.lower()
-        tema_seleccionado = data.tema if data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)
+        tema_seleccionado = data.tema if data.tema and data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)  # Mejora: Validar tema
 
         def validate_quiz_format(quiz_data):
             required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
@@ -780,7 +782,6 @@ def quiz():
                 logger.error("Formato de quiz de respaldo inválido", error=str(ve), usuario=usuario)
                 return jsonify({"error": "No se pudo generar un quiz válido", "status": 500}), 500
 
-        # Guardar la pregunta del quiz como mensaje
         if conv_id := session.get('current_conv_id'):
             pregunta_texto = f"{quiz_data['pregunta']} Opciones: {', '.join(quiz_data['opciones'])}"
             guardar_mensaje(usuario, conv_id, 'bot', pregunta_texto, tema=quiz_data['tema'])
@@ -883,16 +884,19 @@ def tts():
         if not text:
             logger.error("Texto vacío en /tts", usuario=session.get('usuario', 'anonimo'))
             return jsonify({"error": "El texto no puede estar vacío", "status": 400}), 400
-        if not all(c.isprintable() or c.isspace() for c in text):
-            logger.error("Texto contiene caracteres no válidos", usuario=session.get('usuario', 'anonimo'))
-            return jsonify({"error": "El texto contiene caracteres no válidos", "status": 400}), 400
+        # Mejora: Limpieza adicional del texto
+        text = re.sub(r'\s+', ' ', text.strip())  # Normalizar espacios
+        text = ''.join(c for c in text if c.isprintable() or c.isspace())  # Eliminar caracteres no imprimibles
+        if not text:
+            logger.error("Texto vacío tras limpieza en /tts", usuario=session.get('usuario', 'anonimo'))
+            return jsonify({"error": "El texto no contiene caracteres válidos", "status": 400}), 400
 
         # Caché de audio
         cache_key = f"tts:{text}"
         if cache_key in cache:
             logger.info("Audio servido desde caché", text=text, usuario=session.get('usuario', 'anonimo'))
             audio_bytes = cache[cache_key]
-            audio_io = io.BytesIO(audio_bytes)  # Crear nuevo BytesIO desde bytes
+            audio_io = io.BytesIO(audio_bytes)
             return send_file(audio_io, mimetype='audio/mp3')
 
         reemplazos = {
@@ -909,8 +913,8 @@ def tts():
             tts = gTTS(text=text, lang='es', tld='com.mx', timeout=GTTS_TIMEOUT)
             audio_io = io.BytesIO()
             tts.write_to_fp(audio_io)
-            audio_bytes = audio_io.getvalue()  # Obtener bytes del audio
-            cache[cache_key] = audio_bytes  # Guardar bytes en caché
+            audio_bytes = audio_io.getvalue()
+            cache[cache_key] = audio_bytes
             audio_io.seek(0)
             logger.info("Audio generado exitosamente", text=text, usuario=session.get('usuario', 'anonimo'))
             return send_file(audio_io, mimetype='audio/mp3')
@@ -1005,7 +1009,6 @@ def recommend():
         except PsycopgError as e:
             logger.error("Error al guardar temas recomendados", error=str(e), usuario=usuario)
 
-        # Crear conversación si no existe
         conv_id = session.get('current_conv_id')
         if not conv_id:
             conn = get_db_connection()
@@ -1089,16 +1092,24 @@ def get_avatars():
 @app.route('/get_rpm_api_key', methods=['GET'])
 @limiter.limit("10 per minute")
 def get_rpm_api_key():
+    cache_key = 'rpm_api_key'
+    if cache_key in cache:
+        logger.info("RPM API Key servida desde caché")
+        return cache[cache_key]
+
     try:
         api_key = os.getenv('RPM_API_KEY')
         if not api_key:
             logger.error("RPM_API_KEY no configurada")
             return jsonify({"error": "API Key no configurada", "status": 500}), 500
-        return jsonify({"rpm_api_key": api_key})
+        response = jsonify({"rpm_api_key": api_key})
+        cache[cache_key] = response
+        logger.info("RPM API Key enviada")
+        return response
     except Exception as e:
         logger.error("Error al obtener RPM_API_KEY", error=str(e))
         return jsonify({"error": f"Error al obtener API Key: {str(e)}", "status": 500}), 500
-    
+
 try:
     logger.info("Iniciando inicialización de DB")
     init_db()
