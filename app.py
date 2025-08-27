@@ -1165,6 +1165,14 @@ async def proxy_rpm_animation():
     except Exception as e:
         logger.error("Error en /proxy_rpm_animation", error=str(e), usuario=session.get('usuario', 'anonimo'))
         return jsonify({"error": f"Error al procesar animación: {str(e)}", "status": 500}), 500
-    
+
+@app.route('/static/js/<path:filename>')
+def serve_static_js(filename):
+    try:
+        return send_from_directory(os.path.join(app.static_folder, 'js'), filename, mimetype='application/javascript')
+    except Exception as e:
+        logger.error("Error al servir archivo JS", filename=filename, error=str(e))
+        return jsonify({"error": f"No se pudo cargar {filename}", "status": 404}), 404
+        
 if __name__ == "__main__":
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))

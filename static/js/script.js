@@ -392,25 +392,37 @@ const cargarConversaciones = async () => {
 };
 
 async function cargarMensajes(convId) {
-    if (!convId) {
-        console.warn("⚠️ No hay convId válido, creando nueva conversación.");
-        await nuevaConversacion();
-        return;
-    }
-    currentConvId = convId;
-
     try {
         const res = await fetch(`/messages/${convId}`);
+        const data = await res.json();
         if (!res.ok) {
-            const text = await res.text();
             if (res.status === 404) {
                 console.warn(`Conversación ${convId} no encontrada, creando nueva.`);
-                await nuevaConversacion();
-                return;
+                const newConv = await nuevaConversacion();
+                if (newConv && newConv.id) {
+                    currentConvId = newConv.id;
+                    console.log(`Actualizado currentConvId a ${currentConvId}`);
+                    // Cargar mensajes de la nueva conversación
+                    const newRes = await fetch(`/messages/${currentConvId}`);
+                    const newData = await newRes.json();
+                    if (!newRes.ok) {
+                        throw new Error(`Error HTTP ${newRes.status}: ${newData.error || 'Desconocido'}`);
+                    }
+                    data.messages = newData.messages;
+                    data.conv_id = newData.conv_id;
+                } else {
+                    throw new Error('No se pudo crear una nueva conversación');
+                }
+            } else {
+                throw new Error(`Error HTTP ${res.status}: ${data.error || 'Desconocido'}`);
             }
-            throw new Error(`Error HTTP ${res.status}: ${text}`);
         }
-        const data = await res.json();
+
+        // Actualizar currentConvId con el valor devuelto por el backend
+        if (data.conv_id) {
+            currentConvId = data.conv_id;
+            console.log(`Actualizado currentConvId a ${currentConvId}`);
+        }
 
         const container = getElement('#chatbox').querySelector('.message-container');
         container.innerHTML = '';
@@ -601,22 +613,27 @@ async function sendMessage() {
     }
 }
 
-const nuevaConversacion = async () => {
+async function nuevaConversacion() {
     try {
         const res = await fetch('/conversations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
+            body: JSON.stringify({ nombre: 'Nuevo Chat' })
         });
         const data = await res.json();
+        if (!res.ok) {
+            throw new Error(`Error HTTP ${res.status}: ${data.error || 'Desconocido'}`);
+        }
         currentConvId = data.id;
-        getElement('#chatbox').querySelector('.message-container').innerHTML = '';
+        const container = getElement('#chatbox').querySelector('.message-container');
+        container.innerHTML = '';
         await cargarConversaciones();
-        mostrarMensajeBienvenida();
+        return data;
     } catch (error) {
         handleFetchError(error, 'Creación de nueva conversación');
+        return null;
     }
-};
+}
 
 const vaciarChat = async () => {
     if (!currentConvId) return;
