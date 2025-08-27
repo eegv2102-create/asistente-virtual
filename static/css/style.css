@@ -15,14 +15,13 @@
   --button-bg: #1abc9c;
   --button-text: #ffffff;
   --button-hover: #16a085;
-  --button-disabled: #cccccc; /* Nuevo: Color para botones deshabilitados */
+  --button-disabled: #cccccc;
   --scrollbar-thumb: #1abc9c;
   --scrollbar-track: #f5f6f5;
   --success: #2ecc71;
   --error: #e74c3c;
-  --avatar-bg: #f0f0f0; /* Nuevo: Fondo específico para el avatar */
-  --avatar-bg-dark: #2c2c2c; /* Nuevo: Fondo para avatar en modo oscuro */
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  --avatar-bg: #f0f0f0;
+  --avatar-bg-dark: #2c2c2c;
 }
 
 body.modo-oscuro {
@@ -41,12 +40,12 @@ body.modo-oscuro {
   --button-bg: #1abc9c;
   --button-text: #ffffff;
   --button-hover: #16a085;
-  --button-disabled: #4a4a4a; /* Nuevo: Color para botones deshabilitados en modo oscuro */
+  --button-disabled: #4a4a4a;
   --scrollbar-thumb: #16a085;
   --scrollbar-track: #2c2c2c;
   --success: #2ecc71;
   --error: #e74c3c;
-  --avatar-bg: var(--avatar-bg-dark); /* Nuevo: Fondo del avatar en modo oscuro */
+  --avatar-bg: var(--avatar-bg-dark);
 }
 
 /* Estilos generales */
@@ -114,7 +113,7 @@ body {
 
 #modo-btn:disabled, #voice-btn:disabled, #quiz-btn:disabled, #recommend-btn:disabled,
 #send-btn:disabled, #new-chat-btn:disabled, #btn-clear:disabled, #voice-toggle-btn:disabled {
-  background: var(--button-disabled); /* Nuevo: Estilo para botones deshabilitados */
+  background: var(--button-disabled);
   cursor: not-allowed;
   transform: none;
 }
@@ -143,7 +142,7 @@ body {
 }
 
 #nivel-btn:disabled {
-  background: var(--button-disabled); /* Nuevo: Estilo para botón deshabilitado */
+  background: var(--button-disabled);
   border-color: var(--border);
   cursor: not-allowed;
   transform: none;
@@ -177,7 +176,7 @@ body {
 #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: calc(100% + 8px); /* Ajustado: Más espacio para evitar superposición */
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%) scale(0.8);
   background-color: var(--bg-secondary);
@@ -795,25 +794,23 @@ body.modo-oscuro .bot code {
 /* Contenedor del avatar 3D */
 #avatar-container {
   width: 100%;
-  height: clamp(200px, 40vh, 400px); /* Ajustado: Altura dinámica */
-  max-height: 400px; /* Nuevo: Límite máximo para evitar que sea demasiado grande */
-  aspect-ratio: 4 / 3; /* Nuevo: Proporción para avatares 3D */
+  height: clamp(200px, 40vh, 400px);
+  max-height: 400px;
+  aspect-ratio: 4 / 3;
   margin: 0 auto;
   border-radius: 8px;
   overflow: hidden;
-  background-color: var(--avatar-bg); /* Ajustado: Usa variable específica */
-  position: relative; /* Nuevo: Para asegurar que el iframe/canvas esté contenido */
-  z-index: 1000; /* Nuevo: Evita superposición con otros elementos */
+  background-color: var(--avatar-bg);
+  position: relative;
+  z-index: 1000;
   transition: background-color 0.3s ease;
 }
 
-/* Estilo para el iframe o canvas del avatar */
-#avatar-container iframe,
+/* Estilo para el canvas del avatar */
 #avatar-container canvas {
   width: 100%;
   height: 100%;
-  border: none; /* Nuevo: Elimina bordes en iframe */
-  display: block; /* Nuevo: Asegura que no haya espacios no deseados */
+  display: block;
 }
 
 /* Estado de carga del avatar */
@@ -1006,8 +1003,8 @@ body.modo-oscuro .bot code {
   }
 
   #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
-    padding: 8px; /* Ajustado: Menor padding para móviles */
-    min-width: 40px; /* Ajustado: Más compacto */
+    padding: 8px;
+    min-width: 40px;
     height: 40px;
     border-radius: 50%;
     display: flex;
@@ -1020,7 +1017,7 @@ body.modo-oscuro .bot code {
   }
 
   #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
-    font-size: 0.9rem; /* Ajustado: Iconos más pequeños */
+    font-size: 0.9rem;
     display: inline-block;
   }
 
@@ -1028,8 +1025,8 @@ body.modo-oscuro .bot code {
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    padding: 8px 12px; /* Ajustado: Menor padding */
-    font-size: 0.9rem; /* Ajustado: Menor tamaño de fuente */
+    padding: 8px 12px;
+    font-size: 0.9rem;
     min-width: 90px;
     height: 40px;
     border-radius: 20px;
@@ -1209,10 +1206,9 @@ body.modo-oscuro .bot code {
     font-size: 0.9rem;
   }
 
-  /* Ajustes para el contenedor del avatar en móviles */
   #avatar-container {
-    height: clamp(150px, 30vh, 300px); /* Ajustado: Menor altura para móviles */
-    max-height: 300px; /* Nuevo: Límite máximo */
+    height: clamp(150px, 30vh, 300px);
+    max-height: 300px;
     aspect-ratio: 4 / 3;
   }
 }
@@ -1304,24 +1300,27 @@ body.modo-oscuro .bot code {
 }
 
 #avatar-container.loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary);
 }
+
 #avatar-container.loading::after {
-    content: 'Cargando avatar...';
-    color: var(--text-color);
-    font-size: 1rem;
+  content: 'Cargando avatar...';
+  color: var(--text-primary);
+  font-size: 1rem;
 }
+
 #avatar-container.error {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--error-bg, #ffe6e6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
 }
+
 #avatar-container.error::after {
-    content: 'Error al cargar el avatar';
-    color: var(--error-color, #d32f2f);
-    font-size: 1rem;
+  content: 'Error al cargar el avatar';
+  color: var(--error);
+  font-size: 1rem;
 }
