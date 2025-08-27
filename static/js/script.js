@@ -12,6 +12,8 @@ let TEMAS_DISPONIBLES = [
     'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
     'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
 ];
+import * as THREE from '/static/js/three/three.min.js';
+import { GLTFLoader } from '/static/js/three/GLTFLoader.min.js';
 
 // Mejora 2: Función centralizada para manejar errores de fetch
 const handleFetchError = (error, context) => {
