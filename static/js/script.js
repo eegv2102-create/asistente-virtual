@@ -391,9 +391,10 @@ const cargarConversaciones = async () => {
     }
 };
 
-const cargarMensajes = async (convId) => {
+async function cargarMensajes(convId) {
     if (!convId) {
-        console.warn("⚠️ No hay convId válido, no se pueden cargar mensajes.");
+        console.warn("⚠️ No hay convId válido, creando nueva conversación.");
+        await nuevaConversacion();
         return;
     }
     currentConvId = convId;
@@ -402,6 +403,11 @@ const cargarMensajes = async (convId) => {
         const res = await fetch(`/messages/${convId}`);
         if (!res.ok) {
             const text = await res.text();
+            if (res.status === 404) {
+                console.warn(`Conversación ${convId} no encontrada, creando nueva.`);
+                await nuevaConversacion();
+                return;
+            }
             throw new Error(`Error HTTP ${res.status}: ${text}`);
         }
         const data = await res.json();
@@ -422,7 +428,7 @@ const cargarMensajes = async (convId) => {
     } catch (error) {
         handleFetchError(error, 'Carga de mensajes');
     }
-};
+}
 
 const eliminarConversacion = async (convId) => {
     if (!confirm("¿Estás seguro de que quieres eliminar esta conversación?")) return;
@@ -964,6 +970,14 @@ async function setupAvatarScene() {
             return;
         }
 
+        // Verificar que THREE esté definido
+        if (typeof THREE === 'undefined') {
+            console.error('THREE.js no está definido. Verifica que el script se haya cargado.');
+            mostrarNotificacion('Error: No se pudo cargar Three.js', 'error');
+            container.classList.add('error');
+            return;
+        }
+
         // Obtener API Key
         const keyRes = await fetch('/get_rpm_api_key');
         if (!keyRes.ok) throw new Error(`Error al obtener la API Key: ${keyRes.statusText}`);
@@ -1041,6 +1055,12 @@ const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
+    // Asegurar que Three.js esté cargado antes de inicializar
+    if (typeof THREE === 'undefined') {
+        console.error('Three.js no está cargado. Verifica la carga del script.');
+        mostrarNotificacion('Error: Three.js no está disponible', 'error');
+    }
+
     cargarTemas();
 
     const menuToggle = getElement('.menu-toggle');
@@ -1095,10 +1115,10 @@ const init = () => {
         quizBtn.addEventListener('click', debounce(handleQuizClick, 300));
     }
     if (recommendBtn) {
-        recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
-        recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
-        recommendBtn.removeEventListener('click', handleRecommendClick);
-        recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300));
+        quizBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
+        quizBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
+        quizBtn.removeEventListener('click', handleRecommendClick);
+        quizBtn.addEventListener('click', debounce(handleRecommendClick, 300));
     }
     if (sendBtn) {
         sendBtn.setAttribute('data-tooltip', 'Enviar');
@@ -1136,13 +1156,15 @@ const init = () => {
         inputElement.addEventListener('keydown', handleInputKeydown);
     }
 
-    // Inicializar escena del avatar
-    try {
-        setupAvatarScene();
-    } catch (error) {
-        console.error('Error al inicializar setupAvatarScene:', error);
-        mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
-    }
+    // Inicializar escena del avatar con retraso para asegurar carga de Three.js
+    setTimeout(() => {
+        try {
+            setupAvatarScene();
+        } catch (error) {
+            console.error('Error al inicializar setupAvatarScene:', error);
+            mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
+        }
+    }, 100);
 
     setTimeout(() => {
         mostrarMensajeBienvenida();
