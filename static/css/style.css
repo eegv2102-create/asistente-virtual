@@ -20,8 +20,8 @@
   --scrollbar-track: #f5f6f5;
   --success: #2ecc71;
   --error: #e74c3c;
-  --avatar-bg: #f0f0f0;
-  --avatar-bg-dark: #2c2c2c;
+  /* --avatar-bg: #f0f0f0; */ /* Comentado: variable para avatar */
+  /* --avatar-bg-dark: #2c2c2c; */ /* Comentado: variable para avatar oscuro */
 }
 
 body.modo-oscuro {
@@ -45,7 +45,7 @@ body.modo-oscuro {
   --scrollbar-track: #2c2c2c;
   --success: #2ecc71;
   --error: #e74c3c;
-  --avatar-bg: var(--avatar-bg-dark);
+  /* --avatar-bg: var(--avatar-bg-dark); */ /* Comentado: avatar oscuro */
 }
 
 /* Estilos generales */
@@ -1172,10 +1172,10 @@ body.modo-oscuro .bot code {
     padding: 8px 12px;
   }
 
-  .avatar-options img {
-    width: 50px;
-    height: 50px;
-  }
+  /* .avatar-options img { */ /* Comentado: estilos para avatar */
+  /*   width: 50px; */
+  /*   height: 50px; */
+  /* } */
 
   .chat-actions .rename-btn, .chat-actions .delete-btn {
     width: 28px;
@@ -1206,11 +1206,11 @@ body.modo-oscuro .bot code {
     font-size: 0.9rem;
   }
 
-  #avatar-container {
-    height: clamp(150px, 30vh, 300px);
-    max-height: 300px;
-    aspect-ratio: 4 / 3;
-  }
+  /* #avatar-container { */ /* Comentado: estilos para avatar container */
+  /*   height: clamp(150px, 30vh, 300px); */
+  /*   max-height: 300px; */
+  /*   aspect-ratio: 4 / 3; */
+  /* } */
 }
 
 /* Media query para pantallas grandes */
@@ -1299,28 +1299,28 @@ body.modo-oscuro .bot code {
   overflow: visible !important;
 }
 
-#avatar-container.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-secondary);
-}
+/* #avatar-container.loading { */ /* Comentado: estado loading para avatar */
+  /* display: flex; */
+  /* align-items: center; */
+  /* justify-content: center; */
+  /* background-color: var(--bg-secondary); */
+  /* } */
 
-#avatar-container.loading::after {
-  content: 'Cargando avatar...';
-  color: var(--text-primary);
-  font-size: 1rem;
-}
+/* #avatar-container.loading::after { */
+  /* content: 'Cargando avatar...'; */
+  /* color: var(--text-primary); */
+  /* font-size: 1rem; */
+  /* } */
 
-#avatar-container.error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
-}
+/* #avatar-container.error { */
+  /* display: flex; */
+  /* align-items: center; */
+  /* justify-content: center; */
+  /* background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary)); */
+  /* } */
 
-#avatar-container.error::after {
-  content: 'Error al cargar el avatar';
-  color: var(--error);
-  font-size: 1rem;
-}
+/* #avatar-container.error::after { */
+  /* content: 'Error al cargar el avatar'; */
+  /* color: var(--error); */
+  /* font-size: 1rem; */
+  /* } */
