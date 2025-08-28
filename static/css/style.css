@@ -210,6 +210,10 @@ body {
   box-shadow: 0 2px 4px var(--shadow);
 }
 
+#btn-clear[data-tooltip]::after {
+  z-index: 10010; /* Mayor z-index para estar encima de todo */
+}
+
 #modo-btn:hover::after, #voice-btn:hover::after, #quiz-btn:hover::after, #recommend-btn:hover::after,
 #new-chat-btn:hover::after, #btn-clear:hover::after, #send-btn:hover::after, #voice-toggle-btn:hover::after,
 #modo-btn:focus::after, #voice-btn:focus::after, #quiz-btn:focus::after, #recommend-btn:focus::after,
@@ -1093,10 +1097,19 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     box-shadow: 0 2px 4px var(--shadow);
   }
 
+  #new-chat-btn[data-tooltip]::after, #btn-clear[data-tooltip]::after,
+  #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
+    z-index: 10010; /* Mayor z-index para estar encima de todo */
+  }
+
   #modo-btn:hover::after, #voice-btn:hover::after,
   #quiz-btn:hover::after, #recommend-btn:hover::after,
+  #new-chat-btn:hover::after, #btn-clear:hover::after,
+  #send-btn:hover::after, #voice-toggle-btn:hover::after,
   #modo-btn:focus::after, #voice-btn:focus::after,
-  #quiz-btn:focus::after, #recommend-btn:focus::after {
+  #quiz-btn:focus::after, #recommend-btn:focus::after,
+  #new-chat-btn:focus::after, #btn-clear:focus::after,
+  #send-btn:focus::after, #voice-toggle-btn:focus::after {
     opacity: 1;
     visibility: visible;
     transform: translateX(-50%) scale(1);
@@ -1130,7 +1143,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px;
-    z-index: 10001;
+    z-index: 10000;
     box-shadow: 0 6px 14px var(--shadow);
     min-width: 140px;
     bottom: calc(100% + 6px);
@@ -1287,6 +1300,10 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     padding: 8px 12px 8px 36px; /* Ajustado para avatar */
   }
 
+  .header-divider {
+    display: block;
+  }
+
   #notification-card {
     bottom: 140px;
     right: 10px;
@@ -1398,6 +1415,11 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     min-width: 120px;
     gap: 4px;
     box-shadow: 0 2px 4px var(--shadow);
+  }
+
+  #modo-btn[data-tooltip]::after, #voice-btn[data-tooltip]::after,
+  #quiz-btn[data-tooltip]::after, #recommend-btn[data-tooltip]::after {
+    content: none; /* Elimina tooltips en PC */
   }
 
   .toolbar-row {
