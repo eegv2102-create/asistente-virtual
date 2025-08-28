@@ -252,41 +252,15 @@ const stopSpeech = () => {
     if (botMessage) botMessage.classList.remove('speaking');
 };
 
-// Nueva función para obtener el input activo según el dispositivo
-const getActiveInput = () => {
-    const inputs = getElements('#input');
-    if (inputs.length === 0) {
-        console.warn('Ningún elemento #input encontrado');
-        return null;
-    }
-    // En móvil, usar el input en .mobile-bottom-row si está visible
-    const mobileInput = Array.from(inputs).find(input => input.closest('.mobile-bottom-row'));
-    const desktopInput = Array.from(inputs).find(input => !input.closest('.mobile-bottom-row'));
-    if (isMobile() && mobileInput && window.getComputedStyle(mobileInput).display !== 'none') {
-        return mobileInput;
-    }
-    return desktopInput || inputs[0];
-};
-
 // Mejora 1: Optimización del reconocimiento de voz
 const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) return;
-
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-        mostrarNotificacion('El reconocimiento de voz no está disponible en iOS/Safari. Usa entrada de texto.', 'error');
-        voiceToggleBtn.disabled = true;
-        voiceToggleBtn.setAttribute('data-tooltip', 'No disponible en iOS');
-        return;
-    }
-
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
-        return;
-    }
-
     if (!isListening) {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
+            return;
+        }
         recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
         recognition.lang = 'es-ES';
         recognition.interimResults = true;
@@ -298,6 +272,7 @@ const toggleVoiceRecognition = () => {
         voiceToggleBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
         voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Detener reconocimiento de voz');
+        // Mejora: Animación de pulsación
         voiceToggleBtn.classList.add('pulse');
         mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
         const resetTimeout = () => {
@@ -305,13 +280,13 @@ const toggleVoiceRecognition = () => {
             timeoutId = setTimeout(() => {
                 if (isListening) stopSpeech();
                 mostrarNotificacion('Reconocimiento de voz detenido por inactividad', 'info');
-            }, 15000);
+            }, 15000); // Mejora: Timeout reducido a 15s
         };
         resetTimeout();
         recognition.onresult = event => {
             resetTimeout();
             const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
-            const input = getActiveInput();
+            const input = getElement('#input');
             if (input) input.value = transcript;
             if (event.results[event.results.length - 1].isFinal) {
                 sendMessage();
@@ -530,13 +505,7 @@ const renombrarConversacion = async (convId) => {
 };
 
 const sendMessage = async () => {
-    const input = getActiveInput();
-    const nivelBtn = getElement('#nivel-btn');
-    if (!input || !nivelBtn) {
-        console.error('Elementos #input o #nivel-btn no encontrados');
-        mostrarNotificacion('Error: Elementos de entrada no encontrados', 'error');
-        return;
-    }
+    const input = getElement('#input');
     const pregunta = input.value.trim();
     if (!pregunta) return;
     input.value = '';
@@ -544,7 +513,7 @@ const sendMessage = async () => {
     const container = getElement('#chatbox').querySelector('.message-container');
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
-    userDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta) : pregunta) +
+    userDiv.innerHTML = pregunta + 
         `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
     const loadingDiv = showLoading();
@@ -585,16 +554,14 @@ const sendMessage = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 pregunta,
-                historial: getHistorial(),
-                nivel_explicacion: nivelBtn.textContent.trim().toLowerCase().includes('básica') ? 'basica' :
-                                  nivelBtn.textContent.trim().toLowerCase().includes('ejemplos') ? 'ejemplos' : 'avanzada',
+                historial: [],
+                nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
                 conv_id: currentConvId
             })
         });
         if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
         const data = await res.json();
         hideLoading(loadingDiv);
-        currentConvId = data.conv_id || currentConvId;
 
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
@@ -604,16 +571,11 @@ const sendMessage = async () => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
         speakText(data.respuesta);
-        addCopyButtonListeners();
 
-        const historial = getHistorial();
-        historial.push({ pregunta, respuesta: data.respuesta });
-        if (historial.length > 10) historial.shift();
-        localStorage.setItem('historial', JSON.stringify(historial));
         await fetch(`/messages/${currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'bot', content: data.respuesta })
+            body: JSON.stringify({ role: "bot", content: data.respuesta })
         });
     } catch (error) {
         handleFetchError(error, 'Envío de mensaje');
@@ -909,7 +871,7 @@ const handleQuizOption = async (event) => {
         const container = getElement('#chatbox').querySelector('.message-container');
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('bot');
-        feedbackDiv.dataset.tema = quizData.tema;
+        feedbackDiv.dataset.tema = quizData.tema; // Guardar el tema en el div
         feedbackDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
             `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar respuesta"><i class="fas fa-copy"></i></button>`;
         container.appendChild(feedbackDiv);
@@ -918,10 +880,9 @@ const handleQuizOption = async (event) => {
         speakText(data.respuesta);
         addCopyButtonListeners();
 
-        const historial = getHistorial();
+        // Actualizar historial con el tema
         historial.push({ pregunta: quizData.pregunta, respuesta: data.respuesta, tema: quizData.tema });
         if (historial.length > 10) historial.shift();
-        localStorage.setItem('historial', JSON.stringify(historial));
     } catch (error) {
         handleFetchError(error, 'Respuesta de quiz');
         hideLoading(loadingDiv);
@@ -935,7 +896,7 @@ const obtenerRecomendacion = async () => {
         const res = await fetch('/recommend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', historial: getHistorial() })
+            body: JSON.stringify({ usuario: 'anonimo', historial: [] })
         });
         if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
         const data = await res.json();
@@ -948,10 +909,11 @@ const obtenerRecomendacion = async () => {
     }
 };
 
+// Mejora 6: Caché local para temas
 const cargarTemas = async () => {
     const cacheKey = 'temasCache';
     const cacheTimeKey = 'temasCacheTime';
-    const cacheDuration = 24 * 60 * 60 * 1000;
+    const cacheDuration = 24 * 60 * 60 * 1000; // 24 horas
     const cachedTemas = localStorage.getItem(cacheKey);
     const cachedTime = localStorage.getItem(cacheTimeKey);
 
@@ -983,7 +945,7 @@ const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
-    cargarTemas();
+    cargarTemas(); // Mejora 6: Cargar temas con caché
 
     const menuToggle = getElement('.menu-toggle');
     const menuToggleRight = getElement('.menu-toggle-right');
@@ -1018,7 +980,7 @@ const init = () => {
             <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
         `;
         modoBtn.removeEventListener('click', handleModoToggle);
-        modoBtn.addEventListener('click', debounce(handleModoToggle, 300));
+        modoBtn.addEventListener('click', debounce(handleModoToggle, 300)); // Mejora 3: Debounce
     }
     if (voiceBtn) {
         voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
@@ -1034,31 +996,31 @@ const init = () => {
         quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
         quizBtn.setAttribute('aria-label', 'Generar un quiz');
         quizBtn.removeEventListener('click', handleQuizClick);
-        quizBtn.addEventListener('click', debounce(handleQuizClick, 300));
+        quizBtn.addEventListener('click', debounce(handleQuizClick, 300)); // Mejora 3: Debounce
     }
     if (recommendBtn) {
         recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
         recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
         recommendBtn.removeEventListener('click', handleRecommendClick);
-        recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300));
+        recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300)); // Mejora 3: Debounce
     }
     if (sendBtn) {
         sendBtn.setAttribute('data-tooltip', 'Enviar');
         sendBtn.setAttribute('aria-label', 'Enviar mensaje');
         sendBtn.removeEventListener('click', sendMessage);
-        sendBtn.addEventListener('click', debounce(sendMessage, 300));
+        sendBtn.addEventListener('click', debounce(sendMessage, 300)); // Mejora 3: Debounce
     }
     if (newChatBtn) {
         newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
         newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
         newChatBtn.removeEventListener('click', nuevaConversacion);
-        newChatBtn.addEventListener('click', debounce(nuevaConversacion, 300));
+        newChatBtn.addEventListener('click', debounce(nuevaConversacion, 300)); // Mejora 3: Debounce
     }
     if (clearBtn) {
         clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
         clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
         clearBtn.removeEventListener('click', nuevaConversacion);
-        clearBtn.addEventListener('click', debounce(nuevaConversacion, 300));
+        clearBtn.addEventListener('click', debounce(nuevaConversacion, 300)); // Mejora 3: Debounce
     }
     if (nivelBtn) {
         nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
@@ -1072,12 +1034,11 @@ const init = () => {
         voiceToggleBtn.removeEventListener('click', toggleVoiceRecognition);
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
     }
-
-    // Agregar event listeners a ambos inputs
-    getElements('#input').forEach(inputElement => {
+    const inputElement = getElement('#input');
+    if (inputElement) {
         inputElement.removeEventListener('keydown', handleInputKeydown);
         inputElement.addEventListener('keydown', handleInputKeydown);
-    });
+    }
 
     setTimeout(() => {
         mostrarMensajeBienvenida();
@@ -1085,7 +1046,7 @@ const init = () => {
             toggleVoiceHint(true);
         }
     }, 100);
-
+    // Mejora 5: Agregar touchstart para interacción inicial en móvil
     document.removeEventListener('click', handleFirstInteraction);
     document.removeEventListener('touchstart', handleFirstInteraction);
     document.addEventListener('click', handleFirstInteraction, { once: true });
