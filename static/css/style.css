@@ -730,14 +730,14 @@ body.modo-oscuro .bot code {
   }
   .main-section {
     width: 100%;
-    height: calc(100vh - 150px);
+    height: calc(100vh - 190px);
     margin: 0;
   }
   #chatbox {
-    max-height: calc(100vh - 150px);
+    max-height: calc(100vh - 190px);
     width: 100%;
     padding: 8px;
-    padding-bottom: 80px;
+    padding-bottom: 20px;
     scroll-behavior: smooth;
   }
   .input-group {
@@ -746,7 +746,7 @@ body.modo-oscuro .bot code {
     left: 0;
     width: 100%;
     z-index: 1000;
-    padding: 8px;
+    padding: 12px;
     background-color: var(--bg-primary);
     border-top: 1px solid var(--border);
     box-shadow: 0 -2px 10px var(--shadow);
@@ -754,66 +754,96 @@ body.modo-oscuro .bot code {
     flex-direction: column;
     gap: 8px;
   }
-  .input-group .input-buttons.left,
-  .input-group .dropdown-container,
-  .input-group #input,
-  .input-group .input-buttons.right {
+
+  /* Primera fila: botones de control */
+  .input-group .toolbar-row {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
   }
-  /* Primera fila: botones */
-  .input-group .input-buttons.left,
-  .input-group .input-buttons.right,
-  .input-group .dropdown-container {
-    order: 1;
+
+  .input-group .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .input-group .input-buttons.left {
-    order: 1;
-  }
-  .input-group .dropdown-container {
-    order: 2;
+
+  .input-group .toolbar-center {
     flex: 1;
     display: flex;
     justify-content: center;
   }
+
+  .input-group .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Segunda fila: input + botón de envío */
+  .input-group .input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* Reorganización de elementos para móvil */
+  .input-group .input-buttons.left,
+  .input-group .input-buttons.right,
+  .input-group .dropdown-container {
+    position: static;
+    display: flex;
+  }
+
+  .input-group .input-buttons.left {
+    order: 1;
+  }
+
+  .input-group .dropdown-container {
+    order: 2;
+  }
+
   .input-group .input-buttons.right {
     order: 3;
   }
-  /* Segunda fila: input */
+
   .input-group #input {
     order: 4;
-    width: 100%;
+    flex: 1;
     padding: 12px 16px;
     font-size: 1rem;
     min-height: 48px;
     max-height: 120px;
     overflow-y: auto;
     border: 1px solid var(--border);
-    border-radius: 20px;
-    resize: vertical;
+    border-radius: 24px;
+    resize: none;
+    margin: 0;
   }
-  .input-group #input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  /* Hacer que los elementos se acomoden en dos filas */
-  .input-group {
-    flex-wrap: wrap;
-  }
-  /* Primera fila con botones */
-  .input-group .input-buttons.left,
-  .input-group .dropdown-container,
-  .input-group .input-buttons.right {
+
+  .input-group #send-btn {
+    order: 5;
+    padding: 12px;
+    min-width: 48px;
+    height: 48px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
+    justify-content: center;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    cursor: pointer;
+    margin: 0;
   }
-  .input-group .input-buttons.left,
-  .input-group .input-buttons.right {
-    gap: 4px;
-  }
-  #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
-    padding: 10px;
-    min-width: 44px;
-    height: 44px;
+
+  #new-chat-btn, #btn-clear, #voice-toggle-btn {
+    padding: 8px;
+    min-width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -823,29 +853,33 @@ body.modo-oscuro .bot code {
     border: none;
     cursor: pointer;
   }
+
   #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
-    font-size: 1rem;
+    font-size: 0.9rem;
     display: inline-block;
   }
+
   #nivel-btn {
     background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    padding: 10px 14px;
-    font-size: 1rem;
+    padding: 8px 12px;
+    font-size: 0.9rem;
     min-width: 100px;
-    height: 44px;
-    border-radius: 20px;
+    height: 36px;
+    border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background-color 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
   }
+
   .dropdown-container {
     position: relative;
     display: block;
     width: auto;
   }
+
   .dropdown-menu {
     position: absolute;
     background: color-mix(in srgb, var(--bg-primary) 90%, #000 10%);
@@ -862,11 +896,13 @@ body.modo-oscuro .bot code {
     transition: opacity 0.3s ease, transform 0.3s ease;
     display: none;
   }
+
   .dropdown-menu.active {
     display: block;
     opacity: 1;
     transform: translateX(-50%) scale(1);
   }
+
   .dropdown-menu button {
     display: block;
     width: 100%;
@@ -880,10 +916,12 @@ body.modo-oscuro .bot code {
     border-radius: 4px;
     transition: background-color 0.2s ease;
   }
+
   .dropdown-menu button:hover, .dropdown-menu button:focus {
     background-color: var(--accent);
     color: var(--button-text);
   }
+
   .menu-toggle, .menu-toggle-right {
     display: flex;
     background: var(--accent);
@@ -900,9 +938,11 @@ body.modo-oscuro .bot code {
     transition: transform 0.2s ease;
     border: none;
   }
+
   .menu-toggle:hover, .menu-toggle-right:hover {
     transform: scale(1.1);
   }
+
   .app-title {
     padding: 8px;
     position: fixed;
@@ -910,10 +950,12 @@ body.modo-oscuro .bot code {
     width: 100%;
     z-index: 1004;
   }
+
   .app-title h1 {
     font-size: clamp(1.1rem, 3.5vw, 1.4rem);
     text-align: center;
   }
+
   .title-container {
     display: flex;
     align-items: center;
@@ -922,18 +964,22 @@ body.modo-oscuro .bot code {
     padding: 0 8px;
     max-width: 100%;
   }
+
   body {
     padding-top: 60px;
   }
+
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
     padding: 10px 12px;
   }
+
   .bot pre {
     font-size: 0.8rem;
     padding: 8px;
   }
+
   .chat-actions .rename-btn[data-tooltip]::after,
   .chat-actions .delete-btn[data-tooltip]::after {
     top: -120%;
@@ -944,51 +990,61 @@ body.modo-oscuro .bot code {
     z-index: 3000;
     transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
   }
+
   .chat-actions .rename-btn:hover::after, .chat-actions .rename-btn:focus::after,
   .chat-actions .delete-btn:hover::after, .chat-actions .delete-btn:focus::after {
     opacity: 1;
     visibility: visible;
     transform: translate(-5px, -5px) scale(1);
   }
+
   .voice-hint {
-    bottom: 90px;
+    bottom: 140px;
     font-size: 12px;
     padding: 6px 12px;
     max-width: 85%;
   }
+
   .sidebar-buttons button {
     font-size: 0.9rem;
     padding: 8px 12px;
   }
+
   .avatar-options img {
     width: 50px;
     height: 50px;
   }
+
   .chat-actions .rename-btn, .chat-actions .delete-btn {
     width: 28px;
     height: 28px;
     font-size: 0.8rem;
   }
+
   .loading {
     padding: 8px;
     font-size: 0.9rem;
   }
+
   .spinner {
     width: 16px;
     height: 16px;
     border-width: 2px;
   }
+
   #notification-card {
-    bottom: 90px;
+    bottom: 140px;
     right: 10px;
     left: 10px;
     max-width: none;
   }
+
   .quiz-option {
     padding: 10px;
     font-size: 0.9rem;
   }
 }
+
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
@@ -1057,13 +1113,16 @@ body.modo-oscuro .bot code {
     font-size: 1rem;
   }
 }
+
 .container, .main-section, .right-section, .left-section {
   overflow: visible !important;
 }
+
 .quiz-option.correct {
   border-color: var(--success);
   background-color: color-mix(in srgb, var(--success) 20%, var(--bg-primary));
 }
+
 .quiz-option.incorrect {
   border-color: var(--error);
   background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
