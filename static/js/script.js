@@ -597,7 +597,7 @@ async function sendMessage() {
                     const viseme = visemes[visemeIndex];
                     console.log('Aplicando visema:', viseme); // Implementar lógica de visemas con SDK
                     visemeIndex++;
-                }, 100); // Ajustar según la duración de los visemas
+                }, 100); // Ajustar según la duración de los visemes
             }
         } catch (error) {
             console.error('Error en la API de Ready Player Me:', error);
@@ -682,437 +682,85 @@ const toggleDropdown = (event) => {
     }
 };
 
-const setNivelExplicacion = (nivel) => {
-    console.log('setNivelExplicacion llamado con nivel:', nivel);
-    if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
-        console.error('Nivel inválido:', nivel);
-        mostrarNotificacion('Error: Nivel inválido', 'error');
-        return;
-    }
+getElements('#nivel-dropdown button').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const nivel = e.target.dataset.nivel;
+        setNivelExplicacion(nivel);
+        toggleDropdown();
+    });
+});
 
-    localStorage.setItem('nivelExplicacion', nivel);
+document.addEventListener('click', (e) => {
+    const dropdown = getElement('#nivel-dropdown');
     const nivelBtn = getElement('#nivel-btn');
-    if (nivelBtn) {
-        const nivelText =
-            nivel === 'basica' ? 'Explicación Básica' :
-            nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
-            'Avanzada/Teórica';
-        nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
-        console.log('Nivel actualizado a:', nivelText);
-
-        const dropdownMenu = getElement('.dropdown-menu');
-        if (dropdownMenu && dropdownMenu.classList.contains('active')) {
-            dropdownMenu.classList.remove('active');
-            console.log('Menú desplegable cerrado tras seleccionar nivel');
-        }
-
-        mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
-    } else {
-        console.error('Elemento #nivel-btn no encontrado');
-        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
-    }
-};
-
-const isMobile = () => window.innerWidth < 768;
-
-document.addEventListener('click', (event) => {
-    const dropdownMenu = getElement('.dropdown-menu');
-    const nivelBtn = getElement('#nivel-btn');
-
-    if (nivelBtn && nivelBtn.contains(event.target)) {
-        console.log('Clic en botón de nivel, toggling menú');
-        return;
-    }
-
-    if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        console.log('Clic en opción del menú desplegable');
-        return;
-    }
-
-    if (dropdownMenu && dropdownMenu.classList.contains('active')) {
-        dropdownMenu.classList.remove('active');
-        console.log('Menú desplegable cerrado por clic fuera');
-    }
-
-    if (isMobile()) {
-        const leftSection = getElement('.left-section');
-        const rightSection = getElement('.right-section');
-
-        if (leftSection && leftSection.classList.contains('active') &&
-            !leftSection.contains(event.target) &&
-            !getElement('.menu-toggle').contains(event.target)) {
-            toggleMenu();
-        }
-
-        if (rightSection && rightSection.classList.contains('active') &&
-            !rightSection.contains(event.target) &&
-            !getElement('.menu-toggle-right').contains(event.target)) {
-            toggleRightMenu();
-        }
+    if (dropdown && !dropdown.contains(e.target) && !nivelBtn.contains(e.target)) {
+        dropdown.classList.remove('active');
     }
 });
 
-const toggleMenu = () => {
-    const leftSection = getElement('.left-section');
-    const rightSection = getElement('.right-section');
-    if (!leftSection) return;
-    leftSection.classList.toggle('active');
+// const waitForThree = () => new Promise((resolve, reject) => { /* Comentado: carga de Three.js para avatar */
+//     if (window.THREE) return resolve();
+//     const script = document.createElement('script');
+//     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+//     script.onload = resolve;
+//     script.onerror = reject;
+//     document.head.appendChild(script);
+// });
 
-    if (isMobile()) {
-        const menuToggle = getElement('.menu-toggle');
-        menuToggle.innerHTML = leftSection.classList.contains('active')
-            ? '<i class="fas fa-times"></i>'
-            : '<i class="fas fa-bars"></i>';
-    }
+// const setupAvatarScene = () => { /* Comentado: setup de escena de avatar */
+//     const container = getElement('#avatar-container');
+//     if (!container) return;
+//     const width = container.clientWidth;
+//     const height = container.clientHeight;
+//     const scene = new THREE.Scene();
+//     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+//     const renderer = new THREE.WebGLRenderer({ alpha: true });
+//     renderer.setSize(width, height);
+//     container.appendChild(renderer.domElement);
+//     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+//     scene.add(ambientLight);
+//     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+//     directionalLight.position.set(1, 1, 1);
+//     scene.add(directionalLight);
+//     camera.position.z = 5;
+//     loadAvatar(scene);
+//     const animate = () => {
+//         requestAnimationFrame(animate);
+//         renderer.render(scene, camera);
+//     };
+//     animate();
+//     window.addEventListener('resize', () => {
+//         const newWidth = container.clientWidth;
+//         const newHeight = container.clientHeight;
+//         camera.aspect = newWidth / newHeight;
+//         camera.updateProjectionMatrix();
+//         renderer.setSize(newWidth, newHeight);
+//     });
+// };
 
-    if (rightSection && rightSection.classList.contains('active')) {
-        rightSection.classList.remove('active');
-    }
-
-    const voiceHint = getElement('#voice-hint');
-    if (voiceHint && leftSection.classList.contains('active')) {
-        voiceHint.classList.add('hidden');
-    }
-};
-
-const toggleRightMenu = () => {
-    const rightSection = getElement('.right-section');
-    const leftSection = getElement('.left-section');
-    if (!rightSection) return;
-    rightSection.classList.toggle('active');
-
-    if (isMobile()) {
-        const menuToggleRight = getElement('.menu-toggle-right');
-        menuToggleRight.innerHTML = rightSection.classList.contains('active')
-            ? '<i class="fas fa-times"></i>'
-            : '<i class="fas fa-bars"></i>';
-    }
-
-    if (leftSection && leftSection.classList.contains('active')) {
-        leftSection.classList.remove('active');
-    }
-
-    const voiceHint = getElement('#voice-hint');
-    if (voiceHint && rightSection.classList.contains('active')) {
-        voiceHint.classList.add('hidden');
-    }
-};
-
-const mostrarMensajeBienvenida = () => {
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        console.error('Elemento #chatbox o .message-container no encontrado');
-        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
-        return;
-    }
-
-    const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
-    
-    if (container.children.length === 0) {
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) +
-            `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        container.appendChild(botDiv);
-        scrollToBottom();
-        if (window.Prism) Prism.highlightAll();
-
-        if (vozActiva && userHasInteracted) {
-            speakText(mensaje);
-        } else if (vozActiva) {
-            pendingWelcomeMessage = mensaje;
-        }
-    }
-};
-
-const obtenerQuiz = async (tipo) => {
-    console.log('Obteniendo quiz, tipo:', tipo);
-    const loadingDiv = showLoading();
-    try {
-        const res = await fetch('/quiz', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', nivel: localStorage.getItem('nivelExplicacion') || 'basica' })
-        });
-        if (!res.ok) throw new Error(`Error al obtener quiz: ${res.status}`);
-        const data = await res.json();
-        hideLoading(loadingDiv);
-        return data;
-    } catch (error) {
-        handleFetchError(error, 'Obtención de quiz');
-        hideLoading(loadingDiv);
-        return null;
-    }
-};
-
-const mostrarQuizEnChat = async (quizData) => {
-    if (!quizData) return;
-    console.log('Mostrando quiz en chat:', quizData);
-    const container = getElement('#chatbox').querySelector('.message-container');
-    const quizDiv = document.createElement('div');
-    quizDiv.classList.add('bot');
-    quizDiv.setAttribute('aria-live', 'polite');
-    let optionsHtml = quizData.opciones.map((opcion, index) => `
-        <div class="quiz-option" data-option="${opcion}" data-index="${index}" tabindex="0" role="button" aria-label="Opción ${opcion}">${opcion}</div>
-    `).join('');
-    quizDiv.innerHTML = `
-        <p>${quizData.pregunta}</p>
-        <div class="quiz-options">${optionsHtml}</div>
-        <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
-    `;
-    quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta;
-    container.appendChild(quizDiv);
-    scrollToBottom();
-
-    getElements('.quiz-option').forEach(option => {
-        option.removeEventListener('click', handleQuizOption);
-        option.addEventListener('click', handleQuizOption);
-        option.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') option.click();
-        });
-    });
-    addCopyButtonListeners();
-};
-
-const handleQuizOption = async (event) => {
-    const option = event.currentTarget;
-    const selectedOption = option.dataset.option;
-    const quizContainer = option.closest('.bot');
-    const quizData = {
-        pregunta: quizContainer.querySelector('p').textContent,
-        opciones: Array.from(quizContainer.querySelectorAll('.quiz-option')).map(opt => opt.dataset.option),
-        respuesta_correcta: quizContainer.dataset.respuestaCorrecta || '',
-        tema: quizContainer.dataset.tema || 'unknown'
-    };
-    if (!quizData.respuesta_correcta) {
-        console.error('No se proporcionó respuesta_correcta');
-        mostrarNotificacion('Error: No se pudo determinar la respuesta correcta', 'error');
-        return;
-    }
-    getElements('.quiz-option').forEach(opt => opt.classList.remove('selected', 'correct', 'incorrect'));
-    option.classList.add('selected');
-    const loadingDiv = showLoading();
-    try {
-        const res = await fetch('/responder_quiz', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                pregunta: quizData.pregunta,
-                respuesta: selectedOption,
-                respuesta_correcta: quizData.respuesta_correcta,
-                tema: quizData.tema
-            })
-        });
-        if (!res.ok) throw new Error(`Error al responder quiz: ${res.status}`);
-        const data = await res.json();
-        const isCorrect = data.es_correcta;
-        option.classList.add(isCorrect ? 'correct' : 'incorrect');
-        if (!isCorrect) {
-            const correctOption = quizContainer.querySelector(`.quiz-option[data-option="${data.respuesta_correcta}"]`);
-            if (correctOption) correctOption.classList.add('correct');
-        }
-        hideLoading(loadingDiv);
-        const container = getElement('#chatbox').querySelector('.message-container');
-        const feedbackDiv = document.createElement('div');
-        feedbackDiv.classList.add('bot');
-        feedbackDiv.dataset.tema = quizData.tema;
-        feedbackDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar respuesta"><i class="fas fa-copy"></i></button>`;
-        container.appendChild(feedbackDiv);
-        scrollToBottom();
-        if (window.Prism) Prism.highlightAll();
-        speakText(data.respuesta);
-        addCopyButtonListeners();
-
-        const historial = getHistorial();
-        historial.push({ pregunta: quizData.pregunta, respuesta: data.respuesta, tema: quizData.tema });
-        if (historial.length > 10) historial.shift();
-    } catch (error) {
-        handleFetchError(error, 'Respuesta de quiz');
-        hideLoading(loadingDiv);
-    }
-};
-
-const obtenerRecomendacion = async () => {
-    console.log('Obteniendo recomendación');
-    const loadingDiv = showLoading();
-    try {
-        const res = await fetch('/recommend', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', historial: getHistorial() })
-        });
-        if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
-        const data = await res.json();
-        hideLoading(loadingDiv);
-        return data;
-    } catch (error) {
-        handleFetchError(error, 'Obtención de recomendación');
-        hideLoading(loadingDiv);
-        return { recommendation: 'No se pudo generar recomendación' };
-    }
-};
-
-const cargarTemas = async () => {
-    const cacheKey = 'temasCache';
-    const cacheTimeKey = 'temasCacheTime';
-    const cacheDuration = 24 * 60 * 60 * 1000; // 24 horas
-    const cachedTemas = localStorage.getItem(cacheKey);
-    const cachedTime = localStorage.getItem(cacheTimeKey);
-
-    if (cachedTemas && cachedTime && Date.now() - parseInt(cachedTime) < cacheDuration) {
-        TEMAS_DISPONIBLES = JSON.parse(cachedTemas);
-        console.log('Temas cargados desde caché:', TEMAS_DISPONIBLES);
-        return;
-    }
-
-    try {
-        const res = await fetch('/temas', { method: 'GET' });
-        if (!res.ok) throw new Error(`Error al cargar temas: ${res.status}`);
-        const data = await res.json();
-        if (data.temas && Array.isArray(data.temas)) {
-            TEMAS_DISPONIBLES = data.temas;
-            localStorage.setItem(cacheKey, JSON.stringify(TEMAS_DISPONIBLES));
-            localStorage.setItem(cacheTimeKey, Date.now().toString());
-            console.log('Temas cargados desde servidor:', TEMAS_DISPONIBLES);
-        } else {
-            console.warn('No se pudieron cargar temas, usando lista por defecto');
-        }
-    } catch (error) {
-        handleFetchError(error, 'Carga de temas');
-        console.warn('Usando temas por defecto debido a error');
-    }
-};
-
-// Configuración de la escena 3D para el avatar
-let scene, camera, renderer, avatarModel;
-
-async function setupAvatarScene() {
-    try {
-        const container = getElement('#avatar-container');
-        if (!container) {
-            console.error('Contenedor #avatar-container no encontrado');
-            mostrarNotificacion('No se encontró el contenedor del avatar', 'error');
-            return;
-        }
-
-        // Verificar que THREE esté definido
-        if (typeof THREE === 'undefined') {
-            console.error('THREE.js no está definido. Verifica que el script se haya cargado.');
-            mostrarNotificacion('Error: No se pudo cargar Three.js', 'error');
-            container.classList.add('error');
-            return;
-        }
-
-        // Obtener API Key
-        const keyRes = await fetch('/get_rpm_api_key');
-        if (!keyRes.ok) throw new Error(`Error al obtener la API Key: ${keyRes.statusText}`);
-        const keyData = await keyRes.json();
-        const apiKey = keyData.rpm_api_key;
-
-        // Crear escena, cámara y renderizador
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
-
-        // Añadir luces
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-        directionalLight.position.set(0, 1, 1);
-        scene.add(directionalLight);
-
-        // Cargar modelo GLB con autenticación
-        const avatarUrl = `https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb?apiKey=${apiKey}`;
-        const loader = new THREE.GLTFLoader();
-        loader.load(
-            avatarUrl,
-            (gltf) => {
-                avatarModel = gltf.scene;
-                avatarModel.scale.set(1.5, 1.5, 1.5);
-                avatarModel.position.set(0, -1, 0);
-                scene.add(avatarModel);
-                console.log('Modelo GLB cargado:', avatarUrl);
-                container.classList.remove('error', 'loading');
-                animate();
-            },
-            (xhr) => {
-                const percentComplete = (xhr.loaded / xhr.total) * 100;
-                console.log(`Cargando avatar: ${percentComplete}%`);
-                container.classList.add('loading');
-            },
-            (error) => {
-                console.error('Error al cargar el modelo GLB:', error);
-                mostrarNotificacion('Error al cargar el avatar 3D', 'error');
-                container.classList.add('error');
-            }
-        );
-
-        // Posicionar cámara
-        camera.position.z = 2;
-
-        // Manejar redimensionamiento
-        window.addEventListener('resize', () => {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            renderer.setSize(width, height);
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-        });
-
-        // Animación
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        }
-    } catch (error) {
-        console.error('Error en setupAvatarScene:', error);
-        mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
-        const container = getElement('#avatar-container');
-        if (container) {
-            container.classList.add('error');
-        }
-    }
-}
+// const loadAvatar = async (scene) => { /* Comentado: carga de avatar */
+//     try {
+//         const loader = new THREE.GLTFLoader();
+//         const gltf = await loader.loadAsync('/static/models/default-avatar.glb');
+//         const avatar = gltf.scene;
+//         avatar.scale.set(1.5, 1.5, 1.5);
+//         avatar.position.set(0, -2, 0);
+//         avatar.rotation.y = Math.PI;
+//         scene.add(avatar);
+//     } catch (error) {
+//         console.error('Error al cargar avatar:', error);
+//         mostrarNotificacion('Error al cargar el avatar', 'error');
+//     }
+// };
 
 const init = () => {
-    console.log('Inicializando aplicación');
-    quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
-
-    // Función para verificar si Three.js está cargado
-    const waitForThree = () => {
-        return new Promise((resolve, reject) => {
-            const checkThree = setInterval(() => {
-                if (typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined') {
-                    clearInterval(checkThree);
-                    resolve();
-                }
-            }, 100);
-            setTimeout(() => {
-                clearInterval(checkThree);
-                reject(new Error('Three.js no se cargó en el tiempo esperado'));
-            }, 10000); // Timeout de 10 segundos
-        });
-    };
-
-    // Detectar iOS y manejar voz
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-        const voiceToggleBtn = getElement('#voice-toggle-btn');
-        if (voiceToggleBtn) {
-            voiceToggleBtn.style.display = 'none'; // Ocultar botón en iOS
-            mostrarNotificacion('Reconocimiento de voz no disponible en iOS. Usa el teclado para dictado.', 'info');
-        }
+    const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
+    if (modoOscuro) document.body.classList.add('modo-oscuro');
+    const storedConvId = localStorage.getItem('currentConvId');
+    if (storedConvId) {
+        currentConvId = parseInt(storedConvId);
+        cargarMensajes(currentConvId);
     }
-
-    // Cargar temas y configurar eventos
-    cargarTemas();
-
-    const menuToggle = getElement('.menu-toggle');
-    const menuToggleRight = getElement('.menu-toggle-right');
     const modoBtn = getElement('#modo-btn');
     const voiceBtn = getElement('#voice-btn');
     const quizBtn = getElement('#quiz-btn');
@@ -1122,21 +770,7 @@ const init = () => {
     const clearBtn = getElement('#btn-clear');
     const nivelBtn = getElement('#nivel-btn');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
-
-    if (menuToggle) {
-        menuToggle.removeEventListener('click', toggleMenu);
-        menuToggle.addEventListener('click', toggleMenu);
-        menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
-        menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
-    }
-    if (menuToggleRight) {
-        menuToggleRight.removeEventListener('click', toggleRightMenu);
-        menuToggleRight.addEventListener('click', toggleRightMenu);
-        menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
-        menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
-    }
     if (modoBtn) {
-        const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
         modoBtn.setAttribute('data-tooltip', modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
         modoBtn.setAttribute('aria-label', modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
         modoBtn.innerHTML = `
@@ -1172,7 +806,12 @@ const init = () => {
         sendBtn.setAttribute('data-tooltip', 'Enviar');
         sendBtn.setAttribute('aria-label', 'Enviar mensaje');
         sendBtn.removeEventListener('click', sendMessage);
+        sendBtn.removeEventListener('touchstart', sendMessage);
         sendBtn.addEventListener('click', debounce(sendMessage, 300));
+        sendBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sendMessage();
+        });
     }
     if (newChatBtn) {
         newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
@@ -1192,7 +831,7 @@ const init = () => {
         nivelBtn.removeEventListener('click', toggleDropdown);
         nivelBtn.addEventListener('click', toggleDropdown);
     }
-    if (voiceToggleBtn && !isIOS) {  // Solo agregar listener si no es iOS
+    if (voiceToggleBtn) {
         voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.removeEventListener('click', toggleVoiceRecognition);
@@ -1345,7 +984,7 @@ const handleRecommendClick = async () => {
 
 const handleInputKeydown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
+        event.preventDefault();  // Prevenir salto de línea en textarea
         sendMessage();
     }
 };
