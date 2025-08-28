@@ -1,6 +1,7 @@
 let vozActiva = localStorage.getItem('vozActiva') === 'true';
 let isListening = false;
 let recognition = null;
+let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
 let currentAudio = null;
 let userHasInteracted = false;
 let pendingWelcomeMessage = null;
@@ -107,8 +108,21 @@ const toggleVoiceHint = (show) => {
     if (show) lastVoiceHintTime = now;
 };
 
-const speakText = async (text, audioUrl = null) => {
-    console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted, audioUrl });
+const updateAvatarDisplay = () => {
+    const avatarImg = getElement('#avatar-img');
+    if (!avatarImg) {
+        console.warn('Elemento #avatar-img no encontrado, omitiendo actualización');
+        return;
+    }
+    const avatars = JSON.parse(localStorage.getItem('avatars') || '[]');
+    const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: '/static/img/default-avatar.png' };
+    avatarImg.src = selected.url;
+    avatarImg.classList.add('animate-avatar');
+    setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
+};
+
+const speakText = async (text) => {
+    console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted });
     if (!vozActiva || !text) {
         console.warn('Audio desactivado o texto vacío', { vozActiva, text });
         mostrarNotificacion('Audio desactivado o texto vacío', 'error');
@@ -120,6 +134,29 @@ const speakText = async (text, audioUrl = null) => {
         pendingWelcomeMessage = text;
         return;
     }
+    const reemplazosTTS = {
+        'POO': 'Programación Orientada a Objetos',
+        'UML': 'U Em Ele',
+        'MVC': 'Em Vi Ci',
+        'ORM': 'Mapeo Objeto Relacional',
+        'BD': 'Base de Datos',
+        'API': 'A Pi I',
+        'SQL': 'Esquiu Ele'
+    };
+    let textoParaVoz = text
+        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`[^`]+`/g, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/#+\s*/g, '')
+        .replace(/-\s*/g, '')
+        .replace(/\n+/g, ' ')
+        .replace(/\b(POO|UML|MVC|ORM|BD)\b/g, match => reemplazosTTS[match] || match)
+        .replace(/\bYELIA\b/g, 'Yelia')
+        .trim();
+    const botMessage = getElement('.bot:last-child');
+    if (botMessage) botMessage.classList.add('speaking');
     if (currentAudio) {
         if (currentAudio instanceof Audio) {
             currentAudio.pause();
@@ -130,83 +167,44 @@ const speakText = async (text, audioUrl = null) => {
         currentAudio = null;
     }
     try {
-        if (audioUrl) {
-            currentAudio = new Audio(audioUrl);
-            currentAudio.play().catch(error => {
-                console.error('Error al reproducir audio de Ready Player Me:', error);
-                mostrarNotificacion('Error al reproducir audio', 'error');
-                const botMessage = getElement('.bot:last-child');
-                if (botMessage) botMessage.classList.remove('speaking');
-            });
-            currentAudio.onended = () => {
-                const botMessage = getElement('.bot:last-child');
-                if (botMessage) botMessage.classList.remove('speaking');
-                currentAudio = null;
-            };
-        } else {
-            const reemplazosTTS = {
-                'POO': 'Programación Orientada a Objetos',
-                'UML': 'U Em Ele',
-                'MVC': 'Em Vi Ci',
-                'ORM': 'Mapeo Objeto Relacional',
-                'BD': 'Base de Datos',
-                'API': 'A Pi I',
-                'SQL': 'Esquiu Ele'
-            };
-            let textoParaVoz = text
-                .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '')
-                .replace(/```[\s\S]*?```/g, '')
-                .replace(/`[^`]+`/g, '')
-                .replace(/\*\*([^*]+)\*\*/g, '$1')
-                .replace(/\*([^*]+)\*/g, '$1')
-                .replace(/#+\s*/g, '')
-                .replace(/-\s*/g, '')
-                .replace(/\n+/g, ' ')
-                .replace(/\b(POO|UML|MVC|ORM|BD)\b/g, match => reemplazosTTS[match] || match)
-                .replace(/\bYELIA\b/g, 'Yelia')
-                .trim();
-            const res = await fetch('/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: textoParaVoz })
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
-            }
-            const blob = await res.blob();
-            currentAudio = new Audio(URL.createObjectURL(blob));
-            currentAudio.play().catch(error => {
-                console.error('Error al reproducir audio:', error);
-                mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
-                const botMessage = getElement('.bot:last-child');
-                if (botMessage) botMessage.classList.remove('speaking');
-            });
-            currentAudio.onended = () => {
-                const botMessage = getElement('.bot:last-child');
-                if (botMessage) botMessage.classList.remove('speaking');
-                currentAudio = null;
-            };
+        console.log('Enviando solicitud al endpoint /tts');
+        const res = await fetch('/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: textoParaVoz })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
         }
+        const blob = await res.blob();
+        currentAudio = new Audio(URL.createObjectURL(blob));
+        currentAudio.play().catch(error => {
+            console.error('Error al reproducir audio:', error);
+            mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
+            if (botMessage) botMessage.classList.remove('speaking');
+        });
+        currentAudio.onended = () => {
+            if (botMessage) botMessage.classList.remove('speaking');
+            currentAudio = null;
+        };
     } catch (error) {
-        console.error('Fallo en reproducción de audio, intentando speechSynthesis:', error);
+        console.error('Fallo en /tts, intentando speechSynthesis:', error);
         if ('speechSynthesis' in window) {
             const voices = speechSynthesis.getVoices();
             const esVoice = voices.find(v => v.lang.includes('es'));
             if (!esVoice) {
                 console.warn('No se encontró voz en español');
                 mostrarNotificacion('No se encontró voz en español', 'error');
-                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
                 return;
             }
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = new SpeechSynthesisUtterance(textoParaVoz);
             utterance.lang = 'es-ES';
             utterance.voice = esVoice;
             utterance.pitch = 1;
             utterance.rate = 0.9;
             utterance.onend = () => {
-                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
                 currentAudio = null;
             };
@@ -216,7 +214,6 @@ const speakText = async (text, audioUrl = null) => {
                 if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página primero';
                 if (event.error === 'network') errorMsg = 'Error de red en síntesis de voz';
                 mostrarNotificacion(errorMsg, 'error');
-                const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
@@ -224,7 +221,6 @@ const speakText = async (text, audioUrl = null) => {
         } else {
             console.warn('speechSynthesis no soportado');
             mostrarNotificacion('Audio no soportado en este navegador', 'error');
-            const botMessage = getElement('.bot:last-child');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
@@ -254,6 +250,22 @@ const stopSpeech = () => {
     }
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.remove('speaking');
+};
+
+// Nueva función para obtener el input activo según el dispositivo
+const getActiveInput = () => {
+    const inputs = getElements('#input');
+    if (inputs.length === 0) {
+        console.warn('Ningún elemento #input encontrado');
+        return null;
+    }
+    // En móvil, usar el input en .mobile-bottom-row si está visible
+    const mobileInput = Array.from(inputs).find(input => input.closest('.mobile-bottom-row'));
+    const desktopInput = Array.from(inputs).find(input => !input.closest('.mobile-bottom-row'));
+    if (isMobile() && mobileInput && window.getComputedStyle(mobileInput).display !== 'none') {
+        return mobileInput;
+    }
+    return desktopInput || inputs[0];
 };
 
 // Mejora 1: Optimización del reconocimiento de voz
@@ -343,20 +355,42 @@ const toggleVoiceRecognition = () => {
     }
 };
 
-// Nueva función para obtener el input activo según el dispositivo
-const getActiveInput = () => {
-    const inputs = getElements('#input');
-    if (inputs.length === 0) {
-        console.warn('Ningún elemento #input encontrado');
-        return null;
+const cargarAvatares = async () => {
+    const avatarContainer = getElement('.avatar-options');
+    if (!avatarContainer) return;
+    try {
+        const response = await fetch('/avatars', { cache: 'no-store' });
+        let avatares = [];
+        if (response.ok) {
+            const data = await response.json();
+            avatares = data.avatars || [];
+        } else {
+            avatares = [{ avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png', animation_url: '' }];
+        }
+        localStorage.setItem('avatars', JSON.stringify(avatares));
+        avatarContainer.innerHTML = '';
+        avatares.forEach(avatar => {
+            const img = document.createElement('img');
+            img.src = avatar.url;
+            img.classList.add('avatar-option');
+            img.dataset.avatar = avatar.avatar_id;
+            img.alt = `Avatar ${avatar.nombre}`;
+            img.title = avatar.nombre;
+            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
+            avatarContainer.appendChild(img);
+            img.addEventListener('click', () => {
+                getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+                img.classList.add('selected');
+                selectedAvatar = avatar.avatar_id;
+                localStorage.setItem('selectedAvatar', selectedAvatar);
+                updateAvatarDisplay();
+                mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
+            });
+        });
+        updateAvatarDisplay();
+    } catch (error) {
+        handleFetchError(error, 'Carga de avatares');
     }
-    // En móvil, usar el input en .mobile-bottom-row si está visible
-    const mobileInput = Array.from(inputs).find(input => input.closest('.mobile-bottom-row'));
-    const desktopInput = Array.from(inputs).find(input => !input.closest('.mobile-bottom-row'));
-    if (isMobile() && mobileInput && window.getComputedStyle(mobileInput).display !== 'none') {
-        return mobileInput;
-    }
-    return desktopInput || inputs[0];
 };
 
 const cargarConversaciones = async () => {
@@ -417,36 +451,20 @@ const cargarConversaciones = async () => {
     }
 };
 
-async function cargarMensajes(convId) {
+const cargarMensajes = async (convId) => {
+    if (!convId) {
+        console.warn("⚠️ No hay convId válido, no se pueden cargar mensajes.");
+        return;
+    }
+    currentConvId = convId;
+
     try {
         const res = await fetch(`/messages/${convId}`);
-        const data = await res.json();
         if (!res.ok) {
-            if (res.status === 404) {
-                console.warn(`Conversación ${convId} no encontrada, creando nueva.`);
-                const newConv = await nuevaConversacion();
-                if (newConv && newConv.id) {
-                    currentConvId = newConv.id;
-                    console.log(`Actualizado currentConvId a ${currentConvId}`);
-                    const newRes = await fetch(`/messages/${currentConvId}`);
-                    const newData = await newRes.json();
-                    if (!newRes.ok) {
-                        throw new Error(`Error HTTP ${newRes.status}: ${newData.error || 'Desconocido'}`);
-                    }
-                    data.messages = newData.messages;
-                    data.conv_id = newData.conv_id;
-                } else {
-                    throw new Error('No se pudo crear una nueva conversación');
-                }
-            } else {
-                throw new Error(`Error HTTP ${res.status}: ${data.error || 'Desconocido'}`);
-            }
+            const text = await res.text();
+            throw new Error(`Error HTTP ${res.status}: ${text}`);
         }
-
-        if (data.conv_id) {
-            currentConvId = data.conv_id;
-            console.log(`Actualizado currentConvId a ${currentConvId}`);
-        }
+        const data = await res.json();
 
         const container = getElement('#chatbox').querySelector('.message-container');
         container.innerHTML = '';
@@ -464,7 +482,7 @@ async function cargarMensajes(convId) {
     } catch (error) {
         handleFetchError(error, 'Carga de mensajes');
     }
-}
+};
 
 const eliminarConversacion = async (convId) => {
     if (!confirm("¿Estás seguro de que quieres eliminar esta conversación?")) return;
@@ -511,7 +529,7 @@ const renombrarConversacion = async (convId) => {
     }
 };
 
-async function sendMessage() {
+const sendMessage = async () => {
     const input = getActiveInput();
     const nivelBtn = getElement('#nivel-btn');
     if (!input || !nivelBtn) {
@@ -575,6 +593,7 @@ async function sendMessage() {
         });
         if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
         const data = await res.json();
+        hideLoading(loadingDiv);
         currentConvId = data.conv_id || currentConvId;
 
         const botDiv = document.createElement('div');
@@ -584,37 +603,8 @@ async function sendMessage() {
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
+        speakText(data.respuesta);
         addCopyButtonListeners();
-
-        try {
-            const animationRes = await fetch('/proxy_rpm_animation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: data.respuesta, voiceId: 'es-MX-JorgeNeural' })
-            });
-            if (!animationRes.ok) throw new Error('Error al obtener animación de Ready Player Me');
-            const animationData = await animationRes.json();
-            const { audioUrl, visemes } = animationData;
-
-            speakText(data.respuesta, audioUrl);
-
-            if (avatarModel && visemes) {
-                let visemeIndex = 0;
-                const visemeInterval = setInterval(() => {
-                    if (visemeIndex >= visemes.length) {
-                        clearInterval(visemeInterval);
-                        return;
-                    }
-                    const viseme = visemes[visemeIndex];
-                    console.log('Aplicando visema:', viseme);
-                    visemeIndex++;
-                }, 100);
-            }
-        } catch (error) {
-            console.error('Error en la API de Ready Player Me:', error);
-            mostrarNotificacion('Error al obtener animación del avatar, usando audio TTS', 'error');
-            speakText(data.respuesta);
-        }
 
         const historial = getHistorial();
         historial.push({ pregunta, respuesta: data.respuesta });
@@ -625,35 +615,28 @@ async function sendMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role: 'bot', content: data.respuesta })
         });
-        await cargarConversaciones();
     } catch (error) {
         handleFetchError(error, 'Envío de mensaje');
-    } finally {
         hideLoading(loadingDiv);
     }
-}
+};
 
-async function nuevaConversacion() {
+const nuevaConversacion = async () => {
     try {
         const res = await fetch('/conversations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre: 'Nuevo Chat' })
+            body: JSON.stringify({})
         });
         const data = await res.json();
-        if (!res.ok) {
-            throw new Error(`Error HTTP ${res.status}: ${data.error || 'Desconocido'}`);
-        }
         currentConvId = data.id;
-        const container = getElement('#chatbox').querySelector('.message-container');
-        container.innerHTML = '';
+        getElement('#chatbox').querySelector('.message-container').innerHTML = '';
         await cargarConversaciones();
-        return data;
+        mostrarMensajeBienvenida();
     } catch (error) {
         handleFetchError(error, 'Creación de nueva conversación');
-        return null;
     }
-}
+};
 
 const vaciarChat = async () => {
     if (!currentConvId) return;
@@ -938,6 +921,7 @@ const handleQuizOption = async (event) => {
         const historial = getHistorial();
         historial.push({ pregunta: quizData.pregunta, respuesta: data.respuesta, tema: quizData.tema });
         if (historial.length > 10) historial.shift();
+        localStorage.setItem('historial', JSON.stringify(historial));
     } catch (error) {
         handleFetchError(error, 'Respuesta de quiz');
         hideLoading(loadingDiv);
@@ -995,117 +979,9 @@ const cargarTemas = async () => {
     }
 };
 
-let scene, camera, renderer, avatarModel;
-
-async function setupAvatarScene() {
-    try {
-        const container = getElement('#avatar-container');
-        if (!container) {
-            console.error('Contenedor #avatar-container no encontrado');
-            mostrarNotificacion('No se encontró el contenedor del avatar', 'error');
-            return;
-        }
-
-        if (typeof THREE === 'undefined') {
-            console.error('THREE.js no está definido. Verifica que el script se haya cargado.');
-            mostrarNotificacion('Error: No se pudo cargar Three.js', 'error');
-            container.classList.add('error');
-            return;
-        }
-
-        const keyRes = await fetch('/get_rpm_api_key');
-        if (!keyRes.ok) throw new Error(`Error al obtener la API Key: ${keyRes.statusText}`);
-        const keyData = await keyRes.json();
-        const apiKey = keyData.rpm_api_key;
-
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-        directionalLight.position.set(0, 1, 1);
-        scene.add(directionalLight);
-
-        const avatarUrl = `https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb?apiKey=${apiKey}`;
-        const loader = new THREE.GLTFLoader();
-        loader.load(
-            avatarUrl,
-            (gltf) => {
-                avatarModel = gltf.scene;
-                avatarModel.scale.set(1.5, 1.5, 1.5);
-                avatarModel.position.set(0, -1, 0);
-                scene.add(avatarModel);
-                console.log('Modelo GLB cargado:', avatarUrl);
-                container.classList.remove('error', 'loading');
-                animate();
-            },
-            (xhr) => {
-                const percentComplete = (xhr.loaded / xhr.total) * 100;
-                console.log(`Cargando avatar: ${percentComplete}%`);
-                container.classList.add('loading');
-            },
-            (error) => {
-                console.error('Error al cargar el modelo GLB:', error);
-                mostrarNotificacion('Error al cargar el avatar 3D', 'error');
-                container.classList.add('error');
-            }
-        );
-
-        camera.position.z = 2;
-
-        window.addEventListener('resize', () => {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            renderer.setSize(width, height);
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        }
-    } catch (error) {
-        console.error('Error en setupAvatarScene:', error);
-        mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
-        const container = getElement('#avatar-container');
-        if (container) {
-            container.classList.add('error');
-        }
-    }
-}
-
 const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
-
-    const waitForThree = () => {
-        return new Promise((resolve, reject) => {
-            const checkThree = setInterval(() => {
-                if (typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined') {
-                    clearInterval(checkThree);
-                    resolve();
-                }
-            }, 100);
-            setTimeout(() => {
-                clearInterval(checkThree);
-                reject(new Error('Three.js no se cargó en el tiempo esperado'));
-            }, 10000);
-        });
-    };
-
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-        const voiceToggleBtn = getElement('#voice-toggle-btn');
-        if (voiceToggleBtn) {
-            voiceToggleBtn.style.display = 'none';
-            mostrarNotificacion('Reconocimiento de voz no disponible en iOS. Usa el teclado para dictado.', 'info');
-        }
-    }
 
     cargarTemas();
 
@@ -1190,7 +1066,7 @@ const init = () => {
         nivelBtn.removeEventListener('click', toggleDropdown);
         nivelBtn.addEventListener('click', toggleDropdown);
     }
-    if (voiceToggleBtn && !isIOS) {
+    if (voiceToggleBtn) {
         voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.removeEventListener('click', toggleVoiceRecognition);
@@ -1203,15 +1079,6 @@ const init = () => {
         inputElement.addEventListener('keydown', handleInputKeydown);
     });
 
-    waitForThree()
-        .then(() => {
-            setupAvatarScene();
-        })
-        .catch((error) => {
-            console.error('Error al cargar Three.js:', error);
-            mostrarNotificacion('Error al inicializar el avatar 3D: Three.js no disponible', 'error');
-        });
-
     setTimeout(() => {
         mostrarMensajeBienvenida();
         if (vozActiva && !userHasInteracted) {
@@ -1223,7 +1090,7 @@ const init = () => {
     document.removeEventListener('touchstart', handleFirstInteraction);
     document.addEventListener('click', handleFirstInteraction, { once: true });
     document.addEventListener('touchstart', handleFirstInteraction, { once: true });
-
+    cargarAvatares();
     cargarConversaciones();
 
     let nivelGuardado = localStorage.getItem('nivelExplicacion');
@@ -1357,6 +1224,34 @@ const handleFirstInteraction = () => {
     }
 };
 
+const guardarMensaje = async (tipo, mensaje) => {
+    if (!currentConvId) {
+        try {
+            const res = await fetch('/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            currentConvId = data.id;
+            await cargarConversaciones();
+        } catch (error) {
+            handleFetchError(error, 'Creación de conversación para guardar mensaje');
+            return;
+        }
+    }
+    try {
+        await fetch(`/messages/${currentConvId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'bot', content: mensaje })
+        });
+    } catch (error) {
+        handleFetchError(error, 'Guardado de mensaje');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded disparado, inicializando aplicación');
     init();
 });
