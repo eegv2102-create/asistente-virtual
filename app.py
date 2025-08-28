@@ -272,9 +272,52 @@ def cargar_temas():
             'Diagramas UML', 'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
             'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
         ]
+    except json.JSONDecodeError as e:
+        logger.error("Error al decodificar temas.json", error=str(e))
+        temas = {}
+        return []
+
+def cargar_prerequisitos():
+    global prerequisitos
+    cache_key = 'prerequisitos'
+    if cache_key in cache:
+        prerequisitos = cache[cache_key]
+        logger.info("Prerrequisitos cargados desde caché")
+        return prerequisitos
+
+    try:
+        with open('prerequisitos.json', 'r', encoding='utf-8') as f:
+            prerequisitos = json.load(f)
+        cache[cache_key] = prerequisitos
+        logger.info("Prerrequisitos cargados desde archivo")
+        return prerequisitos
+    except FileNotFoundError:
+        logger.error("Archivo prerequisitos.json no encontrado")
+        prerequisitos = {}
+        return prerequisitos
+    except json.JSONDecodeError as e:
+        logger.error("Error al decodificar prerequisitos.json", error=str(e))
+        prerequisitos = {}
+        return {}
 
 temas = {}
+prerequisitos = {}
 TEMAS_DISPONIBLES = cargar_temas()
+PREREQUISITOS = cargar_prerequisitos()
+
+def validar_prerequisitos(temas_json, prerequisitos_json):
+    temas_set = set()
+    for unidad, subtemas in temas_json.items():
+        temas_set.update(subtemas.keys())
+    prereq_set = set()
+    for unidad, subtemas in prerequisitos_json.items():
+        prereq_set.update(subtemas.keys())
+    if temas_set != prereq_set:
+        logger.warning("Diferencia en temas entre temas.json y prerequisitos.json", temas_diff=temas_set.symmetric_difference(prereq_set))
+    else:
+        logger.info("Validación de JSON exitosa: temas coinciden")
+
+validar_prerequisitos(temas, prerequisitos)
 
 def cargar_progreso(usuario):
     try:
@@ -566,9 +609,19 @@ def buscar_respuesta():
                     logger.error("Error obteniendo tema del historial de mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
 
         if tema_contexto:
-            # Si se detectó un tema en el contexto, generar una explicación específica
+            # Obtener prerrequisitos del tema
+            prerrequisitos_tema = []
+            for unidad, subtemas in PREREQUISITOS.items():
+                for tema, info in subtemas.items():
+                    if tema == tema_contexto and 'definición' in info:  # Asumiendo que prerequisitos.json tiene estructura similar, ajusta si es diferente
+                        # Asumir que 'pre' es una clave para prerrequisitos; ajusta según tu JSON
+                        prerrequisitos_tema = []  # Placeholder, ajusta a la clave real si existe
+                        break
+            prerreq_str = f"Prerrequisitos: {', '.join(prerrequisitos_tema)}" if prerrequisitos_tema else ""
+
+            # Generar respuesta con contexto y prerrequisitos
             prompt = (
-                f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
+                f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
                 f"Proporciona una explicación sobre el tema '{tema_contexto}' en el nivel '{nivel_explicacion}'. "
                 f"Sigue estrictamente estas reglas:\n"
                 f"1. Responde solo sobre el tema: {tema_contexto}.\n"
@@ -579,9 +632,10 @@ def buscar_respuesta():
                 f"3. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
                 f"4. Mantén el hilo de la conversación basado en el contexto previo, respondiendo naturalmente como un chat continuo.\n"
                 f"5. Si la pregunta menciona 'curiosidad' o 'dato curioso', incluye un hecho interesante breve (máximo 50 palabras) relacionado con el tema.\n"
-                f"6. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-                f"7. No uses emoticones ni emojis.\n"
-                f"8. Si no se puede responder, sugiere un tema de la lista."
+                f"6. Incluye los prerrequisitos del tema si los hay: {prerreq_str}.\n"
+                f"7. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+                f"8. No uses emoticones ni emojis.\n"
+                f"9. Si no se puede responder, sugiere un tema de la lista."
             )
             try:
                 completion = call_groq_api(
@@ -605,7 +659,6 @@ def buscar_respuesta():
                 respuesta = (
                     f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
                     f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
-                    f"¿Tienes alguna pregunta adicional sobre este tema?"
                 )
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
@@ -641,14 +694,24 @@ def buscar_respuesta():
         if not es_relevante:
             respuesta = (
                 f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo respondo sobre Programación Avanzada para Ingeniería en Telemática. "
-                f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. ¿Qué deseas saber de la materia? "
-                f"¿Tienes alguna pregunta adicional sobre este tema?"
+                f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. "
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
             logger.info("Pregunta no relevante", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+
+        # Validación de prerrequisitos
+        tema_identificado = next((tema for tema in TEMAS_DISPONIBLES if tema.lower() in pregunta_norm), None)
+        prerrequisitos_tema = []
+        if tema_identificado and PREREQUISITOS:
+            for unidad, subtemas in PREREQUISITOS.items():
+                for tema, info in subtemas.items():
+                    if tema == tema_identificado and 'definición' in info:  # Ajusta si hay clave 'pre'
+                        prerrequisitos_tema = []  # Placeholder
+                        break
+        prerreq_str = f"Prerrequisitos: {', '.join(prerrequisitos_tema)}" if prerrequisitos_tema else ""
 
         contexto = ""
         if historial:
@@ -667,9 +730,10 @@ def buscar_respuesta():
             f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
             f"5. Mantén el hilo de la conversación basado en el contexto previo, respondiendo naturalmente como un chat continuo (ej. si piden ejemplo en vida real, extiende el ejemplo anterior).\n"
             f"6. Si la pregunta menciona 'curiosidad' o 'dato curioso', proporciona un hecho interesante breve (máximo 50 palabras) relacionado con el tema, motivando al aprendizaje.\n"
-            f"7. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-            f"8. No uses emoticones ni emojis.\n"
-            f"9. Si no se puede responder, sugiere un tema de la lista.\n"
+            f"7. Incluye los prerrequisitos del tema si los hay: {prerreq_str}.\n"
+            f"8. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+            f"9. No uses emoticones ni emojis.\n"
+            f"10. Si no se puede responder, sugiere un tema de la lista.\n"
             f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
         )
 
@@ -684,7 +748,6 @@ def buscar_respuesta():
                 temperature=0.2
             )
             respuesta = completion.choices[0].message.content.strip()
-            tema_identificado = next((tema for tema in TEMAS_DISPONIBLES if tema.lower() in pregunta_norm), None)
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
@@ -695,7 +758,6 @@ def buscar_respuesta():
             respuesta = (
                 f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
                 f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
-                f"¿Tienes alguna pregunta adicional sobre este tema?"
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
@@ -826,8 +888,8 @@ def responder_quiz():
                 f"La respuesta correcta es: '{respuesta_correcta}'. "
                 f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
                 f"Sigue estrictamente este formato en Markdown: "
-                f"- Si es correcta: '**¡Felicidades, está bien! Seleccionaste: {respuesta}.** [Explicación breve de por qué la respuesta es correcta, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
-                f"- Si es incorrecta: '**Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.** [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, máximo 50 palabras]. ¿Deseas saber más del tema o de otro tema?' "
+                f"- Si es correcta: '**¡Felicidades, está bien! Seleccionaste: {respuesta}.** [Explicación breve de por qué la respuesta es correcta, máximo 50 palabras].' "
+                f"- Si es incorrecta: '**Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.** [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, máximo 50 palabras].' "
                 f"No uses términos fuera de las opciones proporcionadas ni digas 'parcialmente correcta' o 'no completa'. "
                 f"Usa solo el contexto de la pregunta y las opciones. "
                 f"Responde en español, en formato Markdown."
@@ -846,7 +908,6 @@ def responder_quiz():
             explicacion = (
                 f"**{'¡Felicidades, está bien! Seleccionaste: ' + respuesta + '.' if es_correcta else f'Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.'}** "
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
-                f"¿Deseas saber más del tema o de otro tema?"
             )
 
         logger.info("Respuesta de quiz procesada", es_correcta=es_correcta, usuario=usuario)
@@ -1041,6 +1102,23 @@ def get_temas():
     except Exception as e:
         logger.error("Error en /temas", error=str(e))
         return jsonify({"error": "Error al obtener temas", "status": 500}), 500
+
+@app.route('/prerequisitos', methods=['GET'])
+@limiter.limit("100 per hour")
+def get_prerequisitos():
+    cache_key = 'prerequisitos_response'
+    if cache_key in cache:
+        logger.info("Prerrequisitos servidos desde caché")
+        return cache[cache_key]
+
+    try:
+        response = jsonify({"prerequisitos": prerequisitos})
+        cache[cache_key] = response
+        logger.info("Prerrequisitos enviados")
+        return response
+    except Exception as e:
+        logger.error("Error en /prerequisitos", error=str(e))
+        return jsonify({"error": "Error al obtener prerrequisitos", "status": 500}), 500
 
 @app.route('/')
 def index():

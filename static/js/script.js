@@ -7,8 +7,8 @@ let userHasInteracted = false;
 let pendingWelcomeMessage = null;
 let lastVoiceHintTime = 0;
 let currentConvId = null;
-let historial = JSON.parse(localStorage.getItem('historial') || '[]'); // Corregido: historial declarado
-let quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]'); // Corregido: quizHistory declarado
+let historial = JSON.parse(localStorage.getItem('historial') || '[]');
+let quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 let TEMAS_DISPONIBLES = [
     'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
     'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
@@ -16,7 +16,6 @@ let TEMAS_DISPONIBLES = [
     'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
 ];
 
-// Mejora 2: Función centralizada para manejar errores de fetch
 const handleFetchError = (error, context) => {
     console.error(`Error en ${context}:`, error);
     let message = 'Error inesperado';
@@ -29,7 +28,6 @@ const handleFetchError = (error, context) => {
     return null;
 };
 
-// Mejora 3: Función debounce para eventos de clic
 const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -38,7 +36,6 @@ const debounce = (func, wait) => {
     };
 };
 
-// Mejora 4: Optimización de scrollToBottom
 const scrollToBottom = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
@@ -253,7 +250,6 @@ const stopSpeech = () => {
     if (botMessage) botMessage.classList.remove('speaking');
 };
 
-// Mejora 1: Optimización del reconocimiento de voz
 const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) return;
@@ -576,7 +572,7 @@ const sendMessage = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 pregunta,
-                historial: getHistorial(), // Corregido: usar getHistorial
+                historial: getHistorial(),
                 nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
                 conv_id: currentConvId
             })
@@ -825,7 +821,7 @@ const obtenerQuiz = async (tipo) => {
         if (!res.ok) throw new Error(`Error al obtener quiz: ${res.status}`);
         const data = await res.json();
         quizHistory.push(data);
-        localStorage.setItem('quizHistory', JSON.stringify(quizHistory)); // Corregido: guardar quizHistory
+        localStorage.setItem('quizHistory', JSON.stringify(quizHistory));
         hideLoading(loadingDiv);
         return data;
     } catch (error) {
@@ -886,7 +882,7 @@ const handleQuizOption = async (event) => {
     }
     getElements('.quiz-option').forEach(opt => {
         opt.classList.remove('selected', 'correct', 'incorrect');
-        opt.style.pointerEvents = 'none'; // Deshabilitar clics adicionales
+        opt.style.pointerEvents = 'none';
     });
     option.classList.add('selected');
     const loadingDiv = showLoading();
@@ -960,11 +956,10 @@ const obtenerRecomendacion = async () => {
     }
 };
 
-// Mejora 6: Caché local para temas
 const cargarTemas = async () => {
     const cacheKey = 'temasCache';
     const cacheTimeKey = 'temasCacheTime';
-    const cacheDuration = 24 * 60 * 60 * 1000; // 24 horas
+    const cacheDuration = 24 * 60 * 60 * 1000;
     const cachedTemas = localStorage.getItem(cacheKey);
     const cachedTime = localStorage.getItem(cacheTimeKey);
 
