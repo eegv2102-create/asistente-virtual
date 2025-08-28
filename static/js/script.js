@@ -6,7 +6,6 @@ let userHasInteracted = false;
 let pendingWelcomeMessage = null;
 let lastVoiceHintTime = 0;
 let currentConvId = null;
-let quizHistory = [];
 let TEMAS_DISPONIBLES = [
     'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
     'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
@@ -14,20 +13,20 @@ let TEMAS_DISPONIBLES = [
     'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
 ];
 
-// Centralized fetch error handler
+// Mejora 2: Función centralizada para manejar errores de fetch
 const handleFetchError = (error, context) => {
-    console.error(`Error in ${context}:`, error);
-    let message = 'Unexpected error';
-    if (!navigator.onLine) message = 'No internet connection';
-    else if (error.message.includes('503')) message = 'Server busy, try again';
-    else if (error.message.includes('429')) message = 'Too many requests, please wait';
-    else if (error.message.includes('401')) message = 'Unauthorized, check your session';
+    console.error(`Error en ${context}:`, error);
+    let message = 'Error inesperado';
+    if (!navigator.onLine) message = 'Sin conexión a internet';
+    else if (error.message.includes('503')) message = 'El servidor está ocupado, intenta de nuevo';
+    else if (error.message.includes('429')) message = 'Demasiadas solicitudes, espera un momento';
+    else if (error.message.includes('401')) message = 'No autorizado, verifica tu sesión';
     else if (error.message) message = error.message;
     mostrarNotificacion(`${context}: ${message}`, 'error');
     return null;
 };
 
-// Debounce function for click events
+// Mejora 3: Función debounce para eventos de clic
 const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -36,7 +35,7 @@ const debounce = (func, wait) => {
     };
 };
 
-// Optimized scroll to bottom
+// Mejora 4: Optimización de scrollToBottom
 const scrollToBottom = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
@@ -47,52 +46,47 @@ const scrollToBottom = () => {
     }
 };
 
-// Get chat history
 const getHistorial = () => {
     try {
         const historial = JSON.parse(localStorage.getItem('historial') || '[]');
         return Array.isArray(historial) ? historial : [];
     } catch (error) {
-        console.error('Error retrieving history:', error);
+        console.error('Error al obtener historial:', error);
         return [];
     }
 };
 
-// Show loading indicator
 const showLoading = () => {
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container) return null;
     const loadingDiv = document.createElement('div');
     loadingDiv.classList.add('loading');
-    loadingDiv.innerHTML = '<div class="spinner"></div> Loading...';
+    loadingDiv.innerHTML = '<div class="spinner"></div> Cargando...';
     container.appendChild(loadingDiv);
     scrollToBottom();
     return loadingDiv;
 };
 
-// Hide loading indicator
 const hideLoading = (loadingDiv) => {
-    if (loadingDiv && loadingDiv.parentNode) loadingDiv.remove();
+    if (loadingDiv) loadingDiv.remove();
 };
 
-// DOM element selectors
-const getElement = (selector) => {
+const getElement = selector => {
     const element = document.querySelector(selector);
-    if (!element) console.warn(`Element ${selector} not found in DOM`);
+    if (!element) console.warn(`Elemento ${selector} no encontrado en el DOM`);
     return element;
 };
 
-const getElements = (selector) => {
+const getElements = selector => {
     const elements = document.querySelectorAll(selector);
-    if (!elements.length) console.warn(`No elements found for ${selector}`);
+    if (!elements.length) console.warn(`No se encontraron elementos para ${selector}`);
     return elements;
 };
 
-// Show notification
 const mostrarNotificacion = (mensaje, tipo) => {
     const notificationCard = getElement('#notification-card');
     if (!notificationCard) return;
-    notificationCard.innerHTML = `<p>${mensaje}</p><button onclick="this.parentElement.classList.remove('active')" aria-label="Close notification">Close</button>`;
+    notificationCard.innerHTML = `<p>${mensaje}</p><button onclick="this.parentElement.classList.remove('active')" aria-label="Cerrar notificación">Cerrar</button>`;
     notificationCard.classList.remove('info', 'success', 'error');
     notificationCard.classList.add(tipo, 'active');
     setTimeout(() => {
@@ -100,10 +94,12 @@ const mostrarNotificacion = (mensaje, tipo) => {
     }, 5000);
 };
 
-// Toggle voice hint
 const toggleVoiceHint = (show) => {
     const voiceHint = getElement('#voice-hint');
-    if (!voiceHint) return;
+    if (!voiceHint) {
+        console.error('Elemento #voice-hint no encontrado');
+        return;
+    }
     const now = Date.now();
     if (show && now - lastVoiceHintTime < 5000) return;
     voiceHint.style.display = show ? 'block' : 'none';
@@ -111,13 +107,15 @@ const toggleVoiceHint = (show) => {
     if (show) lastVoiceHintTime = now;
 };
 
-// Speak text with audio or fallback to TTS
 const speakText = async (text, audioUrl = null) => {
+    console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted, audioUrl });
     if (!vozActiva || !text) {
-        mostrarNotificacion('Audio disabled or empty text', 'error');
+        console.warn('Audio desactivado o texto vacío', { vozActiva, text });
+        mostrarNotificacion('Audio desactivado o texto vacío', 'error');
         return;
     }
     if (!userHasInteracted) {
+        console.warn('No se puede reproducir audio: el usuario no ha interactuado');
         toggleVoiceHint(true);
         pendingWelcomeMessage = text;
         return;
@@ -135,8 +133,8 @@ const speakText = async (text, audioUrl = null) => {
         if (audioUrl) {
             currentAudio = new Audio(audioUrl);
             currentAudio.play().catch(error => {
-                console.error('Error playing Ready Player Me audio:', error);
-                mostrarNotificacion('Error playing audio', 'error');
+                console.error('Error al reproducir audio de Ready Player Me:', error);
+                mostrarNotificacion('Error al reproducir audio', 'error');
                 const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
             });
@@ -147,13 +145,13 @@ const speakText = async (text, audioUrl = null) => {
             };
         } else {
             const reemplazosTTS = {
-                'POO': 'Object-Oriented Programming',
-                'UML': 'U M L',
-                'MVC': 'M V C',
-                'ORM': 'Object-Relational Mapping',
-                'BD': 'Database',
-                'API': 'A P I',
-                'SQL': 'S Q L'
+                'POO': 'Programación Orientada a Objetos',
+                'UML': 'U Em Ele',
+                'MVC': 'Em Vi Ci',
+                'ORM': 'Mapeo Objeto Relacional',
+                'BD': 'Base de Datos',
+                'API': 'A Pi I',
+                'SQL': 'Esquiu Ele'
             };
             let textoParaVoz = text
                 .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2700}-\u{27BF}]/gu, '')
@@ -164,7 +162,7 @@ const speakText = async (text, audioUrl = null) => {
                 .replace(/#+\s*/g, '')
                 .replace(/-\s*/g, '')
                 .replace(/\n+/g, ' ')
-                .replace(/\b(POO|UML|MVC|ORM|BD|API|SQL)\b/g, match => reemplazosTTS[match] || match)
+                .replace(/\b(POO|UML|MVC|ORM|BD)\b/g, match => reemplazosTTS[match] || match)
                 .replace(/\bYELIA\b/g, 'Yelia')
                 .trim();
             const res = await fetch('/tts', {
@@ -174,13 +172,13 @@ const speakText = async (text, audioUrl = null) => {
             });
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.error || `TTS error: ${res.status} ${res.statusText}`);
+                throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
             }
             const blob = await res.blob();
             currentAudio = new Audio(URL.createObjectURL(blob));
             currentAudio.play().catch(error => {
-                console.error('Error playing TTS audio:', error);
-                mostrarNotificacion('Error playing audio: ' + error.message, 'error');
+                console.error('Error al reproducir audio:', error);
+                mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
                 const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
             });
@@ -191,13 +189,13 @@ const speakText = async (text, audioUrl = null) => {
             };
         }
     } catch (error) {
-        console.error('Audio playback failed, trying speechSynthesis:', error);
+        console.error('Fallo en reproducción de audio, intentando speechSynthesis:', error);
         if ('speechSynthesis' in window) {
             const voices = speechSynthesis.getVoices();
-            const esVoice = voices.find(v => v.lang.includes('es')) || voices[0];
+            const esVoice = voices.find(v => v.lang.includes('es'));
             if (!esVoice) {
-                console.warn('No Spanish voice found');
-                mostrarNotificacion('No Spanish voice available', 'error');
+                console.warn('No se encontró voz en español');
+                mostrarNotificacion('No se encontró voz en español', 'error');
                 const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
                 return;
@@ -213,10 +211,10 @@ const speakText = async (text, audioUrl = null) => {
                 currentAudio = null;
             };
             utterance.onerror = (event) => {
-                console.error('speechSynthesis error:', event.error);
-                let errorMsg = 'Local audio error: ' + event.error;
-                if (event.error === 'not-allowed') errorMsg = 'Audio not allowed, interact with page first';
-                if (event.error === 'network') errorMsg = 'Network error in speech synthesis';
+                console.error('Error en speechSynthesis:', event.error);
+                let errorMsg = 'Error en audio local: ' + event.error;
+                if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página primero';
+                if (event.error === 'network') errorMsg = 'Error de red en síntesis de voz';
                 mostrarNotificacion(errorMsg, 'error');
                 const botMessage = getElement('.bot:last-child');
                 if (botMessage) botMessage.classList.remove('speaking');
@@ -224,16 +222,16 @@ const speakText = async (text, audioUrl = null) => {
             speechSynthesis.speak(utterance);
             currentAudio = utterance;
         } else {
-            console.warn('speechSynthesis not supported');
-            mostrarNotificacion('Audio not supported in this browser', 'error');
+            console.warn('speechSynthesis no soportado');
+            mostrarNotificacion('Audio no soportado en este navegador', 'error');
             const botMessage = getElement('.bot:last-child');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
 };
 
-// Stop speech and recognition
 const stopSpeech = () => {
+    console.log('Deteniendo audio');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
@@ -249,26 +247,25 @@ const stopSpeech = () => {
         if (voiceToggleBtn) {
             voiceToggleBtn.classList.remove('voice-active');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-            voiceToggleBtn.setAttribute('data-tooltip', 'Start Voice');
-            voiceToggleBtn.setAttribute('aria-label', 'Start voice recognition');
+            voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
+            voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         }
-        mostrarNotificacion('Voice recognition stopped', 'info');
+        mostrarNotificacion('Reconocimiento de voz detenido', 'info');
     }
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.remove('speaking');
 };
 
-// Voice recognition
+// Mejora 1: Optimización del reconocimiento de voz
 const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) return;
     if (!isListening) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            mostrarNotificacion('Voice recognition not supported in this browser', 'error');
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
             return;
         }
-        recognition = new SpeechRecognition();
+        recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
         recognition.lang = 'es-ES';
         recognition.interimResults = true;
         recognition.continuous = true;
@@ -277,15 +274,15 @@ const toggleVoiceRecognition = () => {
         isListening = true;
         voiceToggleBtn.classList.add('voice-active');
         voiceToggleBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
-        voiceToggleBtn.setAttribute('data-tooltip', 'Stop Voice');
-        voiceToggleBtn.setAttribute('aria-label', 'Stop voice recognition');
+        voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
+        voiceToggleBtn.setAttribute('aria-label', 'Detener reconocimiento de voz');
         voiceToggleBtn.classList.add('pulse');
-        mostrarNotificacion('Voice recognition started', 'success');
+        mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
         const resetTimeout = () => {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
                 if (isListening) stopSpeech();
-                mostrarNotificacion('Voice recognition stopped due to inactivity', 'info');
+                mostrarNotificacion('Reconocimiento de voz detenido por inactividad', 'info');
             }, 15000);
         };
         resetTimeout();
@@ -301,23 +298,23 @@ const toggleVoiceRecognition = () => {
                 clearTimeout(timeoutId);
                 voiceToggleBtn.classList.remove('voice-active', 'pulse');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-                voiceToggleBtn.setAttribute('data-tooltip', 'Start Voice');
-                voiceToggleBtn.setAttribute('aria-label', 'Start voice recognition');
+                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
+                voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
             }
         };
         recognition.onerror = event => {
             clearTimeout(timeoutId);
-            let errorMsg = `Voice recognition error: ${event.error}`;
-            if (event.error === 'no-speech') errorMsg = 'No speech detected, try again';
-            if (event.error === 'aborted') errorMsg = 'Voice recognition canceled';
-            if (event.error === 'network') errorMsg = 'Network error in voice recognition';
+            let errorMsg = `Error en reconocimiento de voz: ${event.error}`;
+            if (event.error === 'no-speech') errorMsg = 'No se detectó voz, intenta de nuevo';
+            if (event.error === 'aborted') errorMsg = 'Reconocimiento de voz cancelado';
+            if (event.error === 'network') errorMsg = 'Error de red en reconocimiento de voz';
             mostrarNotificacion(errorMsg, 'error');
             recognition.stop();
             isListening = false;
             voiceToggleBtn.classList.remove('voice-active', 'pulse');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-            voiceToggleBtn.setAttribute('data-tooltip', 'Start Voice');
-            voiceToggleBtn.setAttribute('aria-label', 'Start voice recognition');
+            voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
+            voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         };
         recognition.onend = () => {
             if (isListening) {
@@ -327,8 +324,8 @@ const toggleVoiceRecognition = () => {
                 clearTimeout(timeoutId);
                 voiceToggleBtn.classList.remove('voice-active', 'pulse');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-                voiceToggleBtn.setAttribute('data-tooltip', 'Start Voice');
-                voiceToggleBtn.setAttribute('aria-label', 'Start voice recognition');
+                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
+                voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
             }
         };
     } else {
@@ -336,14 +333,15 @@ const toggleVoiceRecognition = () => {
     }
 };
 
-// Load conversations
 const cargarConversaciones = async () => {
     try {
         const res = await fetch('/conversations');
-        if (!res.ok) throw new Error(`HTTP error ${res.status}: ${await res.text()}`);
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Error HTTP ${res.status}: ${text}`);
+        }
         const data = await res.json();
         const chatList = getElement('#chat-list');
-        if (!chatList) return;
         chatList.innerHTML = '';
 
         data.conversations.forEach(conv => {
@@ -352,8 +350,8 @@ const cargarConversaciones = async () => {
             li.innerHTML = `
                 <span class="chat-name">${conv.nombre}</span>
                 <div class="chat-actions">
-                    <button class="rename-btn" data-tooltip="Rename"><i class="fas fa-edit"></i></button>
-                    <button class="delete-btn" data-tooltip="Delete"><i class="fas fa-trash"></i></button>
+                    <button class="rename-btn" data-tooltip="Renombrar"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn" data-tooltip="Eliminar"><i class="fas fa-trash"></i></button>
                 </div>
             `;
             li.addEventListener('click', () => {
@@ -389,55 +387,63 @@ const cargarConversaciones = async () => {
             mostrarMensajeBienvenida();
         }
     } catch (error) {
-        handleFetchError(error, 'Load conversations');
+        handleFetchError(error, 'Carga de conversaciones');
     }
 };
 
-// Load messages for a conversation
-const cargarMensajes = async (convId) => {
+async function cargarMensajes(convId) {
     try {
         const res = await fetch(`/messages/${convId}`);
+        const data = await res.json();
         if (!res.ok) {
             if (res.status === 404) {
-                console.warn(`Conversation ${convId} not found, creating new.`);
+                console.warn(`Conversación ${convId} no encontrada, creando nueva.`);
                 const newConv = await nuevaConversacion();
                 if (newConv && newConv.id) {
                     currentConvId = newConv.id;
+                    console.log(`Actualizado currentConvId a ${currentConvId}`);
+                    // Cargar mensajes de la nueva conversación
                     const newRes = await fetch(`/messages/${currentConvId}`);
-                    if (!newRes.ok) throw new Error(`HTTP error ${newRes.status}: ${await newRes.text()}`);
                     const newData = await newRes.json();
-                    return cargarMensajes(newData.conv_id); // Recursive call for new conversation
+                    if (!newRes.ok) {
+                        throw new Error(`Error HTTP ${newRes.status}: ${newData.error || 'Desconocido'}`);
+                    }
+                    data.messages = newData.messages;
+                    data.conv_id = newData.conv_id;
+                } else {
+                    throw new Error('No se pudo crear una nueva conversación');
                 }
-                throw new Error('Failed to create new conversation');
+            } else {
+                throw new Error(`Error HTTP ${res.status}: ${data.error || 'Desconocido'}`);
             }
-            throw new Error(`HTTP error ${res.status}: ${await res.text()}`);
         }
-        const data = await res.json();
-        currentConvId = data.conv_id || convId;
 
-        const container = getElement('#chatbox')?.querySelector('.message-container');
-        if (!container) return;
+        // Actualizar currentConvId con el valor devuelto por el backend
+        if (data.conv_id) {
+            currentConvId = data.conv_id;
+            console.log(`Actualizado currentConvId a ${currentConvId}`);
+        }
+
+        const container = getElement('#chatbox').querySelector('.message-container');
         container.innerHTML = '';
 
         data.messages.forEach(msg => {
             const div = document.createElement('div');
             div.classList.add(msg.role === 'user' ? 'user' : 'bot');
             div.innerHTML = (typeof marked !== 'undefined' ? marked.parse(msg.content) : msg.content) +
-                `<button class="copy-btn" data-text="${msg.content.replace(/"/g, '&quot;')}" aria-label="Copy message"><i class="fas fa-copy"></i></button>`;
+                `<button class="copy-btn" data-text="${msg.content.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
             container.appendChild(div);
         });
 
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
-        addCopyButtonListeners();
     } catch (error) {
-        handleFetchError(error, 'Load messages');
+        handleFetchError(error, 'Carga de mensajes');
     }
-};
+}
 
-// Delete conversation
 const eliminarConversacion = async (convId) => {
-    if (!confirm("Are you sure you want to delete this conversation?")) return;
+    if (!confirm("¿Estás seguro de que quieres eliminar esta conversación?")) return;
     try {
         const res = await fetch(`/conversations/${convId}`, {
             method: 'DELETE',
@@ -446,23 +452,22 @@ const eliminarConversacion = async (convId) => {
         if (res.ok) {
             if (currentConvId === convId) {
                 currentConvId = null;
-                const container = getElement('#chatbox')?.querySelector('.message-container');
-                if (container) container.innerHTML = '';
+                getElement('#chatbox').querySelector('.message-container').innerHTML = '';
                 mostrarMensajeBienvenida();
             }
             cargarConversaciones();
-            mostrarNotificacion('Conversation deleted', 'success');
+            mostrarNotificacion('Conversación eliminada', 'success');
         } else {
-            throw new Error((await res.json()).error || 'Error deleting conversation');
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Error al eliminar conversación');
         }
     } catch (error) {
-        handleFetchError(error, 'Delete conversation');
+        handleFetchError(error, 'Eliminación de conversación');
     }
 };
 
-// Rename conversation
 const renombrarConversacion = async (convId) => {
-    const nuevoNombre = prompt('New name for the conversation:');
+    const nuevoNombre = prompt('Nuevo nombre para la conversación:');
     if (!nuevoNombre) return;
     try {
         const res = await fetch(`/conversations/${convId}`, {
@@ -472,33 +477,33 @@ const renombrarConversacion = async (convId) => {
         });
         if (res.ok) {
             cargarConversaciones();
-            mostrarNotificacion('Conversation renamed', 'success');
+            mostrarNotificacion('Conversación renombrada', 'success');
         } else {
-            throw new Error((await res.json()).error || 'Error renaming conversation');
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Error al renombrar conversación');
         }
     } catch (error) {
-        handleFetchError(error, 'Rename conversation');
+        handleFetchError(error, 'Renombrar conversación');
     }
 };
 
-// Send message
-const sendMessage = async () => {
+async function sendMessage() {
     const input = getElement('#input');
     const nivelBtn = getElement('#nivel-btn');
     if (!input || !nivelBtn) {
-        mostrarNotificacion('Error: Input or level button not found', 'error');
+        console.error('Elementos #input o #nivel-btn no encontrados');
+        mostrarNotificacion('Error: Elementos de entrada no encontrados', 'error');
         return;
     }
     const pregunta = input.value.trim();
     if (!pregunta) return;
     input.value = '';
 
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) return;
+    const container = getElement('#chatbox').querySelector('.message-container');
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
     userDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(pregunta) : pregunta) +
-        `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copy message"><i class="fas fa-copy"></i></button>`;
+        `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
     const loadingDiv = showLoading();
     scrollToBottom();
@@ -508,14 +513,14 @@ const sendMessage = async () => {
             const res = await fetch('/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nombre: 'New Chat' })
+                body: JSON.stringify({})
             });
-            if (!res.ok) throw new Error(`Error creating conversation: ${res.status}`);
+            if (!res.ok) throw new Error('Error al crear conversación: ' + res.status);
             const data = await res.json();
             currentConvId = data.id;
             await cargarConversaciones();
         } catch (error) {
-            handleFetchError(error, 'Create conversation');
+            handleFetchError(error, 'Creación de conversación');
             hideLoading(loadingDiv);
             return;
         }
@@ -525,67 +530,72 @@ const sendMessage = async () => {
         await fetch(`/messages/${currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'user', content: pregunta })
+            body: JSON.stringify({ role: "user", content: pregunta })
         });
+    } catch (error) {
+        handleFetchError(error, 'Guardado de mensaje usuario');
+        hideLoading(loadingDiv);
+    }
 
-        const nivel = nivelBtn.textContent.trim().toLowerCase();
-        const nivelExplicacion = nivel.includes('básica') ? 'basica' :
-                                 nivel.includes('ejemplos') ? 'ejemplos' : 'avanzada';
+    try {
         const res = await fetch('/buscar_respuesta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 pregunta,
                 historial: getHistorial(),
-                nivel_explicacion: nivelExplicacion,
+                nivel_explicacion: nivelBtn.textContent.trim().toLowerCase().includes('básica') ? 'basica' :
+                                  nivelBtn.textContent.trim().toLowerCase().includes('ejemplos') ? 'ejemplos' : 'avanzada',
                 conv_id: currentConvId
             })
         });
-        if (!res.ok) throw new Error(`Error processing request: ${res.status}`);
+        if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
         const data = await res.json();
         currentConvId = data.conv_id || currentConvId;
 
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copy message"><i class="fas fa-copy"></i></button>`;
+            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
         addCopyButtonListeners();
 
+        // Llamada al proxy para la API de Ready Player Me
         try {
             const animationRes = await fetch('/proxy_rpm_animation', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: data.respuesta, voiceId: 'es-MX-JorgeNeural' })
             });
-            if (!animationRes.ok) throw new Error('Error fetching Ready Player Me animation');
+            if (!animationRes.ok) throw new Error('Error al obtener animación de Ready Player Me');
             const animationData = await animationRes.json();
             const { audioUrl, visemes } = animationData;
-            botDiv.classList.add('speaking');
+
+            // Reproducir audio usando speakText
             speakText(data.respuesta, audioUrl);
 
+            // Aplicar visemas (simplificado, depende del SDK de Ready Player Me)
             if (avatarModel && visemes) {
                 let visemeIndex = 0;
                 const visemeInterval = setInterval(() => {
                     if (visemeIndex >= visemes.length) {
                         clearInterval(visemeInterval);
-                        botDiv.classList.remove('speaking');
                         return;
                     }
                     const viseme = visemes[visemeIndex];
-                    // Apply viseme logic here (requires Ready Player Me SDK)
+                    console.log('Aplicando visema:', viseme); // Implementar lógica de visemas con SDK
                     visemeIndex++;
-                }, 100);
+                }, 100); // Ajustar según la duración de los visemas
             }
         } catch (error) {
-            console.error('Ready Player Me API error:', error);
-            mostrarNotificacion('Error fetching avatar animation, using TTS', 'error');
-            botDiv.classList.add('speaking');
-            speakText(data.respuesta);
+            console.error('Error en la API de Ready Player Me:', error);
+            mostrarNotificacion('Error al obtener animación del avatar, usando audio TTS', 'error');
+            speakText(data.respuesta); // Usar TTS como respaldo
         }
 
+        // Actualizar historial y guardar mensaje
         const historial = getHistorial();
         historial.push({ pregunta, respuesta: data.respuesta });
         if (historial.length > 10) historial.shift();
@@ -597,35 +607,39 @@ const sendMessage = async () => {
         });
         await cargarConversaciones();
     } catch (error) {
-        handleFetchError(error, 'Send message');
+        handleFetchError(error, 'Envío de mensaje');
     } finally {
         hideLoading(loadingDiv);
     }
-};
+}
 
-// Create new conversation
-const nuevaConversacion = async () => {
+async function nuevaConversacion() {
     try {
         const res = await fetch('/conversations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre: 'New Chat' })
+            body: JSON.stringify({ nombre: 'Nuevo Chat' })
         });
-        if (!res.ok) throw new Error(`HTTP error ${res.status}: ${await res.text()}`);
         const data = await res.json();
+        if (!res.ok) {
+            throw new Error(`Error HTTP ${res.status}: ${data.error || 'Desconocido'}`);
+        }
         currentConvId = data.id;
-        const container = getElement('#chatbox')?.querySelector('.message-container');
-        if (container) container.innerHTML = '';
+        const container = getElement('#chatbox').querySelector('.message-container');
+        container.innerHTML = '';
         await cargarConversaciones();
-        mostrarMensajeBienvenida();
         return data;
     } catch (error) {
-        handleFetchError(error, 'Create new conversation');
+        handleFetchError(error, 'Creación de nueva conversación');
         return null;
     }
+}
+
+const vaciarChat = async () => {
+    if (!currentConvId) return;
+    await nuevaConversacion();
 };
 
-// Copy button handler
 const addCopyButtonListeners = () => {
     getElements('.copy-btn').forEach(btn => {
         btn.removeEventListener('click', handleCopy);
@@ -637,81 +651,97 @@ const handleCopy = (event) => {
     const btn = event.currentTarget;
     const text = btn.dataset.text;
     navigator.clipboard.writeText(text).then(() => {
-        mostrarNotificacion('Text copied to clipboard', 'success');
+        mostrarNotificacion('Texto copiado al portapapeles', 'success');
         btn.innerHTML = `<i class="fas fa-check"></i>`;
         setTimeout(() => btn.innerHTML = `<i class="fas fa-copy"></i>`, 2000);
     }).catch(err => {
-        console.error('Error copying text:', err);
-        mostrarNotificacion('Error copying text', 'error');
+        console.error('Error al copiar texto:', err);
+        mostrarNotificacion('Error al copiar texto', 'error');
     });
 };
 
-// Toggle dropdown menu
 const toggleDropdown = (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     if (dropdownMenu) {
         dropdownMenu.classList.toggle('active');
+        console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado');
         if (event) event.stopPropagation();
     } else {
-        mostrarNotificacion('Error: Level menu not found', 'error');
+        console.error('Elemento .dropdown-menu no encontrado');
+        mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
     }
 };
 
-// Set explanation level
 const setNivelExplicacion = (nivel) => {
+    console.log('setNivelExplicacion llamado con nivel:', nivel);
     if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
-        mostrarNotificacion('Error: Invalid level', 'error');
+        console.error('Nivel inválido:', nivel);
+        mostrarNotificacion('Error: Nivel inválido', 'error');
         return;
     }
+
     localStorage.setItem('nivelExplicacion', nivel);
     const nivelBtn = getElement('#nivel-btn');
     if (nivelBtn) {
-        const nivelText = nivel === 'basica' ? 'Basic Explanation' :
-                          nivel === 'ejemplos' ? 'With Code Examples' : 'Advanced/Theoretical';
+        const nivelText =
+            nivel === 'basica' ? 'Explicación Básica' :
+            nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
+            'Avanzada/Teórica';
         nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
+        console.log('Nivel actualizado a:', nivelText);
+
         const dropdownMenu = getElement('.dropdown-menu');
-        if (dropdownMenu?.classList.contains('active')) {
+        if (dropdownMenu && dropdownMenu.classList.contains('active')) {
             dropdownMenu.classList.remove('active');
+            console.log('Menú desplegable cerrado tras seleccionar nivel');
         }
-        mostrarNotificacion(`Level changed to: ${nivelText}`, 'success');
+
+        mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
     } else {
-        mostrarNotificacion('Error: Level button not found', 'error');
+        console.error('Elemento #nivel-btn no encontrado');
+        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
     }
 };
 
-// Check if mobile
 const isMobile = () => window.innerWidth < 768;
 
-// Handle global clicks
 document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
 
-    if (nivelBtn?.contains(event.target)) return;
-    if (dropdownMenu?.contains(event.target)) return;
-    if (dropdownMenu?.classList.contains('active')) {
+    if (nivelBtn && nivelBtn.contains(event.target)) {
+        console.log('Clic en botón de nivel, toggling menú');
+        return;
+    }
+
+    if (dropdownMenu && dropdownMenu.contains(event.target)) {
+        console.log('Clic en opción del menú desplegable');
+        return;
+    }
+
+    if (dropdownMenu && dropdownMenu.classList.contains('active')) {
         dropdownMenu.classList.remove('active');
+        console.log('Menú desplegable cerrado por clic fuera');
     }
 
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
 
-        if (leftSection?.classList.contains('active') &&
+        if (leftSection && leftSection.classList.contains('active') &&
             !leftSection.contains(event.target) &&
-            !getElement('.menu-toggle')?.contains(event.target)) {
+            !getElement('.menu-toggle').contains(event.target)) {
             toggleMenu();
         }
 
-        if (rightSection?.classList.contains('active') &&
+        if (rightSection && rightSection.classList.contains('active') &&
             !rightSection.contains(event.target) &&
-            !getElement('.menu-toggle-right')?.contains(event.target)) {
+            !getElement('.menu-toggle-right').contains(event.target)) {
             toggleRightMenu();
         }
     }
 });
 
-// Toggle left menu
 const toggleMenu = () => {
     const leftSection = getElement('.left-section');
     const rightSection = getElement('.right-section');
@@ -720,14 +750,12 @@ const toggleMenu = () => {
 
     if (isMobile()) {
         const menuToggle = getElement('.menu-toggle');
-        if (menuToggle) {
-            menuToggle.innerHTML = leftSection.classList.contains('active')
-                ? '<i class="fas fa-times"></i>'
-                : '<i class="fas fa-bars"></i>';
-        }
+        menuToggle.innerHTML = leftSection.classList.contains('active')
+            ? '<i class="fas fa-times"></i>'
+            : '<i class="fas fa-bars"></i>';
     }
 
-    if (rightSection?.classList.contains('active')) {
+    if (rightSection && rightSection.classList.contains('active')) {
         rightSection.classList.remove('active');
     }
 
@@ -737,7 +765,6 @@ const toggleMenu = () => {
     }
 };
 
-// Toggle right menu
 const toggleRightMenu = () => {
     const rightSection = getElement('.right-section');
     const leftSection = getElement('.left-section');
@@ -746,14 +773,12 @@ const toggleRightMenu = () => {
 
     if (isMobile()) {
         const menuToggleRight = getElement('.menu-toggle-right');
-        if (menuToggleRight) {
-            menuToggleRight.innerHTML = rightSection.classList.contains('active')
-                ? '<i class="fas fa-times"></i>'
-                : '<i class="fas fa-bars"></i>';
-        }
+        menuToggleRight.innerHTML = rightSection.classList.contains('active')
+            ? '<i class="fas fa-times"></i>'
+            : '<i class="fas fa-bars"></i>';
     }
 
-    if (leftSection?.classList.contains('active')) {
+    if (leftSection && leftSection.classList.contains('active')) {
         leftSection.classList.remove('active');
     }
 
@@ -763,26 +788,25 @@ const toggleRightMenu = () => {
     }
 };
 
-// Show welcome message
 const mostrarMensajeBienvenida = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
     if (!container || !chatbox) {
-        mostrarNotificacion('Error: Chat container not found', 'error');
+        console.error('Elemento #chatbox o .message-container no encontrado');
+        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
         return;
     }
 
-    const mensaje = '👋 Hello! I am YELIA, your Advanced Programming in Telematics Engineering assistant. What would you like to learn today?';
+    const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
     
     if (container.children.length === 0) {
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) +
-            `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copy message"><i class="fas fa-copy"></i></button>`;
+            `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
-        addCopyButtonListeners();
 
         if (vozActiva && userHasInteracted) {
             speakText(mensaje);
@@ -792,44 +816,42 @@ const mostrarMensajeBienvenida = () => {
     }
 };
 
-// Get quiz
 const obtenerQuiz = async (tipo) => {
+    console.log('Obteniendo quiz, tipo:', tipo);
     const loadingDiv = showLoading();
     try {
         const res = await fetch('/quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonymous', nivel: localStorage.getItem('nivelExplicacion') || 'basica' })
+            body: JSON.stringify({ usuario: 'anonimo', nivel: localStorage.getItem('nivelExplicacion') || 'basica' })
         });
-        if (!res.ok) throw new Error(`Error fetching quiz: ${res.status}`);
+        if (!res.ok) throw new Error(`Error al obtener quiz: ${res.status}`);
         const data = await res.json();
         hideLoading(loadingDiv);
         return data;
     } catch (error) {
-        handleFetchError(error, 'Fetch quiz');
+        handleFetchError(error, 'Obtención de quiz');
         hideLoading(loadingDiv);
         return null;
     }
 };
 
-// Display quiz in chat
 const mostrarQuizEnChat = async (quizData) => {
     if (!quizData) return;
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) return;
+    console.log('Mostrando quiz en chat:', quizData);
+    const container = getElement('#chatbox').querySelector('.message-container');
     const quizDiv = document.createElement('div');
     quizDiv.classList.add('bot');
     quizDiv.setAttribute('aria-live', 'polite');
     let optionsHtml = quizData.opciones.map((opcion, index) => `
-        <div class="quiz-option" data-option="${opcion}" data-index="${index}" tabindex="0" role="button" aria-label="Option ${opcion}">${opcion}</div>
+        <div class="quiz-option" data-option="${opcion}" data-index="${index}" tabindex="0" role="button" aria-label="Opción ${opcion}">${opcion}</div>
     `).join('');
     quizDiv.innerHTML = `
         <p>${quizData.pregunta}</p>
         <div class="quiz-options">${optionsHtml}</div>
-        <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copy question"><i class="fas fa-copy"></i></button>
+        <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
     quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta;
-    quizDiv.dataset.tema = quizData.tema || 'unknown';
     container.appendChild(quizDiv);
     scrollToBottom();
 
@@ -843,7 +865,6 @@ const mostrarQuizEnChat = async (quizData) => {
     addCopyButtonListeners();
 };
 
-// Handle quiz option selection
 const handleQuizOption = async (event) => {
     const option = event.currentTarget;
     const selectedOption = option.dataset.option;
@@ -855,7 +876,8 @@ const handleQuizOption = async (event) => {
         tema: quizContainer.dataset.tema || 'unknown'
     };
     if (!quizData.respuesta_correcta) {
-        mostrarNotificacion('Error: Could not determine correct answer', 'error');
+        console.error('No se proporcionó respuesta_correcta');
+        mostrarNotificacion('Error: No se pudo determinar la respuesta correcta', 'error');
         return;
     }
     getElements('.quiz-option').forEach(opt => opt.classList.remove('selected', 'correct', 'incorrect'));
@@ -872,7 +894,7 @@ const handleQuizOption = async (event) => {
                 tema: quizData.tema
             })
         });
-        if (!res.ok) throw new Error(`Error responding to quiz: ${res.status}`);
+        if (!res.ok) throw new Error(`Error al responder quiz: ${res.status}`);
         const data = await res.json();
         const isCorrect = data.es_correcta;
         option.classList.add(isCorrect ? 'correct' : 'incorrect');
@@ -881,137 +903,176 @@ const handleQuizOption = async (event) => {
             if (correctOption) correctOption.classList.add('correct');
         }
         hideLoading(loadingDiv);
-        const container = getElement('#chatbox')?.querySelector('.message-container');
-        if (!container) return;
+        const container = getElement('#chatbox').querySelector('.message-container');
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('bot');
         feedbackDiv.dataset.tema = quizData.tema;
         feedbackDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copy response"><i class="fas fa-copy"></i></button>`;
+            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar respuesta"><i class="fas fa-copy"></i></button>`;
         container.appendChild(feedbackDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
         speakText(data.respuesta);
         addCopyButtonListeners();
 
-        quizHistory.push({ pregunta: quizData.pregunta, respuesta: data.respuesta, tema: quizData.tema });
-        if (quizHistory.length > 10) quizHistory.shift();
-        localStorage.setItem('quizHistory', JSON.stringify(quizHistory));
+        const historial = getHistorial();
+        historial.push({ pregunta: quizData.pregunta, respuesta: data.respuesta, tema: quizData.tema });
+        if (historial.length > 10) historial.shift();
     } catch (error) {
-        handleFetchError(error, 'Respond quiz');
+        handleFetchError(error, 'Respuesta de quiz');
         hideLoading(loadingDiv);
     }
 };
 
-// Load topics
+const obtenerRecomendacion = async () => {
+    console.log('Obteniendo recomendación');
+    const loadingDiv = showLoading();
+    try {
+        const res = await fetch('/recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: 'anonimo', historial: getHistorial() })
+        });
+        if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
+        const data = await res.json();
+        hideLoading(loadingDiv);
+        return data;
+    } catch (error) {
+        handleFetchError(error, 'Obtención de recomendación');
+        hideLoading(loadingDiv);
+        return { recommendation: 'No se pudo generar recomendación' };
+    }
+};
+
 const cargarTemas = async () => {
     const cacheKey = 'temasCache';
     const cacheTimeKey = 'temasCacheTime';
-    const cacheDuration = 24 * 60 * 60 * 1000;
+    const cacheDuration = 24 * 60 * 60 * 1000; // 24 horas
     const cachedTemas = localStorage.getItem(cacheKey);
     const cachedTime = localStorage.getItem(cacheTimeKey);
 
     if (cachedTemas && cachedTime && Date.now() - parseInt(cachedTime) < cacheDuration) {
         TEMAS_DISPONIBLES = JSON.parse(cachedTemas);
+        console.log('Temas cargados desde caché:', TEMAS_DISPONIBLES);
         return;
     }
 
     try {
         const res = await fetch('/temas', { method: 'GET' });
-        if (!res.ok) throw new Error(`Error loading topics: ${res.status}`);
+        if (!res.ok) throw new Error(`Error al cargar temas: ${res.status}`);
         const data = await res.json();
         if (data.temas && Array.isArray(data.temas)) {
             TEMAS_DISPONIBLES = data.temas;
             localStorage.setItem(cacheKey, JSON.stringify(TEMAS_DISPONIBLES));
             localStorage.setItem(cacheTimeKey, Date.now().toString());
+            console.log('Temas cargados desde servidor:', TEMAS_DISPONIBLES);
+        } else {
+            console.warn('No se pudieron cargar temas, usando lista por defecto');
         }
     } catch (error) {
-        handleFetchError(error, 'Load topics');
+        handleFetchError(error, 'Carga de temas');
+        console.warn('Usando temas por defecto debido a error');
     }
 };
 
-// Setup 3D avatar scene
-// let scene, camera, renderer, avatarModel; /* Comentado: variables para avatar */
+// Configuración de la escena 3D para el avatar
+let scene, camera, renderer, avatarModel;
 
-// const setupAvatarScene = async () => { /* Comentado: función completa para avatar */
-//     try {
-//         const container = getElement('#avatar-container');
-//         if (!container) {
-//             mostrarNotificacion('Error: Avatar container not found', 'error');
-//             return;
-//         }
-//         if (typeof THREE === 'undefined') {
-//             mostrarNotificacion('Error: Three.js not loaded', 'error');
-//             container.classList.add('error');
-//             return;
-//         }
+async function setupAvatarScene() {
+    try {
+        const container = getElement('#avatar-container');
+        if (!container) {
+            console.error('Contenedor #avatar-container no encontrado');
+            mostrarNotificacion('No se encontró el contenedor del avatar', 'error');
+            return;
+        }
 
-//         const keyRes = await fetch('/get_rpm_api_key');
-//         if (!keyRes.ok) throw new Error(`Error fetching API key: ${keyRes.statusText}`);
-//         const keyData = await keyRes.json();
-//         const apiKey = keyData.rpm_api_key;
+        // Verificar que THREE esté definido
+        if (typeof THREE === 'undefined') {
+            console.error('THREE.js no está definido. Verifica que el script se haya cargado.');
+            mostrarNotificacion('Error: No se pudo cargar Three.js', 'error');
+            container.classList.add('error');
+            return;
+        }
 
-//         scene = new THREE.Scene();
-//         camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-//         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-//         renderer.setSize(container.clientWidth, container.clientHeight);
-//         container.appendChild(renderer.domElement);
+        // Obtener API Key
+        const keyRes = await fetch('/get_rpm_api_key');
+        if (!keyRes.ok) throw new Error(`Error al obtener la API Key: ${keyRes.statusText}`);
+        const keyData = await keyRes.json();
+        const apiKey = keyData.rpm_api_key;
 
-//         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-//         scene.add(ambientLight);
-//         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-//         directionalLight.position.set(0, 1, 1);
-//         scene.add(directionalLight);
+        // Crear escena, cámara y renderizador
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
 
-//         const avatarUrl = `https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb?apiKey=${apiKey}`;
-//         const loader = new THREE.GLTFLoader();
-//         loader.load(
-//             avatarUrl,
-//             (gltf) => {
-//                 avatarModel = gltf.scene;
-//                 avatarModel.scale.set(1.5, 1.5, 1.5);
-//                 avatarModel.position.set(0, -1, 0);
-//                 scene.add(avatarModel);
-//                 container.classList.remove('error', 'loading');
-//                 animate();
-//             },
-//             (xhr) => {
-//                 const percentComplete = (xhr.loaded / xhr.total) * 100;
-//                 container.classList.add('loading');
-//             },
-//             (error) => {
-//                 console.error('Error loading GLB model:', error);
-//                 mostrarNotificacion('Error loading 3D avatar', 'error');
-//                 container.classList.add('error');
-//             }
-//         );
+        // Añadir luces
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        directionalLight.position.set(0, 1, 1);
+        scene.add(directionalLight);
 
-//         camera.position.z = 2;
+        // Cargar modelo GLB con autenticación
+        const avatarUrl = `https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb?apiKey=${apiKey}`;
+        const loader = new THREE.GLTFLoader();
+        loader.load(
+            avatarUrl,
+            (gltf) => {
+                avatarModel = gltf.scene;
+                avatarModel.scale.set(1.5, 1.5, 1.5);
+                avatarModel.position.set(0, -1, 0);
+                scene.add(avatarModel);
+                console.log('Modelo GLB cargado:', avatarUrl);
+                container.classList.remove('error', 'loading');
+                animate();
+            },
+            (xhr) => {
+                const percentComplete = (xhr.loaded / xhr.total) * 100;
+                console.log(`Cargando avatar: ${percentComplete}%`);
+                container.classList.add('loading');
+            },
+            (error) => {
+                console.error('Error al cargar el modelo GLB:', error);
+                mostrarNotificacion('Error al cargar el avatar 3D', 'error');
+                container.classList.add('error');
+            }
+        );
 
-//         window.addEventListener('resize', () => {
-//             const width = container.clientWidth;
-//             const height = container.clientHeight;
-//             renderer.setSize(width, height);
-//             camera.aspect = width / height;
-//             camera.updateProjectionMatrix();
-//         });
+        // Posicionar cámara
+        camera.position.z = 2;
 
-//         function animate() {
-//             requestAnimationFrame(animate);
-//             renderer.render(scene, camera);
-//         }
-//     } catch (error) {
-//         console.error('Error in setupAvatarScene:', error);
-//         mostrarNotificacion('Error initializing 3D avatar', 'error');
-//         const container = getElement('#avatar-container');
-//         if (container) container.classList.add('error');
-//     }
-// };
+        // Manejar redimensionamiento
+        window.addEventListener('resize', () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
 
-// Initialize application
+        // Animación
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+    } catch (error) {
+        console.error('Error en setupAvatarScene:', error);
+        mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
+        const container = getElement('#avatar-container');
+        if (container) {
+            container.classList.add('error');
+        }
+    }
+}
+
 const init = () => {
+    console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
+    // Función para verificar si Three.js está cargado
     const waitForThree = () => {
         return new Promise((resolve, reject) => {
             const checkThree = setInterval(() => {
@@ -1022,11 +1083,12 @@ const init = () => {
             }, 100);
             setTimeout(() => {
                 clearInterval(checkThree);
-                reject(new Error('Three.js not loaded in time'));
-            }, 10000);
+                reject(new Error('Three.js no se cargó en el tiempo esperado'));
+            }, 10000); // Timeout de 10 segundos
         });
     };
 
+    // Cargar temas y configurar eventos
     cargarTemas();
 
     const menuToggle = getElement('.menu-toggle');
@@ -1040,97 +1102,99 @@ const init = () => {
     const clearBtn = getElement('#btn-clear');
     const nivelBtn = getElement('#nivel-btn');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
-    const inputElement = getElement('#input');
 
     if (menuToggle) {
         menuToggle.removeEventListener('click', toggleMenu);
         menuToggle.addEventListener('click', toggleMenu);
-        menuToggle.setAttribute('data-tooltip', 'Left Menu');
-        menuToggle.setAttribute('aria-label', 'Open left menu');
+        menuToggle.setAttribute('data-tooltip', 'Menú Izquierdo');
+        menuToggle.setAttribute('aria-label', 'Abrir menú izquierdo');
     }
     if (menuToggleRight) {
         menuToggleRight.removeEventListener('click', toggleRightMenu);
         menuToggleRight.addEventListener('click', toggleRightMenu);
-        menuToggleRight.setAttribute('data-tooltip', 'Right Menu');
-        menuToggleRight.setAttribute('aria-label', 'Open right menu');
+        menuToggleRight.setAttribute('data-tooltip', 'Menú Derecho');
+        menuToggleRight.setAttribute('aria-label', 'Abrir menú derecho');
     }
     if (modoBtn) {
         const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
-        modoBtn.setAttribute('data-tooltip', modoOscuro ? 'Switch to Light Mode' : 'Switch to Dark Mode');
-        modoBtn.setAttribute('aria-label', modoOscuro ? 'Switch to light mode' : 'Switch to dark mode');
+        modoBtn.setAttribute('data-tooltip', modoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+        modoBtn.setAttribute('aria-label', modoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
         modoBtn.innerHTML = `
             <i class="fas ${modoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
-            <span id="modo-text">${modoOscuro ? 'Light Mode' : 'Dark Mode'}</span>
+            <span id="modo-text">${modoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
         `;
         modoBtn.removeEventListener('click', handleModoToggle);
         modoBtn.addEventListener('click', debounce(handleModoToggle, 300));
     }
     if (voiceBtn) {
-        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Disable Audio' : 'Enable Audio');
-        voiceBtn.setAttribute('aria-label', vozActiva ? 'Disable audio' : 'Enable audio');
+        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
         voiceBtn.innerHTML = `
             <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
-            <span id="voice-text">${vozActiva ? 'Disable Audio' : 'Enable Audio'}</span>
+            <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
         `;
         voiceBtn.removeEventListener('click', handleVoiceToggle);
         voiceBtn.addEventListener('click', handleVoiceToggle);
     }
     if (quizBtn) {
-        quizBtn.setAttribute('data-tooltip', 'Start Quiz');
-        quizBtn.setAttribute('aria-label', 'Generate a quiz');
+        quizBtn.setAttribute('data-tooltip', 'Obtener Quiz');
+        quizBtn.setAttribute('aria-label', 'Generar un quiz');
         quizBtn.removeEventListener('click', handleQuizClick);
         quizBtn.addEventListener('click', debounce(handleQuizClick, 300));
     }
     if (recommendBtn) {
-        recommendBtn.setAttribute('data-tooltip', 'Recommend Topic');
-        recommendBtn.setAttribute('aria-label', 'Get topic recommendation');
+        recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
+        recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
         recommendBtn.removeEventListener('click', handleRecommendClick);
         recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300));
     }
     if (sendBtn) {
-        sendBtn.setAttribute('data-tooltip', 'Send');
-        sendBtn.setAttribute('aria-label', 'Send message');
+        sendBtn.setAttribute('data-tooltip', 'Enviar');
+        sendBtn.setAttribute('aria-label', 'Enviar mensaje');
         sendBtn.removeEventListener('click', sendMessage);
         sendBtn.addEventListener('click', debounce(sendMessage, 300));
     }
     if (newChatBtn) {
-        newChatBtn.setAttribute('data-tooltip', 'New Chat');
-        newChatBtn.setAttribute('aria-label', 'Start new conversation');
+        newChatBtn.setAttribute('data-tooltip', 'Nuevo Chat');
+        newChatBtn.setAttribute('aria-label', 'Iniciar nueva conversación');
         newChatBtn.removeEventListener('click', nuevaConversacion);
         newChatBtn.addEventListener('click', debounce(nuevaConversacion, 300));
     }
     if (clearBtn) {
-        clearBtn.setAttribute('data-tooltip', 'Clear Chat');
-        clearBtn.setAttribute('aria-label', 'Clear current chat');
+        clearBtn.setAttribute('data-tooltip', 'Limpiar Chat');
+        clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
         clearBtn.removeEventListener('click', nuevaConversacion);
         clearBtn.addEventListener('click', debounce(nuevaConversacion, 300));
     }
     if (nivelBtn) {
-        nivelBtn.setAttribute('data-tooltip', 'Change Level');
-        nivelBtn.setAttribute('aria-label', 'Change explanation level');
+        nivelBtn.setAttribute('data-tooltip', 'Cambiar Nivel');
+        nivelBtn.setAttribute('aria-label', 'Cambiar nivel de explicación');
         nivelBtn.removeEventListener('click', toggleDropdown);
         nivelBtn.addEventListener('click', toggleDropdown);
     }
     if (voiceToggleBtn) {
-        voiceToggleBtn.setAttribute('data-tooltip', 'Voice');
-        voiceToggleBtn.setAttribute('aria-label', 'Start voice recognition');
+        voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
+        voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.removeEventListener('click', toggleVoiceRecognition);
         voiceToggleBtn.addEventListener('click', toggleVoiceRecognition);
     }
+    const inputElement = getElement('#input');
     if (inputElement) {
         inputElement.removeEventListener('keydown', handleInputKeydown);
         inputElement.addEventListener('keydown', handleInputKeydown);
     }
 
-    // waitForThree() /* Comentado: carga de Three.js para avatar */
-    //     .then(() => {
-    //         setupAvatarScene();
-    //     })
-    //     .catch((error) => {
-    //         console.error('Error loading Three.js:', error);
-    //         mostrarNotificacion('Error initializing 3D avatar: Three.js not available', 'error');
-    //     });
+    // Inicializar escena del avatar solo si Three.js está cargado
+    waitForThree()
+        .then(() => {
+            setupAvatarScene();
+        })
+        .catch((error) => {
+            console.error('Error al cargar Three.js:', error);
+            mostrarNotificacion('Error al inicializar el avatar 3D: Three.js no disponible', 'error');
+        });
 
+    // Mostrar mensaje de bienvenida y manejar voz
     setTimeout(() => {
         mostrarMensajeBienvenida();
         if (vozActiva && !userHasInteracted) {
@@ -1138,11 +1202,13 @@ const init = () => {
         }
     }, 100);
 
+    // Configurar interacción inicial
     document.removeEventListener('click', handleFirstInteraction);
     document.removeEventListener('touchstart', handleFirstInteraction);
     document.addEventListener('click', handleFirstInteraction, { once: true });
     document.addEventListener('touchstart', handleFirstInteraction, { once: true });
 
+    // Cargar conversaciones y nivel de explicación
     cargarConversaciones();
 
     let nivelGuardado = localStorage.getItem('nivelExplicacion');
@@ -1150,101 +1216,113 @@ const init = () => {
         nivelGuardado = 'basica';
         localStorage.setItem('nivelExplicacion', nivelGuardado);
     }
+    console.log('Nivel guardado en localStorage:', nivelGuardado);
     setNivelExplicacion(nivelGuardado);
 };
 
-// Toggle dark mode
 const handleModoToggle = () => {
     document.body.classList.toggle('modo-oscuro');
     const isModoOscuro = document.body.classList.contains('modo-oscuro');
     localStorage.setItem('modoOscuro', isModoOscuro);
     const modoBtn = getElement('#modo-btn');
-    if (modoBtn) {
-        modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Switch to Light Mode' : 'Switch to Dark Mode');
-        modoBtn.setAttribute('aria-label', isModoOscuro ? 'Switch to light mode' : 'Switch to dark mode');
-        modoBtn.innerHTML = `
-            <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
-            <span id="modo-text">${isModoOscuro ? 'Light Mode' : 'Dark Mode'}</span>
-        `;
-        mostrarNotificacion(`Mode ${isModoOscuro ? 'dark' : 'light'} activated`, 'success');
-    }
+    modoBtn.setAttribute('data-tooltip', isModoOscuro ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro');
+    modoBtn.setAttribute('aria-label', isModoOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    modoBtn.innerHTML = `
+        <i class="fas ${isModoOscuro ? 'fa-sun' : 'fa-moon'}"></i>
+        <span id="modo-text">${isModoOscuro ? 'Modo Claro' : 'Modo Oscuro'}</span>
+    `;
+    mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
 };
 
-// Toggle voice
 const handleVoiceToggle = () => {
     vozActiva = !vozActiva;
     localStorage.setItem('vozActiva', vozActiva);
     const voiceBtn = getElement('#voice-btn');
-    if (voiceBtn) {
-        voiceBtn.innerHTML = `
-            <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
-            <span id="voice-text">${vozActiva ? 'Disable Audio' : 'Enable Audio'}</span>
-        `;
-        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Disable Audio' : 'Enable Audio');
-        voiceBtn.setAttribute('aria-label', vozActiva ? 'Disable audio' : 'Enable audio');
-        mostrarNotificacion(`Audio ${vozActiva ? 'enabled' : 'disabled'}`, 'success');
-    }
+    voiceBtn.innerHTML = `
+        <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+        <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+    `;
+    voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+    voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+    mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
     if (!vozActiva) stopSpeech();
     if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
 };
 
-// Handle quiz button click
 const handleQuizClick = () => {
+    console.log('Botón de quiz clickeado');
     obtenerQuiz('opciones').then(mostrarQuizEnChat);
 };
 
-// Handle recommendation button click
 const handleRecommendClick = async () => {
+    console.log('Botón de recomendación clickeado, iniciando proceso');
+    const usuario = sessionStorage.getItem('usuario') || 'anonimo';
+    const historial = getHistorial();
+    const convId = currentConvId;
     const loadingDiv = showLoading();
     try {
+        console.log('Enviando solicitud a /recommend', { usuario, historial, convId });
         const res = await fetch('/recommend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonymous', historial: getHistorial() })
+            body: JSON.stringify({ usuario, historial })
         });
-        if (!res.ok) throw new Error(`Error fetching recommendation: ${res.status}`);
+        console.log('Respuesta recibida de /recommend', { status: res.status });
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(`Error al obtener recomendación: ${res.status} - ${errData.error || res.statusText}`);
+        }
         const data = await res.json();
+        console.log('Datos recibidos:', data);
         currentConvId = data.conv_id || currentConvId;
         const mensaje = data.recommendation;
-        if (!mensaje) throw new Error('No valid recommendation received');
+        if (!mensaje) throw new Error('No se recibió recomendación válida');
         const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || '';
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
         botDiv.dataset.tema = tema;
         botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
-            `<button class="copy-btn" data-text="${mensaje}" aria-label="Copy message"><i class="fas fa-copy"></i></button>`;
-        const container = getElement('#chatbox')?.querySelector('.message-container');
+            `<button class="copy-btn" data-text="${mensaje}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        const container = getElement('#chatbox').querySelector('.message-container');
         if (!container) {
-            mostrarNotificacion('Error: Chat container not found', 'error');
+            console.error('Contenedor .message-container no encontrado');
+            mostrarNotificacion('Error: No se encontró el contenedor del chat', 'error');
             return;
         }
         container.appendChild(botDiv);
         scrollToBottom();
-        if (window.Prism) Prism.highlightAll();
         speakText(mensaje);
         addCopyButtonListeners();
-
         if (currentConvId) {
+            console.log('Guardando mensaje en /messages/', currentConvId);
             await fetch(`/messages/${currentConvId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: 'bot', content: mensaje, tema })
+                body: JSON.stringify({
+                    role: 'bot',
+                    content: mensaje,
+                    tema: tema
+                })
             });
+            console.log('Actualizando historial de chats');
             await cargarConversaciones();
+        } else {
+            console.warn('No hay currentConvId, no se puede guardar el mensaje');
+            mostrarNotificacion('No se pudo guardar la conversación', 'error');
         }
-
-        const historial = getHistorial();
         historial.push({ pregunta: '', respuesta: mensaje, tema });
         if (historial.length > 10) historial.shift();
         localStorage.setItem('historial', JSON.stringify(historial));
+        console.log('Historial actualizado y guardado en localStorage');
     } catch (error) {
-        handleFetchError(error, 'Fetch recommendation');
+        console.error('Error en handleRecommendClick:', error);
+        handleFetchError(error, 'Obtener recomendación');
+        mostrarNotificacion(`Error al obtener recomendación: ${error.message}`, 'error');
     } finally {
         hideLoading(loadingDiv);
     }
 };
 
-// Handle input keydown
 const handleInputKeydown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -1252,11 +1330,11 @@ const handleInputKeydown = (event) => {
     }
 };
 
-// Handle first user interaction
 const handleFirstInteraction = () => {
     if (!userHasInteracted) {
         userHasInteracted = true;
         toggleVoiceHint(false);
+        console.log('Interacción detectada, audio habilitado');
         if (pendingWelcomeMessage) {
             speakText(pendingWelcomeMessage);
             pendingWelcomeMessage = null;
@@ -1264,5 +1342,6 @@ const handleFirstInteraction = () => {
     }
 };
 
-// Initialize on DOM content loaded
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+});

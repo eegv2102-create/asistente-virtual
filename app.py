@@ -56,7 +56,7 @@ Session(app)
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 por día", "50 por hora"],
+    default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://"
 )
 
@@ -77,7 +77,7 @@ class BuscarRespuestaInput(BaseModel):
     historial: List = []
     nivel_explicacion: Annotated[str, StringConstraints(max_length=20)] = 'basica'
     conv_id: Optional[int] = None
-    animation_id: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
+    animation_id: Optional[Annotated[str, StringConstraints(max_length=50)]] = None  # Nuevo: soporte para animación
 
 class QuizInput(BaseModel):
     usuario: Annotated[str, StringConstraints(max_length=50)] = 'anonimo'
@@ -152,6 +152,9 @@ if not os.getenv("GROQ_API_KEY"):
 if not os.getenv("DATABASE_URL"):
     logger.error("DATABASE_URL no configurada")
     exit(1)
+if not os.getenv("RPM_API_KEY"):
+    logger.error("RPM_API_KEY no configurada")
+    exit(1)
 
 def init_db():
     conn = None
@@ -178,6 +181,17 @@ def init_db():
                       respuesta TEXT,
                       nivel_explicacion TEXT,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+
+        c.execute('''CREATE TABLE IF NOT EXISTS avatars
+                     (avatar_id TEXT PRIMARY KEY,
+                      nombre TEXT,
+                      url TEXT,
+                      animation_url TEXT)''')
+
+        c.execute("""INSERT INTO avatars (avatar_id, nombre, url, animation_url)
+                     VALUES (%s, %s, %s, %s)
+                     ON CONFLICT (avatar_id) DO NOTHING""",
+                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
 
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
                      (id SERIAL PRIMARY KEY,
@@ -226,7 +240,7 @@ def init_db():
         logger.info("Base de datos inicializada correctamente (tablas + migraciones + índices)")
         return True
     except PsycopgError as e:
-        logger.error("Error al inicializar la basede datos", error=str(e))
+        logger.error("Error al inicializar la base de datos", error=str(e))
         if conn:
             conn.rollback()
         raise
@@ -318,7 +332,7 @@ def call_groq_api(messages, model, max_tokens, temperature):
     except Exception as e:
         logger.error("Error en Groq API", error=str(e))
         if '503' in str(e):
-            raise Exception("API de Groq no disponible (503). Verifica en https://groqstatus.com/")
+            raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
         raise
 
 class MessageInput(BaseModel):
@@ -326,7 +340,7 @@ class MessageInput(BaseModel):
     content: str
 
 @app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
-@limiter.limit("50 por hora")
+@limiter.limit("50 per hour")
 def handle_messages(conv_id):
     usuario = session.get('usuario', 'anonimo')
 
@@ -334,6 +348,7 @@ def handle_messages(conv_id):
         try:
             conn = get_db_connection()
             c = conn.cursor()
+            # Verificar si la conversación existe y pertenece al usuario
             c.execute("SELECT 1 FROM conversations WHERE id = %s AND usuario = %s", (conv_id, usuario))
             if not c.fetchone():
                 conn.close()
@@ -371,6 +386,7 @@ def handle_messages(conv_id):
         role = data.role
         content = data.content
 
+        # Verificar si la conversación existe
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT 1 FROM conversations WHERE id = %s AND usuario = %s", (conv_id, usuario))
@@ -406,7 +422,7 @@ def handle_messages(conv_id):
         return jsonify({"error": "No se pudo guardar el mensaje", "status": 500}), 500
 
 @app.route('/conversations', methods=['GET'])
-@limiter.limit("50 por hora")
+@limiter.limit("50 per hour")
 def list_conversations():
     usuario = session.get('usuario', 'anonimo')
     try:
@@ -435,7 +451,7 @@ def list_conversations():
         return jsonify({"error": "No se pudieron obtener las conversaciones", "status": 500}), 500
 
 @app.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
-@limiter.limit("50 por hora")
+@limiter.limit("50 per hour")
 def manage_conversation(conv_id):
     usuario = session.get('usuario', 'anonimo')
     if request.method == 'DELETE':
@@ -479,7 +495,7 @@ def manage_conversation(conv_id):
             return jsonify({'error': f"No se pudo renombrar la conversación: {str(e)}", "status": 500}), 500
 
 @app.route('/conversations', methods=['POST'])
-@limiter.limit("50 por hora")
+@limiter.limit("50 per hour")
 def create_conversation():
     usuario = session.get('usuario', 'anonimo')
     try:
@@ -506,7 +522,7 @@ def create_conversation():
         return jsonify({"error": "No se pudo crear la conversación", "status": 500}), 500
 
 @app.route('/buscar_respuesta', methods=['POST'])
-@limiter.limit("50 por hora")
+@limiter.limit("50 per hour")
 def buscar_respuesta():
     try:
         data = BuscarRespuestaInput(**request.get_json())
@@ -514,7 +530,7 @@ def buscar_respuesta():
         historial = data.historial
         nivel_explicacion = data.nivel_explicacion
         usuario = session.get('usuario', 'anonimo')
-        animation_id = data.animation_id
+        animation_id = data.animation_id  # Nuevo: soporte para ID de animación
 
         conv_id = session.get('current_conv_id')
         if not conv_id and pregunta:
@@ -549,6 +565,7 @@ def buscar_respuesta():
                 logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, nivel_explicacion=nivel_explicacion)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None, 'animation_id': animation_id})
 
+        # Detectar si la pregunta pide más información sobre un tema previo
         tema_contexto = None
         if re.match(r"^(sí deseo saber más|sí quiero saber más|explícame eso|quiero estudiar eso|cuéntame más|saber más|dime más|explicame más|explícame más|continúa)$", pregunta_norm):
             if historial:
@@ -722,14 +739,14 @@ def buscar_respuesta():
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
 
 @app.route('/quiz', methods=['POST'])
-@limiter.limit("20 por hora")
+@limiter.limit("20 per hour")
 def quiz():
     try:
         data = QuizInput(**request.get_json())
         usuario = data.usuario
         historial = data.historial
         nivel = data.nivel.lower()
-        tema_seleccionado = data.tema if data.tema and data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)
+        tema_seleccionado = data.tema if data.tema and data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)  # Mejora: Validar tema
 
         def validate_quiz_format(quiz_data):
             required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
@@ -798,11 +815,11 @@ def quiz():
     except Exception as e:
         logger.error("Error en /quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
         if '503' in str(e):
-            return jsonify({"error": "API de Groq no disponible (503). Verifica en https://groqstatus.com/", "status": 503}), 503
+            return jsonify({"error": "Groq API unavailable (503). Check https://groqstatus.com/", "status": 503}), 503
         return jsonify({"error": f"Error al generar quiz: {str(e)}", "status": 500}), 500
 
 @app.route('/responder_quiz', methods=['POST'])
-@limiter.limit("20 por hora")
+@limiter.limit("20 per hour")
 def responder_quiz():
     try:
         data = ResponderQuizInput(**request.get_json())
@@ -857,7 +874,7 @@ def responder_quiz():
         except Exception as e:
             logger.error("Error al generar explicación con Groq", error=str(e), usuario=usuario)
             if '503' in str(e):
-                return jsonify({"error": "API de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
+                return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
             explicacion = (
                 f"**{'¡Felicidades, está bien! Seleccionaste: ' + respuesta + '.' if es_correcta else f'Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.'}** "
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
@@ -876,11 +893,11 @@ def responder_quiz():
     except Exception as e:
         logger.error("Error en /responder_quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
         if '503' in str(e):
-            return jsonify({"error": "API de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
+            return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
         return jsonify({"error": f"No se pudo procesar la respuesta del quiz: {str(e)}", "status": 500}), 500
 
 @app.route("/tts", methods=["POST"])
-@limiter.limit("30 por hora")
+@limiter.limit("30 per hour")
 def tts():
     try:
         data = TTSInput(**request.get_json())
@@ -888,12 +905,14 @@ def tts():
         if not text:
             logger.error("Texto vacío en /tts", usuario=session.get('usuario', 'anonimo'))
             return jsonify({"error": "El texto no puede estar vacío", "status": 400}), 400
-        text = re.sub(r'\s+', ' ', text.strip())
-        text = ''.join(c for c in text if c.isprintable() or c.isspace())
+        # Mejora: Limpieza adicional del texto
+        text = re.sub(r'\s+', ' ', text.strip())  # Normalizar espacios
+        text = ''.join(c for c in text if c.isprintable() or c.isspace())  # Eliminar caracteres no imprimibles
         if not text:
             logger.error("Texto vacío tras limpieza en /tts", usuario=session.get('usuario', 'anonimo'))
             return jsonify({"error": "El texto no contiene caracteres válidos", "status": 400}), 400
 
+        # Caché de audio
         cache_key = f"tts:{text}"
         if cache_key in cache:
             logger.info("Audio servido desde caché", text=text, usuario=session.get('usuario', 'anonimo'))
@@ -933,7 +952,7 @@ def tts():
         return jsonify({"error": f"Error al procesar la solicitud: {str(e)}", "status": 500}), 500
 
 @app.route("/recommend", methods=["POST"])
-@limiter.limit("20 por hora")
+@limiter.limit("20 per hour")
 @retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def recommend():
     try:
@@ -997,7 +1016,7 @@ def recommend():
         except json.JSONDecodeError as je:
             logger.error("Error al decodificar JSON de Groq en /recommend", error=str(je), usuario=usuario)
             recomendacion = random.choice(temas_disponibles_para_recomendar) if temas_disponibles_para_recomendar else random.choice(temas_disponibles)
-            logger.warning(f"Usando recomendación de respaldo: {recomendacion}", usuario=usuario)
+            logger.warning(f"Usando recomendación de fallback: {recomendacion}", usuario=usuario)
 
         temas_recomendados.append(recomendacion)
         if len(temas_recomendados) > 5:
@@ -1034,11 +1053,11 @@ def recommend():
         logger.error("Error en /recommend", error=str(e), usuario=session.get('usuario', 'anonimo'))
         recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
-        logger.warning(f"Usando recomendación de respaldo: {recomendacion_texto}", usuario=session.get('usuario', 'anonimo'))
+        logger.warning(f"Usando recomendación de fallback: {recomendacion_texto}", usuario=session.get('usuario', 'anonimo'))
         return jsonify({"recommendation": recomendacion_texto})
 
 @app.route("/temas", methods=["GET"])
-@limiter.limit("100 por hora")
+@limiter.limit("100 per hour")
 def get_temas():
     cache_key = 'temas_response'
     if cache_key in cache:
@@ -1066,6 +1085,86 @@ def index():
     except Exception as e:
         logger.error("Error al renderizar index.html", error=str(e), usuario=session.get('usuario', 'anonimo'))
         return jsonify({'error': 'Error al cargar la página principal', "status": 500}), 500
+
+@app.route('/avatars', methods=['GET'])
+@limiter.limit("100 per hour")
+def get_avatars():
+    cache_key = 'avatars_response'
+    if cache_key in cache:
+        logger.info("Avatares servidos desde caché")
+        return cache[cache_key]
+
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT avatar_id, nombre, url, animation_url FROM avatars")
+        avatars = [{'avatar_id': row[0], 'nombre': row[1], 'url': row[2], 'animation_url': row[3]} for row in c.fetchall()]
+        conn.close()
+        response = jsonify({'avatars': avatars})
+        cache[cache_key] = response
+        logger.info("Avatares enviados", avatars=[avatar['nombre'] for avatar in avatars])
+        return response
+    except Exception as e:
+        logger.error("Error al obtener avatares", error=str(e))
+        response = jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]})
+        cache[cache_key] = response
+        return response, 200
+
+@app.route('/get_rpm_api_key', methods=['GET'])
+@limiter.limit("10 per minute")
+def get_rpm_api_key():
+    cache_key = 'rpm_api_key'
+    if cache_key in cache:
+        logger.info("RPM API Key servida desde caché")
+        return cache[cache_key]
+
+    try:
+        api_key = os.getenv('RPM_API_KEY')
+        if not api_key:
+            logger.error("RPM_API_KEY no configurada")
+            return jsonify({"error": "API Key no configurada", "status": 500}), 500
+        response = jsonify({"rpm_api_key": api_key})
+        cache[cache_key] = response
+        logger.info("RPM API Key enviada")
+        return response
+    except Exception as e:
+        logger.error("Error al obtener RPM_API_KEY", error=str(e))
+        return jsonify({"error": f"Error al obtener API Key: {str(e)}", "status": 500}), 500
+
+try:
+    logger.info("Iniciando inicialización de DB")
+    init_db()
+    logger.info("DB inicializada con éxito")
+except Exception as e:
+    logger.error("Falló inicialización de DB", error=str(e))
+    exit(1)
+
+@app.route('/proxy_rpm_animation', methods=['POST'])
+@limiter.limit("30 per hour")
+def proxy_rpm_animation():
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            logger.error("Datos inválidos en /proxy_rpm_animation", usuario=session.get('usuario', 'anonimo'))
+            return jsonify({"error": "Texto requerido", "status": 400}), 400
+
+        response = requests.post(
+            'https://api.readyplayer.me/v1/animation',
+            headers={
+                'Authorization': f'Bearer {os.getenv("RPM_API_KEY")}',
+                'Content-Type': 'application/json'
+            },
+            json=data
+        )
+        if response.status_code != 200:
+            logger.error("Error en la API de Ready Player Me", status=response.status_code, usuario=session.get('usuario', 'anonimo'))
+            return jsonify({"error": f"Error en Ready Player Me: {response.status_code}", "status": response.status_code}), response.status_code
+
+        logger.info("Animación obtenida de Ready Player Me", usuario=session.get('usuario', 'anonimo'))
+        return jsonify(response.json()), 200
+    except Exception as e:
+        logger.error("Error en /proxy_rpm_animation", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({"error": f"Error al procesar animación: {str(e)}", "status": 500}), 500
 
 @app.route('/static/js/<path:filename>')
 def serve_static_js(filename):
