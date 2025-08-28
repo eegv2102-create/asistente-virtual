@@ -931,82 +931,82 @@ const cargarTemas = async () => {
 };
 
 // Setup 3D avatar scene
-let scene, camera, renderer, avatarModel;
+// let scene, camera, renderer, avatarModel; /* Comentado: variables para avatar */
 
-const setupAvatarScene = async () => {
-    try {
-        const container = getElement('#avatar-container');
-        if (!container) {
-            mostrarNotificacion('Error: Avatar container not found', 'error');
-            return;
-        }
-        if (typeof THREE === 'undefined') {
-            mostrarNotificacion('Error: Three.js not loaded', 'error');
-            container.classList.add('error');
-            return;
-        }
+// const setupAvatarScene = async () => { /* Comentado: función completa para avatar */
+//     try {
+//         const container = getElement('#avatar-container');
+//         if (!container) {
+//             mostrarNotificacion('Error: Avatar container not found', 'error');
+//             return;
+//         }
+//         if (typeof THREE === 'undefined') {
+//             mostrarNotificacion('Error: Three.js not loaded', 'error');
+//             container.classList.add('error');
+//             return;
+//         }
 
-        const keyRes = await fetch('/get_rpm_api_key');
-        if (!keyRes.ok) throw new Error(`Error fetching API key: ${keyRes.statusText}`);
-        const keyData = await keyRes.json();
-        const apiKey = keyData.rpm_api_key;
+//         const keyRes = await fetch('/get_rpm_api_key');
+//         if (!keyRes.ok) throw new Error(`Error fetching API key: ${keyRes.statusText}`);
+//         const keyData = await keyRes.json();
+//         const apiKey = keyData.rpm_api_key;
 
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
+//         scene = new THREE.Scene();
+//         camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+//         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+//         renderer.setSize(container.clientWidth, container.clientHeight);
+//         container.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-        directionalLight.position.set(0, 1, 1);
-        scene.add(directionalLight);
+//         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+//         scene.add(ambientLight);
+//         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+//         directionalLight.position.set(0, 1, 1);
+//         scene.add(directionalLight);
 
-        const avatarUrl = `https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb?apiKey=${apiKey}`;
-        const loader = new THREE.GLTFLoader();
-        loader.load(
-            avatarUrl,
-            (gltf) => {
-                avatarModel = gltf.scene;
-                avatarModel.scale.set(1.5, 1.5, 1.5);
-                avatarModel.position.set(0, -1, 0);
-                scene.add(avatarModel);
-                container.classList.remove('error', 'loading');
-                animate();
-            },
-            (xhr) => {
-                const percentComplete = (xhr.loaded / xhr.total) * 100;
-                container.classList.add('loading');
-            },
-            (error) => {
-                console.error('Error loading GLB model:', error);
-                mostrarNotificacion('Error loading 3D avatar', 'error');
-                container.classList.add('error');
-            }
-        );
+//         const avatarUrl = `https://models.readyplayer.me/68ae2fecfa03635f0fbcbae8.glb?apiKey=${apiKey}`;
+//         const loader = new THREE.GLTFLoader();
+//         loader.load(
+//             avatarUrl,
+//             (gltf) => {
+//                 avatarModel = gltf.scene;
+//                 avatarModel.scale.set(1.5, 1.5, 1.5);
+//                 avatarModel.position.set(0, -1, 0);
+//                 scene.add(avatarModel);
+//                 container.classList.remove('error', 'loading');
+//                 animate();
+//             },
+//             (xhr) => {
+//                 const percentComplete = (xhr.loaded / xhr.total) * 100;
+//                 container.classList.add('loading');
+//             },
+//             (error) => {
+//                 console.error('Error loading GLB model:', error);
+//                 mostrarNotificacion('Error loading 3D avatar', 'error');
+//                 container.classList.add('error');
+//             }
+//         );
 
-        camera.position.z = 2;
+//         camera.position.z = 2;
 
-        window.addEventListener('resize', () => {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            renderer.setSize(width, height);
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-        });
+//         window.addEventListener('resize', () => {
+//             const width = container.clientWidth;
+//             const height = container.clientHeight;
+//             renderer.setSize(width, height);
+//             camera.aspect = width / height;
+//             camera.updateProjectionMatrix();
+//         });
 
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        }
-    } catch (error) {
-        console.error('Error in setupAvatarScene:', error);
-        mostrarNotificacion('Error initializing 3D avatar', 'error');
-        const container = getElement('#avatar-container');
-        if (container) container.classList.add('error');
-    }
-};
+//         function animate() {
+//             requestAnimationFrame(animate);
+//             renderer.render(scene, camera);
+//         }
+//     } catch (error) {
+//         console.error('Error in setupAvatarScene:', error);
+//         mostrarNotificacion('Error initializing 3D avatar', 'error');
+//         const container = getElement('#avatar-container');
+//         if (container) container.classList.add('error');
+//     }
+// };
 
 // Initialize application
 const init = () => {
@@ -1122,14 +1122,14 @@ const init = () => {
         inputElement.addEventListener('keydown', handleInputKeydown);
     }
 
-    waitForThree()
-        .then(() => {
-            setupAvatarScene();
-        })
-        .catch((error) => {
-            console.error('Error loading Three.js:', error);
-            mostrarNotificacion('Error initializing 3D avatar: Three.js not available', 'error');
-        });
+    // waitForThree() /* Comentado: carga de Three.js para avatar */
+    //     .then(() => {
+    //         setupAvatarScene();
+    //     })
+    //     .catch((error) => {
+    //         console.error('Error loading Three.js:', error);
+    //         mostrarNotificacion('Error initializing 3D avatar: Three.js not available', 'error');
+    //     });
 
     setTimeout(() => {
         mostrarMensajeBienvenida();

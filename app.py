@@ -226,7 +226,7 @@ def init_db():
         logger.info("Base de datos inicializada correctamente (tablas + migraciones + índices)")
         return True
     except PsycopgError as e:
-        logger.error("Error al inicializar la base de datos", error=str(e))
+        logger.error("Error al inicializar la basede datos", error=str(e))
         if conn:
             conn.rollback()
         raise
