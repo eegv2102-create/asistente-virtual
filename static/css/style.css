@@ -1066,6 +1066,7 @@ body.modo-oscuro .bot code {
     opacity: 1;
     transform: translateY(0);
   }
+
   .input-group {
     display: flex;
     align-items: center;
@@ -1080,12 +1081,15 @@ body.modo-oscuro .bot code {
     width: auto;
     z-index: auto;
     box-shadow: none;
-    flex-direction: row;
+    flex-direction: row; /* 👈 PC en fila */
   }
-  .input-buttons.left, .input-buttons.right {
+
+  .input-buttons.left, 
+  .input-buttons.right {
     display: flex;
     gap: 6px;
   }
+
   .input-group > .input-buttons.left,
   .input-group > .dropdown-container,
   .input-group > #input,
@@ -1093,6 +1097,7 @@ body.modo-oscuro .bot code {
     display: flex;
     order: initial;
   }
+
   .input-group > #input {
     display: block;
     padding: 10px 14px;
@@ -1103,23 +1108,23 @@ body.modo-oscuro .bot code {
     resize: vertical;
     flex: 1;
   }
+
   body {
     padding-top: 0;
   }
+
   .app-title {
     position: relative;
   }
-  #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
+
+  #new-chat-btn i, 
+  #btn-clear i, 
+  #voice-toggle-btn i, 
+  #send-btn i {
     font-size: 1rem;
   }
-  /* --- AJUSTE ESCRITORIO --- */
-@media (min-width: 769px) {
-  .input-group {
-    flex-direction: row;
-    align-items: center;
-    gap: .5rem;
-  }
 
+  /* --- AJUSTE ESCRITORIO --- */
   .toolbar-row {
     display: flex;
     align-items: center;
@@ -1137,7 +1142,7 @@ body.modo-oscuro .bot code {
     flex: 1;
   }
 
-  /* Botón enviar pegado al textarea */
+  /* Botón enviar redondo */
   .input-row #send-btn {
     border-radius: 50%;
     width: 40px;
@@ -1147,9 +1152,6 @@ body.modo-oscuro .bot code {
     justify-content: center;
   }
 }
-
-}
-
 .container, .main-section, .right-section, .left-section {
   overflow: visible !important;
 }
