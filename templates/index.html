@@ -57,41 +57,12 @@
                 <div class="message-container"></div>
             </div>
             <div class="input-group">
-                <!-- Elementos para PC -->
-                <div class="input-buttons left">
-                    <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </div>
-                <div class="dropdown-container">
-                    <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">
-                        Explicación Básica <i class="fas fa-caret-down"></i>
-                    </button>
-                    <div class="dropdown-menu">
-                        <button onclick="setNivelExplicacion('basica')">Explicación Básica</button>
-                        <button onclick="setNivelExplicacion('ejemplos')">Con Ejemplos de Código</button>
-                        <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
-                    </div>
-                </div>
-                <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
-                <div class="input-buttons right">
-                    <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                    <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
-                        <i class="fas fa-microphone"></i>
-                    </button>
-                </div>
-                <!-- Elementos para móvil -->
                 <div class="mobile-top-row">
                     <div class="input-buttons left">
-                        <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
+                        <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Iniciar nueva conversación">
                             <i class="fas fa-plus"></i>
                         </button>
-                        <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
+                        <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar chat actual">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
@@ -106,17 +77,15 @@
                         </div>
                     </div>
                     <div class="input-buttons right">
-                        <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
                         <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
                             <i class="fas fa-microphone"></i>
                         </button>
+                        <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="mobile-bottom-row">
-                    <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
-                </div>
+                <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
             </div>
         </section>
         <aside class="right-section">
