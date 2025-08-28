@@ -1112,6 +1112,42 @@ body.modo-oscuro .bot code {
   #new-chat-btn i, #btn-clear i, #voice-toggle-btn i, #send-btn i {
     font-size: 1rem;
   }
+  /* --- AJUSTE ESCRITORIO --- */
+@media (min-width: 769px) {
+  .input-group {
+    flex-direction: row;
+    align-items: center;
+    gap: .5rem;
+  }
+
+  .toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: .5rem;
+  }
+
+  .input-row textarea {
+    flex: 1;
+  }
+
+  /* Botón enviar pegado al textarea */
+  .input-row #send-btn {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 }
 
 .container, .main-section, .right-section, .left-section {
