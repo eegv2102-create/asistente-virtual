@@ -212,6 +212,7 @@ body {
 
 #btn-clear[data-tooltip]::after {
   z-index: 10010; /* Mayor z-index para estar encima de todo */
+  background-color: color-mix(in srgb, var(--bg-secondary) 90%, #000 10%); /* Mejor contraste */
 }
 
 #modo-btn:hover::after, #voice-btn:hover::after, #quiz-btn:hover::after, #recommend-btn:hover::after,
@@ -475,7 +476,7 @@ body.modo-oscuro .voice-hint {
 }
 
 .message, .user, .bot {
-  padding: 12px 16px;
+  padding: 12px 16px 12px 40px; /* Espacio para ícono */
   border-radius: 16px;
   max-width: 70%;
   word-wrap: break-word;
@@ -483,7 +484,7 @@ body.modo-oscuro .voice-hint {
   box-shadow: 0 2px 4px var(--shadow);
   line-height: 1.5;
   animation: fadeInUp 0.3s ease-out;
-  position: relative; /* Para posicionar el avatar */
+  position: relative; /* Para posicionar el ícono */
 }
 
 @keyframes fadeInUp {
@@ -503,7 +504,6 @@ body.modo-oscuro .voice-hint {
   color: var(--message-user-text);
   border-radius: 16px 16px 0 16px;
   margin-left: 10%;
-  padding-left: 40px; /* Más espacio para avatar */
 }
 
 .bot {
@@ -512,27 +512,49 @@ body.modo-oscuro .voice-hint {
   color: var(--message-bot-text);
   border-radius: 16px 16px 16px 0;
   margin-right: 10%;
-  padding-left: 40px; /* Más espacio para avatar */
 }
 
 .user::before, .bot::before {
-  content: url('/static/images/user-avatar.png'); /* Cambia la URL según el avatar */
+  content: ''; /* Vacío para evitar conflictos, el ícono se maneja en ::after */
+}
+
+.user::after {
+  content: '\f007'; /* Ícono de Font Awesome fa-user */
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
   position: absolute;
   left: 8px;
   top: 50%;
   transform: translateY(-50%);
   width: 24px;
   height: 24px;
+  line-height: 24px;
+  text-align: center;
   border-radius: 50%;
   background-color: var(--bg-primary);
   border: 1px solid var(--border);
-  background-size: contain;
-  background-repeat: no-repeat;
+  font-size: 16px;
+  color: var(--text-primary);
   visibility: visible;
 }
 
-.bot::before {
-  content: url('/static/images/bot-avatar.png'); /* Cambia la URL según el avatar de YELIA */
+.bot::after {
+  content: '\f544'; /* Ícono de Font Awesome fa-robot */
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 50%;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+  font-size: 16px;
+  color: var(--text-primary);
   visibility: visible;
 }
 
@@ -540,7 +562,7 @@ body.modo-oscuro .voice-hint {
   align-self: flex-start;
   background-color: var(--message-bot-bg);
   color: var(--message-bot-text);
-  padding: 12px 16px;
+  padding: 12px 16px 12px 40px; /* Espacio para ícono */
   border-radius: 16px 16px 16px 0;
   max-width: 70%;
   margin-right: 10%;
@@ -1104,6 +1126,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   #new-chat-btn[data-tooltip]::after, #btn-clear[data-tooltip]::after,
   #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
     z-index: 10010; /* Mayor z-index para estar encima de todo */
+    background-color: color-mix(in srgb, var(--bg-secondary) 90%, #000 10%); /* Mejor contraste */
   }
 
   #modo-btn:hover::after, #voice-btn:hover::after,
@@ -1234,13 +1257,13 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
-    padding: 10px 12px 10px 40px; /* Más espacio para avatar */
+    padding: 10px 12px 10px 40px; /* Espacio para ícono */
   }
 
   .typing-indicator {
     max-width: 85%;
     font-size: 0.9rem;
-    padding: 10px 12px 10px 40px; /* Más espacio para avatar */
+    padding: 10px 12px 10px 40px; /* Espacio para ícono */
   }
 
   .bot pre {
@@ -1301,7 +1324,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 
   .typing-indicator {
-    padding: 8px 12px 8px 40px; /* Más espacio para avatar */
+    padding: 8px 12px 8px 40px; /* Espacio para ícono */
   }
 
   .header-divider {
