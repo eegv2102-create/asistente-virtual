@@ -754,35 +754,33 @@ body.modo-oscuro .bot code {
     flex-direction: column;
     gap: 8px;
   }
-  .input-group > .input-buttons.left,
-  .input-group > .dropdown-container,
-  .input-group > #input,
-  .input-group > .input-buttons.right {
-    display: none;
-  }
-  .mobile-top-row,
-  .mobile-bottom-row {
+  .input-group .input-buttons.left,
+  .input-group .dropdown-container,
+  .input-group #input,
+  .input-group .input-buttons.right {
     display: flex;
   }
-  .mobile-top-row {
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
+  /* Primera fila: botones */
+  .input-group .input-buttons.left,
+  .input-group .input-buttons.right,
+  .input-group .dropdown-container {
+    order: 1;
   }
-  .mobile-top-row .input-buttons.left,
-  .mobile-top-row .input-buttons.right {
+  .input-group .input-buttons.left {
+    order: 1;
+  }
+  .input-group .dropdown-container {
+    order: 2;
+    flex: 1;
     display: flex;
-    gap: 4px;
+    justify-content: center;
   }
-  .mobile-top-row .dropdown-container {
-    display: block;
+  .input-group .input-buttons.right {
+    order: 3;
   }
-  .mobile-bottom-row {
-    width: 100%;
-  }
-  .mobile-bottom-row > #input {
-    display: block;
+  /* Segunda fila: input */
+  .input-group #input {
+    order: 4;
     width: 100%;
     padding: 12px 16px;
     font-size: 1rem;
@@ -793,9 +791,24 @@ body.modo-oscuro .bot code {
     border-radius: 20px;
     resize: vertical;
   }
-  .mobile-bottom-row > #input:focus {
+  .input-group #input:focus {
     outline: none;
     border-color: var(--accent);
+  }
+  /* Hacer que los elementos se acomoden en dos filas */
+  .input-group {
+    flex-wrap: wrap;
+  }
+  /* Primera fila con botones */
+  .input-group .input-buttons.left,
+  .input-group .dropdown-container,
+  .input-group .input-buttons.right {
+    display: flex;
+    align-items: center;
+  }
+  .input-group .input-buttons.left,
+  .input-group .input-buttons.right {
+    gap: 4px;
   }
   #new-chat-btn, #btn-clear, #voice-toggle-btn, #send-btn {
     padding: 10px;
@@ -997,16 +1010,13 @@ body.modo-oscuro .bot code {
     opacity: 1;
     transform: translateY(0);
   }
-  .mobile-top-row, .mobile-bottom-row {
-    display: none;
-  }
   .input-group {
     display: flex;
     align-items: center;
     padding: 12px;
     border-top: 1px solid var(--border);
     background-color: var(--bg-primary);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
     position: relative;
     bottom: auto;
@@ -1014,6 +1024,7 @@ body.modo-oscuro .bot code {
     width: auto;
     z-index: auto;
     box-shadow: none;
+    flex-direction: row;
   }
   .input-buttons.left, .input-buttons.right {
     display: flex;
@@ -1024,6 +1035,7 @@ body.modo-oscuro .bot code {
   .input-group > #input,
   .input-group > .input-buttons.right {
     display: flex;
+    order: initial;
   }
   .input-group > #input {
     display: block;
@@ -1033,6 +1045,7 @@ body.modo-oscuro .bot code {
     max-height: 100px;
     overflow-y: auto;
     resize: vertical;
+    flex: 1;
   }
   body {
     padding-top: 0;
