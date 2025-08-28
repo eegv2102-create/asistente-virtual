@@ -194,14 +194,14 @@ body {
 #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: 100%;
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%) scale(0.8);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
@@ -503,7 +503,7 @@ body.modo-oscuro .voice-hint {
   color: var(--message-user-text);
   border-radius: 16px 16px 0 16px;
   margin-left: 10%;
-  padding-left: 36px; /* Espacio para el avatar */
+  padding-left: 40px; /* Más espacio para avatar */
 }
 
 .bot {
@@ -512,7 +512,7 @@ body.modo-oscuro .voice-hint {
   color: var(--message-bot-text);
   border-radius: 16px 16px 16px 0;
   margin-right: 10%;
-  padding-left: 36px; /* Espacio para el avatar */
+  padding-left: 40px; /* Más espacio para avatar */
 }
 
 .user::before, .bot::before {
@@ -526,10 +526,14 @@ body.modo-oscuro .voice-hint {
   border-radius: 50%;
   background-color: var(--bg-primary);
   border: 1px solid var(--border);
+  background-size: contain;
+  background-repeat: no-repeat;
+  visibility: visible;
 }
 
 .bot::before {
   content: url('/static/images/bot-avatar.png'); /* Cambia la URL según el avatar de YELIA */
+  visibility: visible;
 }
 
 .typing-indicator {
@@ -1081,14 +1085,14 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   #quiz-btn[data-tooltip]::after, #recommend-btn[data-tooltip]::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: 100%;
+    bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%) scale(0.8);
     background-color: var(--bg-secondary);
     color: var(--text-primary);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;
@@ -1230,13 +1234,13 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
-    padding: 10px 12px 10px 36px; /* Ajustado para avatar */
+    padding: 10px 12px 10px 40px; /* Más espacio para avatar */
   }
 
   .typing-indicator {
     max-width: 85%;
     font-size: 0.9rem;
-    padding: 10px 12px 10px 36px; /* Ajustado para avatar */
+    padding: 10px 12px 10px 40px; /* Más espacio para avatar */
   }
 
   .bot pre {
@@ -1297,7 +1301,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 
   .typing-indicator {
-    padding: 8px 12px 8px 36px; /* Ajustado para avatar */
+    padding: 8px 12px 8px 40px; /* Más espacio para avatar */
   }
 
   .header-divider {
