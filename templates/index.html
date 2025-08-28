@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🧠 YELIA 🤖</title>
   <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
-  <!-- FontAwesome + Prism -->
+  <!-- Librerías -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-coy.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
-  <!-- Estilos principales -->
   <link rel="stylesheet" href="/static/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
@@ -21,9 +20,13 @@
     <div class="title-container">
       <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i></button>
       <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i></button>
-      <button id="modo-btn" aria-label="Cambiar modo"><i class="fas fa-moon"></i><span id="modo-text"></span></button>
+      <button id="modo-btn" aria-label="Cambiar modo">
+        <i class="fas fa-moon"></i><span id="modo-text"></span>
+      </button>
       <h1>🧠 YELIA 🤖</h1>
-      <button id="voice-btn" aria-label="Activar/Desactivar audio"><i class="fas fa-volume-up"></i><span id="voice-text"></span></button>
+      <button id="voice-btn" aria-label="Activar/Desactivar audio">
+        <i class="fas fa-volume-up"></i><span id="voice-text"></span>
+      </button>
     </div>
   </header>
   <div class="header-divider"></div>
@@ -51,20 +54,37 @@
         <div class="message-container"></div>
       </div>
 
-      <!-- Input -->
+      <!-- Input único (PC y móvil) -->
       <div class="input-group">
         <div class="input-buttons left">
-          <button id="new-chat-btn"><i class="fas fa-plus"></i></button>
-          <button id="btn-clear"><i class="fas fa-trash-alt"></i></button>
+          <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
+            <i class="fas fa-plus"></i>
+          </button>
+          <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
+            <i class="fas fa-trash-alt"></i>
+          </button>
         </div>
+
         <div class="dropdown-container">
-          <button id="nivel-btn">Explicación Básica <i class="fas fa-caret-down"></i></button>
-          <div class="dropdown-menu"></div>
+          <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">
+            Explicación Básica <i class="fas fa-caret-down"></i>
+          </button>
+          <div class="dropdown-menu">
+            <button onclick="setNivelExplicacion('basica')">Explicación Básica</button>
+            <button onclick="setNivelExplicacion('ejemplos')">Con Ejemplos de Código</button>
+            <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
+          </div>
         </div>
-        <textarea id="input" placeholder="Escribe tu pregunta..." rows="1"></textarea>
+
+        <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
+
         <div class="input-buttons right">
-          <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
-          <button id="voice-toggle-btn"><i class="fas fa-microphone"></i></button>
+          <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+          <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
+            <i class="fas fa-microphone"></i>
+          </button>
         </div>
       </div>
     </section>
