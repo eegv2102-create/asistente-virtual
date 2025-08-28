@@ -7,6 +7,7 @@ import socket
 import webbrowser
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session
 from flask_session import Session
+import requests
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
@@ -1140,28 +1141,27 @@ except Exception as e:
 
 @app.route('/proxy_rpm_animation', methods=['POST'])
 @limiter.limit("30 per hour")
-async def proxy_rpm_animation():
+def proxy_rpm_animation():
     try:
         data = request.get_json()
         if not data or 'text' not in data:
             logger.error("Datos inválidos en /proxy_rpm_animation", usuario=session.get('usuario', 'anonimo'))
             return jsonify({"error": "Texto requerido", "status": 400}), 400
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                'https://api.readyplayer.me/v1/animation',
-                headers={
-                    'Authorization': f'Bearer {os.getenv("RPM_API_KEY")}',
-                    'Content-Type': 'application/json'
-                },
-                json=data
-            )
-            if not response.is_success:
-                logger.error("Error en la API de Ready Player Me", status=response.status_code, usuario=session.get('usuario', 'anonimo'))
-                return jsonify({"error": f"Error en Ready Player Me: {response.status_code}", "status": response.status_code}), response.status_code
+        response = requests.post(
+            'https://api.readyplayer.me/v1/animation',
+            headers={
+                'Authorization': f'Bearer {os.getenv("RPM_API_KEY")}',
+                'Content-Type': 'application/json'
+            },
+            json=data
+        )
+        if response.status_code != 200:
+            logger.error("Error en la API de Ready Player Me", status=response.status_code, usuario=session.get('usuario', 'anonimo'))
+            return jsonify({"error": f"Error en Ready Player Me: {response.status_code}", "status": response.status_code}), response.status_code
 
-            logger.info("Animación obtenida de Ready Player Me", usuario=session.get('usuario', 'anonimo'))
-            return jsonify(response.json()), 200
+        logger.info("Animación obtenida de Ready Player Me", usuario=session.get('usuario', 'anonimo'))
+        return jsonify(response.json()), 200
     except Exception as e:
         logger.error("Error en /proxy_rpm_animation", error=str(e), usuario=session.get('usuario', 'anonimo'))
         return jsonify({"error": f"Error al procesar animación: {str(e)}", "status": 500}), 500

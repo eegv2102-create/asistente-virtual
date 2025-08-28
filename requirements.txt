@@ -13,3 +13,4 @@ flask-limiter==3.12
 cachetools==5.5.0
 structlog==24.4.0
 pydantic==2.9.2
+aiohttp==3.9.5  # Opcional para async
