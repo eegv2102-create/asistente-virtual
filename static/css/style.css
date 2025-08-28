@@ -1,20 +1,21 @@
 :root {
+  --primary: #1abc9c; /* Color principal personalizable (verde por defecto) */
+  --primary-hover: #16a085; /* Hover para el color principal */
+  --accent: #3498db; /* Color secundario para detalles */
   --bg-primary: #ffffff;
   --bg-secondary: #f5f6f5;
   --text-primary: #1a1a1a;
   --text-secondary: #4a4a4a;
-  --accent: #1abc9c;
-  --accent-hover: #16a085;
   --border: #e0e0e0;
   --shadow: rgba(0, 0, 0, 0.1);
   --message-user-bg: #3498db;
   --message-user-text: #ffffff;
   --message-bot-bg: #e5e5ea;
   --message-bot-text: #1a1a1a;
-  --button-bg: #1abc9c;
+  --button-bg: var(--primary);
   --button-text: #ffffff;
-  --button-hover: #16a085;
-  --scrollbar-thumb: #1abc9c;
+  --button-hover: var(--primary-hover);
+  --scrollbar-thumb: var(--primary);
   --scrollbar-track: #f5f6f5;
   --success: #2ecc71;
   --error: #e74c3c;
@@ -26,18 +27,16 @@ body.modo-oscuro {
   --bg-secondary: #2c2c2c;
   --text-primary: #f5f5f5;
   --text-secondary: #a0a0a0;
-  --accent: #1abc9c;
-  --accent-hover: #16a085;
   --border: #3a3a3a;
   --shadow: rgba(0, 0, 0, 0.3);
   --message-user-bg: #3498db;
   --message-user-text: #ffffff;
   --message-bot-bg: #3a3a3a;
   --message-bot-text: #f5f5f5;
-  --button-bg: #1abc9c;
+  --button-bg: var(--primary);
   --button-text: #ffffff;
-  --button-hover: #16a085;
-  --scrollbar-thumb: #16a085;
+  --button-hover: var(--primary-hover);
+  --scrollbar-thumb: var(--primary-hover);
   --scrollbar-track: #2c2c2c;
   --success: #2ecc71;
   --error: #e74c3c;
@@ -135,7 +134,7 @@ body {
 
 #modo-btn:active, #voice-btn:active, #quiz-btn:active, #recommend-btn:active,
 #send-btn:active, #new-chat-btn:active, #btn-clear:active, #voice-toggle-btn:active {
-  background-color: var(--accent-hover);
+  background-color: var(--button-hover);
   transform: scale(0.95);
 }
 
@@ -162,7 +161,14 @@ body {
   transform: scale(0.95);
 }
 
-#modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover,
+#modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover {
+  background-color: var(--button-hover);
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px var(--shadow);
+  text-shadow: none; /* Eliminado sombreado de texto */
+  text-decoration: none; /* Eliminado subrayado */
+}
+
 #send-btn:hover, #new-chat-btn:hover, #btn-clear:hover, #voice-toggle-btn:hover,
 #modo-btn:focus, #voice-btn:focus, #quiz-btn:focus, #recommend-btn:focus,
 #send-btn:focus, #new-chat-btn:focus, #btn-clear:focus, #voice-toggle-btn:focus {
@@ -173,7 +179,7 @@ body {
 
 #nivel-btn:hover, #nivel-btn:focus {
   background-color: var(--bg-secondary);
-  border-color: var(--accent);
+  border-color: var(--primary);
   transform: scale(1.05);
   box-shadow: 0 4px 8px var(--shadow);
 }
@@ -356,13 +362,13 @@ body.modo-oscuro .voice-hint {
 }
 
 #chat-list li:hover, #chat-list li:focus {
-  background-color: var(--accent);
+  background-color: var(--primary);
   color: var(--button-text);
   transform: scale(1.02);
 }
 
 #chat-list li.selected {
-  background-color: var(--accent);
+  background-color: var(--primary);
   color: var(--button-text);
 }
 
@@ -396,12 +402,12 @@ body.modo-oscuro .voice-hint {
 }
 
 .chat-actions .rename-btn {
-  background-color: var(--accent);
+  background-color: var(--primary);
   color: var(--button-text);
 }
 
 .chat-actions .rename-btn:hover, .chat-actions .rename-btn:focus {
-  background-color: var(--accent-hover);
+  background-color: var(--primary-hover);
   transform: scale(1.1);
 }
 
@@ -464,7 +470,7 @@ body.modo-oscuro .voice-hint {
   gap: 12px;
 }
 
-.user, .bot {
+.message, .user, .bot {
   padding: 12px 16px;
   border-radius: 16px;
   max-width: 70%;
@@ -472,13 +478,14 @@ body.modo-oscuro .voice-hint {
   font-size: 0.95rem;
   box-shadow: 0 2px 4px var(--shadow);
   line-height: 1.5;
-  animation: slideIn 0.3s ease-out;
+  animation: fadeInUp 0.3s ease-out;
+  position: relative; /* Para posicionar el avatar */
 }
 
-@keyframes slideIn {
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -492,6 +499,7 @@ body.modo-oscuro .voice-hint {
   color: var(--message-user-text);
   border-radius: 16px 16px 0 16px;
   margin-left: 10%;
+  padding-left: 36px; /* Espacio para el avatar */
 }
 
 .bot {
@@ -500,14 +508,55 @@ body.modo-oscuro .voice-hint {
   color: var(--message-bot-text);
   border-radius: 16px 16px 16px 0;
   margin-right: 10%;
+  padding-left: 36px; /* Espacio para el avatar */
 }
 
-.user:before {
-  content: "\f007";
-  font-family: "Font Awesome 5 Free";
-  font-weight: 900;
-  margin-right: 8px;
-  font-size: 1rem;
+.user::before, .bot::before {
+  content: url('/static/images/user-avatar.png'); /* Cambia la URL según el avatar */
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+}
+
+.bot::before {
+  content: url('/static/images/bot-avatar.png'); /* Cambia la URL según el avatar de YELIA */
+}
+
+.typing-indicator {
+  align-self: flex-start;
+  background-color: var(--message-bot-bg);
+  color: var(--message-bot-text);
+  padding: 12px 16px;
+  border-radius: 16px 16px 16px 0;
+  max-width: 70%;
+  margin-right: 10%;
+  box-shadow: 0 2px 4px var(--shadow);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.typing-indicator::after {
+  content: '...';
+  display: inline-block;
+  width: 1em;
+  text-align: left;
+  animation: typingDots 1.5s infinite;
+}
+
+@keyframes typingDots {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+  100% { content: '.'; }
 }
 
 .copy-btn {
@@ -521,7 +570,7 @@ body.modo-oscuro .voice-hint {
 }
 
 .copy-btn:hover, .copy-btn:focus {
-  color: var(--accent);
+  color: var(--primary);
 }
 
 .quiz-feedback {
@@ -610,12 +659,12 @@ body.modo-oscuro .bot code {
 }
 
 .quiz-option:hover, .quiz-option:focus {
-  background-color: var(--accent);
+  background-color: var(--primary);
   color: var(--button-text);
 }
 
 .quiz-option.selected {
-  background-color: var(--accent);
+  background-color: var(--primary);
   color: var(--button-text);
 }
 
@@ -632,6 +681,10 @@ body.modo-oscuro .bot code {
 .input-buttons.left, .input-buttons.right {
   display: flex;
   gap: 8px;
+}
+
+.input-buttons.left {
+  margin-right: 12px; /* Evita solapamiento con el desplegable */
 }
 
 .dropdown-container {
@@ -681,7 +734,7 @@ body.modo-oscuro .dropdown-menu {
 }
 
 .dropdown-menu button:hover, .dropdown-menu button:focus {
-  background-color: var(--accent);
+  background-color: var(--primary);
   color: var(--button-text);
 }
 
@@ -703,7 +756,7 @@ body.modo-oscuro .dropdown-menu {
 
 #input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--primary);
   box-shadow: 0 0 8px var(--shadow);
 }
 
@@ -732,7 +785,7 @@ body.modo-oscuro #notification-card {
 }
 
 #notification-card.info {
-  border-left: 4px solid var(--accent);
+  border-left: 4px solid var(--primary);
 }
 
 #notification-card.success {
@@ -745,7 +798,7 @@ body.modo-oscuro #notification-card {
 
 .menu-toggle, .menu-toggle-right {
   display: none;
-  background: var(--accent);
+  background: var(--primary);
   color: var(--button-text);
   font-size: 0.9rem;
   padding: 6px;
@@ -761,12 +814,12 @@ body.modo-oscuro #notification-card {
 }
 
 body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
 }
 
 .menu-toggle:hover, .menu-toggle-right:hover {
   transform: scale(1.1);
-  background-color: var(--accent-hover);
+  background-color: var(--primary-hover);
 }
 
 .avatar-options {
@@ -791,11 +844,11 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
 
 .avatar-options img:hover, .avatar-options img:focus {
   transform: scale(1.15);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--primary);
 }
 
 .avatar-options img.selected {
-  border: 2px solid var(--accent);
+  border: 2px solid var(--primary);
   transform: scale(1.1);
 }
 
@@ -819,7 +872,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   width: 20px;
   height: 20px;
   border: 3px solid var(--text-primary);
-  border-top: 3px solid var(--accent);
+  border-top: 3px solid var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -918,6 +971,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     display: flex;
     align-items: center;
     gap: 10px;
+    margin-right: 12px; /* Evita solapamiento en móvil */
   }
 
   .input-group .toolbar-center {
@@ -1108,13 +1162,13 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 
   .dropdown-menu button:hover, .dropdown-menu button:focus {
-    background-color: var(--accent);
+    background-color: var(--primary);
     color: var(--button-text);
   }
 
   .menu-toggle, .menu-toggle-right {
     display: flex;
-    background: var(--accent);
+    background: var(--primary);
     color: var(--button-text);
     font-size: 0.9rem;
     padding: 6px;
@@ -1131,7 +1185,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
 
   .menu-toggle:hover, .menu-toggle-right:hover {
     transform: scale(1.1);
-    background-color: var(--accent-hover);
+    background-color: var(--primary-hover);
   }
 
   .app-title {
@@ -1163,7 +1217,13 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
-    padding: 10px 12px;
+    padding: 10px 12px 10px 36px; /* Ajustado para avatar */
+  }
+
+  .typing-indicator {
+    max-width: 85%;
+    font-size: 0.9rem;
+    padding: 10px 12px 10px 36px; /* Ajustado para avatar */
   }
 
   .bot pre {
@@ -1221,6 +1281,10 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     width: 16px;
     height: 16px;
     border-width: 2px;
+  }
+
+  .typing-indicator {
+    padding: 8px 12px 8px 36px; /* Ajustado para avatar */
   }
 
   #notification-card {
@@ -1284,6 +1348,10 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     gap: 8px;
   }
 
+  .input-buttons.left {
+    margin-right: 12px; /* Evita solapamiento en PC */
+  }
+
   .input-group > .input-buttons.left,
   .input-group > .dropdown-container,
   .input-group > #input,
@@ -1310,6 +1378,10 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
 
   .app-title {
     position: relative;
+  }
+
+  .header-divider {
+    display: none; /* Oculta el divisor en PC */
   }
 
   #new-chat-btn i, 
