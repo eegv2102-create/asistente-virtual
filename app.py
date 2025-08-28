@@ -577,89 +577,77 @@ def buscar_respuesta():
                 f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
                 f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
                 f"3. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
-                f"4. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-                f"5. No uses emoticones ni emojis.\n"
-                f"Contexto: Tema solicitado es '{tema_contexto}'.\nTimestamp: {int(time.time())}"
+                f"4. Mantén el hilo de la conversación basado en el contexto previo, respondiendo naturalmente como un chat continuo.\n"
+                f"5. Si la pregunta menciona 'curiosidad' o 'dato curioso', incluye un hecho interesante breve (máximo 50 palabras) relacionado con el tema.\n"
+                f"6. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+                f"7. No uses emoticones ni emojis.\n"
+                f"8. Si no se puede responder, sugiere un tema de la lista."
             )
-
             try:
                 completion = call_groq_api(
                     messages=[
                         {"role": "system", "content": prompt},
-                        {"role": "user", "content": f"Explica {tema_contexto}"}
+                        {"role": "user", "content": pregunta}
                     ],
                     model="llama3-70b-8192",
                     max_tokens=300,
                     temperature=0.2
                 )
                 respuesta = completion.choices[0].message.content.strip()
+                tema_identificado = tema_contexto
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_contexto)
-                logger.info("Explicación generada para tema contextual", tema=tema_contexto, pregunta=pregunta, usuario=usuario, conv_id=conv_id)
+                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
+                logger.info("Respuesta generada con contexto", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
             except Exception as e:
-                logger.error("Error al procesar explicación contextual", error=str(e), tema=tema_contexto, usuario=usuario)
+                logger.error("Error al procesar respuesta con contexto", error=str(e), pregunta=pregunta, usuario=usuario)
                 respuesta = (
-                    f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar la explicación de {tema_contexto}. "
-                    f"Intenta con otra pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
+                    f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
+                    f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
                     f"¿Tienes alguna pregunta adicional sobre este tema?"
                 )
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_contexto)
+                    guardar_mensaje(usuario, conv_id, 'bot', respuesta)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-        if re.match(r"^(qué puedo aprender|qué me puedes enseñar|qué más puedo aprender|dime qué aprender|qué temas hay|qué sabes|qué conoces)$", pregunta_norm):
-            tema_sugerido = random.choice(TEMAS_DISPONIBLES)
-            respuesta = (
-                f"¡Qué buena pregunta, {usuario if usuario != 'anonimo' else 'amigo'}! Te recomiendo explorar {tema_sugerido}. "
-                f"Es un tema clave en Programación Avanzada que te ayudará a entender mejor cómo estructurar y optimizar tu código. "
-                f"¿Quieres que te explique más sobre {tema_sugerido}? ¿Tienes alguna pregunta adicional sobre este tema?"
-            )
-            if pregunta and conv_id:
-                guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_sugerido)
-            logger.info("Sugerencia de tema enviada", tema=tema_sugerido, usuario=usuario, conv_id=conv_id)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+        # Verificar relevancia de la pregunta
+        contexto = ""
+        if historial:
+            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
         prompt_relevancia = (
             f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
-            f"Determina si la pregunta '{pregunta}' está relacionada con los siguientes temas de Programación Avanzada: {', '.join(TEMAS_DISPONIBLES)}. "
-            f"Responde solo 'Sí' o 'No'."
+            f"Responde 'sí' si la pregunta '{pregunta}' está relacionada con {', '.join(TEMAS_DISPONIBLES)}, curiosidades sobre estos temas, o ejemplos en vida real. "
+            f"Responde 'no' en cualquier otro caso. Solo responde 'sí' o 'no'."
         )
+
         try:
-            completion = call_groq_api(
+            completion_relevancia = call_groq_api(
                 messages=[
                     {"role": "system", "content": prompt_relevancia},
                     {"role": "user", "content": pregunta}
                 ],
                 model="llama3-70b-8192",
                 max_tokens=10,
-                temperature=0.3
+                temperature=0.1
             )
-            es_relevante = completion.choices[0].message.content.strip().lower() == 'sí'
-            if not es_relevante:
-                respuesta = (
-                    f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo puedo ayudarte con Programación Avanzada en Ingeniería en Telemática. "
-                    f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. ¿Qué deseas saber de la materia? "
-                    f"¿Tienes alguna pregunta adicional sobre este tema?"
-                )
-                if pregunta and conv_id:
-                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                    guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-                logger.info("Pregunta no relevante", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+            es_relevante = completion_relevancia.choices[0].message.content.strip().lower() == 'sí'
         except Exception as e:
             logger.error("Error al verificar relevancia", error=str(e), pregunta=pregunta, usuario=usuario)
+            es_relevante = any(tema.lower() in pregunta_norm for tema in TEMAS_DISPONIBLES)
+
+        if not es_relevante:
             respuesta = (
-                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-                f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
+                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo respondo sobre Programación Avanzada para Ingeniería en Telemática. "
+                f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. ¿Qué deseas saber de la materia? "
                 f"¿Tienes alguna pregunta adicional sobre este tema?"
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+            logger.info("Pregunta no relevante", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
         contexto = ""
@@ -677,9 +665,11 @@ def buscar_respuesta():
             f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
             f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
             f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
-            f"5. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-            f"6. No uses emoticones ni emojis.\n"
-            f"7. Si no se puede responder, sugiere un tema de la lista.\n"
+            f"5. Mantén el hilo de la conversación basado en el contexto previo, respondiendo naturalmente como un chat continuo (ej. si piden ejemplo en vida real, extiende el ejemplo anterior).\n"
+            f"6. Si la pregunta menciona 'curiosidad' o 'dato curioso', proporciona un hecho interesante breve (máximo 50 palabras) relacionado con el tema, motivando al aprendizaje.\n"
+            f"7. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+            f"8. No uses emoticones ni emojis.\n"
+            f"9. Si no se puede responder, sugiere un tema de la lista.\n"
             f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
         )
 
