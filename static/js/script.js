@@ -260,11 +260,21 @@ const stopSpeech = () => {
 const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) return;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+        mostrarNotificacion('El reconocimiento de voz no está disponible en iOS/Safari. Usa entrada de texto.', 'error');
+        voiceToggleBtn.disabled = true;
+        voiceToggleBtn.setAttribute('data-tooltip', 'No disponible en iOS');
+        return;
+    }
+
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
+        return;
+    }
+
     if (!isListening) {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
-            return;
-        }
         recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
         recognition.lang = 'es-ES';
         recognition.interimResults = true;
@@ -1088,6 +1098,16 @@ const init = () => {
         });
     };
 
+    // Detectar iOS y manejar voz
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+        const voiceToggleBtn = getElement('#voice-toggle-btn');
+        if (voiceToggleBtn) {
+            voiceToggleBtn.style.display = 'none'; // Ocultar botón en iOS
+            mostrarNotificacion('Reconocimiento de voz no disponible en iOS. Usa el teclado para dictado.', 'info');
+        }
+    }
+
     // Cargar temas y configurar eventos
     cargarTemas();
 
@@ -1172,7 +1192,7 @@ const init = () => {
         nivelBtn.removeEventListener('click', toggleDropdown);
         nivelBtn.addEventListener('click', toggleDropdown);
     }
-    if (voiceToggleBtn) {
+    if (voiceToggleBtn && !isIOS) {  // Solo agregar listener si no es iOS
         voiceToggleBtn.setAttribute('data-tooltip', 'Voz');
         voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         voiceToggleBtn.removeEventListener('click', toggleVoiceRecognition);
