@@ -1072,12 +1072,23 @@ const init = () => {
     console.log('Inicializando aplicación');
     quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
 
-    // Asegurar que Three.js esté cargado antes de inicializar
-    if (typeof THREE === 'undefined') {
-        console.error('Three.js no está cargado. Verifica la carga del script.');
-        mostrarNotificacion('Error: Three.js no está disponible', 'error');
-    }
+    // Función para verificar si Three.js está cargado
+    const waitForThree = () => {
+        return new Promise((resolve, reject) => {
+            const checkThree = setInterval(() => {
+                if (typeof THREE !== 'undefined' && typeof THREE.GLTFLoader !== 'undefined') {
+                    clearInterval(checkThree);
+                    resolve();
+                }
+            }, 100);
+            setTimeout(() => {
+                clearInterval(checkThree);
+                reject(new Error('Three.js no se cargó en el tiempo esperado'));
+            }, 10000); // Timeout de 10 segundos
+        });
+    };
 
+    // Cargar temas y configurar eventos
     cargarTemas();
 
     const menuToggle = getElement('.menu-toggle');
@@ -1132,10 +1143,10 @@ const init = () => {
         quizBtn.addEventListener('click', debounce(handleQuizClick, 300));
     }
     if (recommendBtn) {
-        quizBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
-        quizBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
-        quizBtn.removeEventListener('click', handleRecommendClick);
-        quizBtn.addEventListener('click', debounce(handleRecommendClick, 300));
+        recommendBtn.setAttribute('data-tooltip', 'Obtener Recomendación');
+        recommendBtn.setAttribute('aria-label', 'Obtener recomendación de tema');
+        recommendBtn.removeEventListener('click', handleRecommendClick);
+        recommendBtn.addEventListener('click', debounce(handleRecommendClick, 300));
     }
     if (sendBtn) {
         sendBtn.setAttribute('data-tooltip', 'Enviar');
@@ -1173,26 +1184,31 @@ const init = () => {
         inputElement.addEventListener('keydown', handleInputKeydown);
     }
 
-    // Inicializar escena del avatar con retraso para asegurar carga de Three.js
-    setTimeout(() => {
-        try {
+    // Inicializar escena del avatar solo si Three.js está cargado
+    waitForThree()
+        .then(() => {
             setupAvatarScene();
-        } catch (error) {
-            console.error('Error al inicializar setupAvatarScene:', error);
-            mostrarNotificacion('Error al inicializar el avatar 3D', 'error');
-        }
-    }, 100);
+        })
+        .catch((error) => {
+            console.error('Error al cargar Three.js:', error);
+            mostrarNotificacion('Error al inicializar el avatar 3D: Three.js no disponible', 'error');
+        });
 
+    // Mostrar mensaje de bienvenida y manejar voz
     setTimeout(() => {
         mostrarMensajeBienvenida();
         if (vozActiva && !userHasInteracted) {
             toggleVoiceHint(true);
         }
     }, 100);
+
+    // Configurar interacción inicial
     document.removeEventListener('click', handleFirstInteraction);
     document.removeEventListener('touchstart', handleFirstInteraction);
     document.addEventListener('click', handleFirstInteraction, { once: true });
     document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+
+    // Cargar conversaciones y nivel de explicación
     cargarConversaciones();
 
     let nivelGuardado = localStorage.getItem('nivelExplicacion');
