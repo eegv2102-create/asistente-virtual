@@ -193,7 +193,7 @@ body {
   box-shadow: 0 4px 8px var(--shadow);
 }
 
-/* === Tooltips para Botones === */
+/* === Tooltips para Botones (excepto renombrar/eliminar en historial) === */
 #modo-btn[data-tooltip], #voice-btn[data-tooltip], #quiz-btn[data-tooltip], #recommend-btn[data-tooltip],
 #new-chat-btn[data-tooltip], #btn-clear[data-tooltip], #send-btn[data-tooltip], #voice-toggle-btn[data-tooltip] {
   position: relative;
@@ -438,33 +438,6 @@ body.modo-oscuro .voice-hint {
 .chat-actions .delete-btn:hover, .chat-actions .delete-btn:focus {
   background-color: #c0392b;
   transform: scale(1.1);
-}
-
-.chat-actions .rename-btn[data-tooltip]::after,
-.chat-actions .delete-btn[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: -100%;
-  left: -100%;
-  transform: translate(-10px, -10px) scale(0.8);
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
-  z-index: 3000;
-  box-shadow: 0 2px 4px var(--shadow);
-}
-
-.chat-actions .rename-btn:hover::after, .chat-actions .rename-btn:focus::after,
-.chat-actions .delete-btn:hover::after, .chat-actions .delete-btn:focus::after {
-  opacity: 1;
-  visibility: visible;
-  transform: translate(-10px, -10px) scale(1);
 }
 
 /* === Sección Principal (Chat) === */
@@ -1306,24 +1279,6 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   .bot pre {
     font-size: 0.8rem;
     padding: 8px;
-  }
-
-  .chat-actions .rename-btn[data-tooltip]::after,
-  .chat-actions .delete-btn[data-tooltip]::after {
-    top: -120%;
-    left: -90%;
-    transform: translate(-5px, -5px) scale(0.8);
-    font-size: 0.75rem;
-    padding: 4px 8px;
-    z-index: 3000;
-    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
-  }
-
-  .chat-actions .rename-btn:hover::after, .chat-actions .rename-btn:focus::after,
-  .chat-actions .delete-btn:hover::after, .chat-actions .delete-btn:focus::after {
-    opacity: 1;
-    visibility: visible;
-    transform: translate(-5px, -5px) scale(1);
   }
 
   .voice-hint {
