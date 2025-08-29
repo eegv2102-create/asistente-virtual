@@ -399,7 +399,9 @@ chat_bp = Blueprint('chat', __name__)
 @limiter.limit("50 per hour")
 def handle_messages(conv_id):
     """Maneja obtención y guardado de mensajes en una conversación."""
-    usuario = session.get('usuario', 'anonimo')
+    if 'usuario' not in session:
+        session['usuario'] = uuid.uuid4().hex
+    usuario = session['usuario']
 
     if request.method == 'GET':
         try:
@@ -462,7 +464,9 @@ def handle_messages(conv_id):
 @limiter.limit("50 per hour")
 def list_conversations():
     """Lista todas las conversaciones de un usuario."""
-    usuario = session.get('usuario', 'anonimo')
+    if 'usuario' not in session:
+        session['usuario'] = uuid.uuid4().hex
+    usuario = session['usuario']
     try:
         conn = get_db_connection()
         c = conn.cursor()
@@ -492,7 +496,9 @@ def list_conversations():
 @limiter.limit("50 per hour")
 def manage_conversation(conv_id):
     """Maneja eliminación y renombrado de conversaciones."""
-    usuario = session.get('usuario', 'anonimo')
+    if 'usuario' not in session:
+        session['usuario'] = uuid.uuid4().hex
+    usuario = session['usuario']
     if request.method == 'DELETE':
         try:
             conn = get_db_connection()
@@ -537,7 +543,9 @@ def manage_conversation(conv_id):
 @limiter.limit("50 per hour")
 def create_conversation():
     """Crea una nueva conversación."""
-    usuario = session.get('usuario', 'anonimo')
+    if 'usuario' not in session:
+        session['usuario'] = uuid.uuid4().hex
+    usuario = session['usuario']
     try:
         data = ConversationInput(**request.get_json(silent=True) or {})
         nombre = data.nombre
@@ -596,12 +604,16 @@ validar_prerequisitos(temas, prerequisitos)
 def buscar_respuesta():
     """Busca respuesta usando Groq API basada en la pregunta del usuario."""
     try:
+        if 'usuario' not in session:
+            session['usuario'] = uuid.uuid4().hex
+        usuario = session['usuario']
+
         data = BuscarRespuestaInput(**request.get_json())
         pregunta = data.pregunta
         historial = data.historial
         nivel_explicacion = data.nivel_explicacion
-        usuario = session.get('usuario', 'anonimo')
 
+        # Crear conversación si no existe
         conv_id = session.get('current_conv_id')
         if not conv_id and pregunta:
             try:
@@ -617,67 +629,58 @@ def buscar_respuesta():
                 logger.error("Error creando conv en /buscar_respuesta", error=str(e), usuario=usuario)
                 conv_id = None
 
+        # Normalizar pregunta para identificar tema
         pregunta_norm = pregunta.lower().strip()
+
+        # Construir contexto a partir del historial
+        contexto = ""
+        if historial:
+            contexto = "\nHistorial reciente:\n" + "\n".join(
+                [f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]]
+            )
+
+        # Identificar tema basado en TEMAS_DISPONIBLES
+        tema_identificado = None
+        for tema in TEMAS_DISPONIBLES:
+            if tema.lower() in pregunta_norm:
+                tema_identificado = tema
+                break
+        if not tema_identificado:
+            tema_identificado = TEMAS_DISPONIBLES[0]  # Tema por defecto si no se identifica
+
+        # Construir prerreq_str desde PREREQUISITOS
+        prerreq_str = ""
+        if tema_identificado in PREREQUISITOS:
+            prerrequisitos = PREREQUISITOS[tema_identificado]
+            if prerrequisitos:
+                prerreq_str = f"Prerrequisitos: {', '.join(prerrequisitos)}"
+
+        # Respuestas simples para preguntas comunes
         respuestas_simples = {
-            r"^(hola|¡hola!|buenos días|buenas tardes|qué tal|hi|saludos)(.*por favor.*)?$": 
-                f"¡Hola, {usuario if usuario != 'anonimo' else 'amigo'}! Estoy listo para ayudarte con Programación Avanzada. ¿Qué quieres explorar hoy?",
-            r"^(gracias|muchas gracias|gracias por.*|thank you|te agradezco)$": 
-                f"¡De nada, {usuario if usuario != 'anonimo' else 'amigo'}! Me alegra ayudarte. ¿Tienes otra pregunta sobre Programación Avanzada?",
-            r"^(adiós|bye|hasta luego|nos vemos|chau)$": 
-                f"¡Hasta pronto, {usuario if usuario != 'anonimo' else 'amigo'}! Sigue aprendiendo y aquí estaré cuando regreses."
+            r"^(hola|¡hola!|buenos días|buenas tardes|buenas noches|hey|hi)$": "Hola, ¿cómo puedo ayudarte con Programación Avanzada hoy?",
+            r"^(qu[ié] eres|qu[ié] es yelia|quien eres|quien es yelia)$": (
+                "Soy YELIA, un tutor de Programación Avanzada para Ingeniería en Telemática. "
+                "Puedo explicarte temas como POO, UML, patrones de diseño, y más. ¿Qué quieres aprender?"
+            ),
+            r"^(ayuda|help|qué puedes hacer|que puedes hacer)$": (
+                "Puedo explicarte temas de Programación Avanzada, generar quizzes, recomendar temas y convertir texto a voz. "
+                f"Prueba con una pregunta sobre {TEMAS_DISPONIBLES[0]} o pide un quiz."
+            )
         }
 
+        # Verificar si la pregunta coincide con una respuesta simple
         for patron, respuesta in respuestas_simples.items():
-            if re.match(patron, pregunta_norm) and not re.search(r"(explicame|explícame|qué es|como funciona|cómo funciona|dime sobre|quiero aprender|saber más)", pregunta_norm):
+            if re.match(patron, pregunta_norm, re.IGNORECASE):
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                    guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
                 logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
 
-        # Detectar si la pregunta pide más información sobre un tema previo
-        tema_contexto = None
-        if re.match(r"^(sí deseo saber más|sí quiero saber más|explícame eso|quiero estudiar eso|cuéntame más|saber más|dime más|explicame más|explícame más|continúa)$", pregunta_norm):
-            # Buscar el tema en el historial reciente o en los mensajes de la conversación
-            if historial:
-                # Buscar el último mensaje con un tema relevante
-                for msg in reversed(historial):
-                    if 'tema' in msg and msg['tema'] in TEMAS_DISPONIBLES:
-                        tema_contexto = msg['tema']
-                        break
-            if not tema_contexto and conv_id:
-                try:
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute("""
-                        SELECT tema FROM messages
-                        WHERE conv_id = %s AND tema IS NOT NULL
-                        ORDER BY created_at DESC LIMIT 1
-                    """, (conv_id,))
-                    row = c.fetchone()
-                    conn.close()
-                    tema_contexto = row[0] if row else None
-                except Exception as e:
-                    logger.error("Error al buscar tema en mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
-
-        tema_identificado = tema_contexto or next((tema for tema in TEMAS_DISPONIBLES if tema.lower() in pregunta_norm), None)
-        prerrequisitos_tema = []
-        if tema_identificado and PREREQUISITOS:
-            for unidad, subtemas in PREREQUISITOS.items():
-                for tema, info in subtemas.items():
-                    if tema == tema_identificado and 'definición' in info:  # Ajusta si hay clave 'pre'
-                        prerrequisitos_tema = []  # Placeholder
-                        break
-        prerreq_str = f"Prerrequisitos: {', '.join(prerrequisitos_tema)}" if prerrequisitos_tema else ""
-
-        contexto = ""
-        if historial:
-            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
-
+        # Construir prompt completo para Groq API
         prompt = (
-            f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
-            f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta}'. "
-            f"Sigue estrictamente estas reglas:\n"
+            f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
+            f"Sigue estas instrucciones estrictamente:\n"
             f"1. Responde solo sobre los temas: {', '.join(TEMAS_DISPONIBLES)}.\n"
             f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
             f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
@@ -691,7 +694,8 @@ def buscar_respuesta():
             f"8. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
             f"9. No uses emoticones ni emojis.\n"
             f"10. Si no se puede responder, sugiere un tema de la lista.\n"
-            f"Contexto: {contexto}\nTimestamp: {int(time.time())}"
+            f"Contexto: {contexto}\n"
+            f"Timestamp: {int(time.time())}"
         )
 
         try:
@@ -718,7 +722,7 @@ def buscar_respuesta():
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
     except ValidationError as e:
         logger.error("Validación fallida en /buscar_respuesta", error=str(e), usuario=usuario)
@@ -732,8 +736,11 @@ quiz_bp = Blueprint('quiz', __name__)
 def quiz():
     """Genera una pregunta de quiz usando Groq API."""
     try:
+        if 'usuario' not in session:
+            session['usuario'] = uuid.uuid4().hex
+        usuario = session['usuario']
+
         data = QuizInput(**request.get_json())
-        usuario = data.usuario
         historial = data.historial
         nivel = data.nivel.lower()
         tema_seleccionado = data.tema if data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)
@@ -814,12 +821,15 @@ def quiz():
 def responder_quiz():
     """Procesa la respuesta del usuario a un quiz."""
     try:
+        if 'usuario' not in session:
+            session['usuario'] = uuid.uuid4().hex
+        usuario = session['usuario']
+
         data = ResponderQuizInput(**request.get_json())
         respuesta = data.respuesta
         respuesta_correcta = data.respuesta_correcta
         tema = data.tema
         pregunta = data.pregunta
-        usuario = session.get('usuario', 'anonimo')
 
         respuesta_norm = ''.join(respuesta.strip().lower().split())
         respuesta_correcta_norm = ''.join(respuesta_correcta.strip().lower().split())
@@ -895,19 +905,23 @@ tts_bp = Blueprint('tts', __name__)
 def tts():
     """Genera audio TTS a partir de texto."""
     try:
+        if 'usuario' not in session:
+            session['usuario'] = uuid.uuid4().hex
+        usuario = session['usuario']
+
         data = TTSInput(**request.get_json())
         text = data.text
         if not text:
-            logger.error("Texto vacío en /tts", usuario=session.get('usuario', 'anonimo'))
+            logger.error("Texto vacío en /tts", usuario=usuario)
             return jsonify({"error": "El texto no puede estar vacío", "status": 400}), 400
         if not all(c.isprintable() or c.isspace() for c in text):
-            logger.error("Texto contiene caracteres no válidos", usuario=session.get('usuario', 'anonimo'))
+            logger.error("Texto contiene caracteres no válidos", usuario=usuario)
             return jsonify({"error": "El texto contiene caracteres no válidos", "status": 400}), 400
 
         # Caché de audio
         cache_key = f"tts:{text}"
         if cache_key in cache:
-            logger.info("Audio servido desde caché", text=text, usuario=session.get('usuario', 'anonimo'))
+            logger.info("Audio servido desde caché", text=text, usuario=usuario)
             audio_bytes = cache[cache_key]
             audio_io = io.BytesIO(audio_bytes)  # Crear nuevo BytesIO desde bytes
             return send_file(audio_io, mimetype='audio/mp3')
@@ -929,10 +943,10 @@ def tts():
             audio_bytes = audio_io.getvalue()  # Obtener bytes del audio
             cache[cache_key] = audio_bytes  # Guardar bytes en caché
             audio_io.seek(0)
-            logger.info("Audio generado exitosamente", text=text, usuario=session.get('usuario', 'anonimo'))
+            logger.info("Audio generado exitosamente", text=text, usuario=usuario)
             return send_file(audio_io, mimetype='audio/mp3')
         except Exception as gtts_error:
-            logger.error("Error en gTTS", error=str(gtts_error), usuario=session.get('usuario', 'anonimo'))
+            logger.error("Error en gTTS", error=str(gtts_error), usuario=usuario)
             if isinstance(gtts_error, httpx.ConnectTimeout):
                 return jsonify({"error": "Tiempo de conexión agotado en gTTS, verifica tu conexión a internet", "status": 504}), 504
             return jsonify({"error": f"Error en la generación de audio: {str(gtts_error)}", "status": 500}), 500
@@ -952,8 +966,11 @@ recommend_bp = Blueprint('recommend', __name__)
 def recommend():
     """Genera una recomendación de tema usando Groq API."""
     try:
+        if 'usuario' not in session:
+            session['usuario'] = uuid.uuid4().hex
+        usuario = session['usuario']
+
         data = RecommendInput(**request.get_json())
-        usuario = data.usuario
         historial = data.historial
 
         progreso = cargar_progreso(usuario)
@@ -1125,7 +1142,9 @@ def get_avatars():
 def index():
     """Ruta principal que renderiza la interfaz."""
     try:
-        usuario = session.get('usuario', 'anonimo')
+        if 'usuario' not in session:
+            session['usuario'] = uuid.uuid4().hex
+        usuario = session['usuario']
         logger.info("Accediendo a la ruta raíz", usuario=usuario)
         return render_template('index.html')
     except Exception as e:
