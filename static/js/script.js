@@ -204,12 +204,42 @@ const speakText = async (text) => {
     } catch (error) {
         console.error('Fallo en /tts, intentando speechSynthesis:', error);
         if ('speechSynthesis' in window) {
-            const voices = speechSynthesis.getVoices();
-            const esVoice = voices.find(v => v.lang.includes('es'));
+            let voices = speechSynthesis.getVoices();
+            if (voices.length === 0) {
+                // Forzar carga de voces si no están listas
+                speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+                voices = speechSynthesis.getVoices();
+            }
+            const esVoice = voices.find(v => v.lang.includes('es') || v.lang.includes('es-ES') || v.lang.includes('es_MX'));
             if (!esVoice) {
                 console.warn('No se encontró voz en español');
-                mostrarNotificacion('No se encontró voz en español', 'error');
-                if (botMessage) botMessage.classList.remove('speaking');
+                mostrarNotificacion('No se encontró voz en español. Usando voz predeterminada.', 'warning');
+                const defaultVoice = voices.find(v => v.default) || voices[0];
+                if (!defaultVoice) {
+                    console.error('No hay voces disponibles');
+                    mostrarNotificacion('No hay voces disponibles en este navegador', 'error');
+                    if (botMessage) botMessage.classList.remove('speaking');
+                    return;
+                }
+                const utterance = new SpeechSynthesisUtterance(textoParaVoz);
+                utterance.voice = defaultVoice;
+                utterance.lang = defaultVoice.lang;
+                utterance.pitch = 1;
+                utterance.rate = 0.9;
+                utterance.onend = () => {
+                    if (botMessage) botMessage.classList.remove('speaking');
+                    config.currentAudio = null;
+                };
+                utterance.onerror = (event) => {
+                    console.error('Error en speechSynthesis:', event.error);
+                    let errorMsg = 'Error en audio local: ' + event.error;
+                    if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página primero';
+                    if (event.error === 'network') errorMsg = 'Error de red en síntesis de voz';
+                    mostrarNotificacion(errorMsg, 'error');
+                    if (botMessage) botMessage.classList.remove('speaking');
+                };
+                speechSynthesis.speak(utterance);
+                config.currentAudio = utterance;
                 return;
             }
             const utterance = new SpeechSynthesisUtterance(textoParaVoz);
@@ -1237,6 +1267,15 @@ const init = () => {
         mostrarMensajeBienvenida();
         if (config.vozActiva && !config.userHasInteracted) toggleVoiceHint(true);
     }, 100);
+
+    // Precargar voces para speechSynthesis
+    if ('speechSynthesis' in window) {
+        speechSynthesis.onvoiceschanged = () => {
+            speechSynthesis.getVoices();
+        };
+        // Forzar carga inicial
+        speechSynthesis.getVoices();
+    }
 };
 
 // Evento para cerrar menús al clicar fuera
