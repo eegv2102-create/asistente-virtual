@@ -304,23 +304,36 @@ def cargar_temas():
     """Carga temas desde archivo JSON o usa defaults, con caché."""
     global temas
     cache_key = 'temas'
+    temas_disponibles = []
+
+    # Intenta cargar desde la caché primero
     if cache_key in cache:
         temas = cache[cache_key]
         logger.info("Temas cargados desde caché")
-        temas_disponibles = []
-        for unidad, subtemas in temas.items():
-            temas_disponibles.extend(subtemas.keys())
+        # Itera sobre la nueva estructura de lista en la caché
+        for unidad in temas.get("Unidades", []):
+            for tema in unidad.get("temas", []):
+                if 'nombre' in tema:
+                    temas_disponibles.append(tema['nombre'])
         return temas_disponibles
 
+    # Si no está en caché, lee desde el archivo
     try:
         with open('temas.json', 'r', encoding='utf-8') as f:
             temas = json.load(f)
+        
+        # Guarda en caché para futuras cargas
         cache[cache_key] = temas
-        temas_disponibles = []
-        for unidad, subtemas in temas.items():
-            temas_disponibles.extend(subtemas.keys())
-        logger.info(f"Temas cargados: {temas_disponibles}")
+        
+        # Itera sobre la nueva estructura de lista del archivo
+        for unidad in temas.get("Unidades", []):
+            for tema in unidad.get("temas", []):
+                if 'nombre' in tema:
+                    temas_disponibles.append(tema['nombre'])
+
+        logger.info(f"Temas cargados desde archivo: {temas_disponibles}")
         return temas_disponibles
+
     except FileNotFoundError:
         logger.error("Archivo temas.json no encontrado")
         temas = {}
@@ -334,7 +347,7 @@ def cargar_temas():
         logger.error("Error al decodificar temas.json", error=str(e))
         temas = {}
         return []
-
+    
 def cargar_prerequisitos():
     """Carga prerrequisitos desde archivo JSON o usa defaults, con caché."""
     global prerequisitos
