@@ -69,6 +69,9 @@
             <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
               <i class="fas fa-trash-alt"></i>
             </button>
+            <button id="logoutBtn" data-tooltip="Cerrar Sesión" aria-label="Cerrar sesión">
+              <i class="fas fa-sign-out-alt"></i>
+            </button>
           </div>
           <div class="toolbar-center">
             <div class="dropdown-container">
@@ -81,6 +84,7 @@
                 <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
               </div>
             </div>
+            <select id="temaSelect" aria-label="Seleccionar tema"></select>
           </div>
           <div class="toolbar-right">
             <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">

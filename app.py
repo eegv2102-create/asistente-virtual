@@ -1,5 +1,4 @@
-# app.py - Refactorizado con correcciones para conversaciones y error en /buscar_respuesta
-# Estructura modular con Blueprints, funciones de base de datos y manejo robusto de sesiones.
+# app.py - Refactorizado con correcciones para error en /buscar_respuesta y robustez mejorada
 
 import time
 import json
@@ -106,6 +105,7 @@ class ConversationInput(BaseModel):
 class MessageInput(BaseModel):
     role: str
     content: str
+    tema: Optional[str] = None
 
 # --- Funciones de Lógica de Base de Datos ---
 @retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
@@ -316,12 +316,15 @@ def crear_nueva_conversacion(usuario, nombre="Nuevo Chat"):
 def call_groq_api(messages, model, max_tokens, temperature):
     """Llama a la API de Groq con reintentos."""
     try:
-        return client.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=messages,
             max_tokens=max_tokens,
             temperature=temperature
         )
+        if not response.choices or not response.choices[0].message.content:
+            raise ValueError("Respuesta de Groq vacía o inválida")
+        return response
     except Exception as e:
         logger.error("Error en Groq API", error=str(e))
         if '503' in str(e):
@@ -408,7 +411,7 @@ def handle_messages(conv_id):
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("""
-                SELECT id, role, content, created_at
+                SELECT id, role, content, created_at, tema
                 FROM messages
                 WHERE conv_id = %s
                 ORDER BY created_at ASC
@@ -421,7 +424,8 @@ def handle_messages(conv_id):
                     "id": r[0],
                     "role": r[1],
                     "content": r[2],
-                    "created_at": (r[3].isoformat() if r[3] else None)
+                    "created_at": (r[3].isoformat() if r[3] else None),
+                    "tema": r[4]
                 } for r in rows
             ]
             logger.info("Mensajes obtenidos", conv_id=conv_id, usuario=usuario, message_count=len(messages))
@@ -434,14 +438,15 @@ def handle_messages(conv_id):
         data = MessageInput(**request.get_json())
         role = data.role
         content = data.content
+        tema = data.tema
 
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("""
-            INSERT INTO messages (conv_id, role, content)
-            VALUES (%s, %s, %s)
+            INSERT INTO messages (conv_id, role, content, tema)
+            VALUES (%s, %s, %s, %s)
             RETURNING id, created_at
-        """, (conv_id, role, content))
+        """, (conv_id, role, content, tema))
         row = c.fetchone()
         conn.commit()
         conn.close()
@@ -647,7 +652,7 @@ def buscar_respuesta():
         # Verificar si la pregunta coincide con una respuesta simple
         for patron, respuesta in respuestas_simples.items():
             if re.match(patron, pregunta_norm, re.IGNORECASE) and respuesta:
-                guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                guardar_mensaje(usuario, conv_id, 'user', pregunta, tema=tema_identificado)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
                 logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
@@ -682,20 +687,23 @@ def buscar_respuesta():
                 max_tokens=300,
                 temperature=0.2
             )
+            # Validar la respuesta de Groq
+            if not completion.choices or not hasattr(completion.choices[0], 'message') or not completion.choices[0].message.content:
+                raise ValueError("Respuesta de Groq vacía o inválida")
             respuesta = completion.choices[0].message.content.strip()
             if not respuesta:
                 respuesta = f"Lo siento, no pude generar una respuesta. Intenta con una pregunta sobre {tema_identificado}."
-            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'user', pregunta, tema=tema_identificado)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
             logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
         except Exception as e:
-            logger.error("Error al procesar respuesta de Groq", error=str(e), pregunta=pregunta, usuario=usuario)
+            logger.error("Error al procesar respuesta de Groq", error=str(e), pregunta=pregunta, usuario=usuario, conv_id=conv_id)
             respuesta = (
                 f"Lo siento, no pude procesar tu pregunta. "
                 f"Intenta con una pregunta sobre Programación Avanzada, como {tema_identificado}."
             )
-            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'user', pregunta, tema=tema_identificado)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
     except ValidationError as e:
