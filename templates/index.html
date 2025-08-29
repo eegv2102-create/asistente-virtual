@@ -14,82 +14,96 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 </head>
 <body>
-
   <header class="app-title">
     <div class="title-container">
-      <button class="menu-toggle" aria-label="Abrir menú de historial de chats">
-        <i class="fas fa-bars"></i>
+      <button class="menu-toggle" aria-label="Abrir menú izquierdo"><i class="fas fa-bars"></i></button>
+      <button class="menu-toggle-right" aria-label="Abrir menú derecho"><i class="fas fa-bars"></i></button>
+      <button id="modo-btn" data-tooltip="Cambiar Modo" aria-label="Cambiar modo">
+        <i class="fas fa-moon"></i>
+        <span id="modo-text"></span>
       </button>
-      <i class="fas fa-brain"></i>
-      <h1>YELIA</h1>
-    </div>
-    <div class="header-actions">
-      <button class="menu-toggle-right" aria-label="Abrir menú de avatar">
-        <i class="fas fa-ellipsis-v"></i>
+      <h1>🧠 YELIA 🤖</h1>
+      <button id="voice-btn" data-tooltip="Activar Audio" aria-label="Activar/Desactivar audio">
+        <i class="fas fa-volume-up"></i>
+        <span id="voice-text"></span>
       </button>
     </div>
   </header>
 
-  <main class="main-container">
+  <div class="header-divider"></div>
+  <div id="voice-hint" class="voice-hint hidden">Haz clic en cualquier lugar para habilitar el audio</div>
 
+  <div class="container">
     <aside class="left-section">
-      <h3>Historial</h3>
-      <div class="historial-header">
-        <button id="new-chat-btn" class="button" aria-label="Nuevo chat">
-          <i class="fas fa-plus"></i> Nuevo Chat
-        </button>
-        <button id="btn-clear" data-tooltip="Borrar Historial" aria-label="Borrar historial">
-          <i class="fas fa-trash-alt"></i>
-        </button>
+      <div class="sidebar-content">
+        <div class="sidebar-buttons">
+          <button id="quiz-btn" data-tooltip="Iniciar Quiz" aria-label="Iniciar Quiz">
+            <i class="fas fa-question-circle"></i>
+            <span>Iniciar Quiz</span>
+          </button>
+          <button id="recommend-btn" data-tooltip="Recomendar Tema" aria-label="Recomendar Tema">
+            <i class="fas fa-lightbulb"></i>
+            <span>Recomendar Tema</span>
+          </button>
+        </div>
+        <h3>Historial de Chats</h3>
+        <div class="chat-history">
+          <ul id="chat-list"></ul>
+        </div>
       </div>
-      <ul id="chat-list" class="chat-list"></ul>
     </aside>
 
-    <section class="page-wrapper">
-      <div id="chatbox" class="chat-container"></div>
-      <section class="input-section">
-        <div class="input-group">
-          <div class="toolbar-row">
-            <button id="modo-btn" class="button" data-tooltip="Modo Oscuro" aria-label="Alternar modo oscuro">
-              <i class="fas fa-moon"></i> Modo
+    <section class="main-section">
+      <div id="chatbox">
+        <div class="message-container"></div>
+      </div>
+
+      <!-- INPUT ADAPTADO -->
+      <div class="input-group">
+        <!-- Primera fila: toolbar -->
+        <div class="toolbar-row">
+          <div class="toolbar-left">
+            <button id="new-chat-btn" data-tooltip="Nuevo Chat" aria-label="Nuevo Chat">
+              <i class="fas fa-plus"></i>
             </button>
-            <button id="quiz-btn" class="button" data-tooltip="Modo de Quiz" aria-label="Iniciar modo quiz">
-              <i class="fas fa-graduation-cap"></i> Quiz
+            <button id="btn-clear" data-tooltip="Limpiar Chat" aria-label="Limpiar Chat">
+              <i class="fas fa-trash-alt"></i>
             </button>
-            <button id="recommend-btn" class="button" data-tooltip="Sugerir Tema" aria-label="Sugerir nuevo tema">
-              <i class="fas fa-seedling"></i> Sugerir Tema
-            </button>
-            <div id="nivel-explicacion-container" class="dropdown-container">
-              <button id="nivel-btn" class="button" data-tooltip="Nivel de Explicación" aria-label="Nivel de explicación">
-                <i class="fas fa-chalkboard"></i> Básico
+          </div>
+          <div class="toolbar-center">
+            <div class="dropdown-container">
+              <button id="nivel-btn" aria-label="Seleccionar nivel de explicación">
+                Explicación Básica <i class="fas fa-caret-down"></i>
               </button>
-              <div id="nivel-dropdown" class="dropdown-menu">
+              <div class="dropdown-menu">
                 <button onclick="setNivelExplicacion('basica')">Explicación Básica</button>
                 <button onclick="setNivelExplicacion('ejemplos')">Con Ejemplos de Código</button>
                 <button onclick="setNivelExplicacion('avanzada')">Avanzada/Teórica</button>
               </div>
             </div>
-            <div class="toolbar-right">
-              <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
-                <i class="fas fa-microphone"></i>
-              </button>
-            </div>
           </div>
-          <div class="input-row">
-            <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
-            <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
-              <i class="fas fa-paper-plane"></i>
+          <div class="toolbar-right">
+            <button id="voice-toggle-btn" data-tooltip="Voz" aria-label="Iniciar reconocimiento de voz">
+              <i class="fas fa-microphone"></i>
             </button>
           </div>
         </div>
-      </section>
+
+        <!-- Segunda fila: textarea + enviar -->
+        <div class="input-row">
+          <textarea id="input" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta" rows="1"></textarea>
+          <button id="send-btn" data-tooltip="Enviar" aria-label="Enviar mensaje">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
     </section>
 
     <aside class="right-section">
       <h3>Selección de Avatar</h3>
       <div class="avatar-options"></div>
     </aside>
-  </main>
+  </div>
 
   <div id="notification-card">
     <p>Notificación</p>
@@ -98,8 +112,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
   <script src="/static/js/script.js"></script>
-
 </body>
 </html>
