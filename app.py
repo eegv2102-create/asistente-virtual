@@ -109,8 +109,6 @@ class MessageInput(BaseModel):
     content: str
 
 # --- Funciones de Lógica de Base de Datos ---
-# Estas funciones abstraen las consultas SQL para mejorar la mantenibilidad.
-
 @retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def get_db_connection():
     """Establece una conexión a la base de datos PostgreSQL."""
@@ -207,7 +205,7 @@ def init_db():
                       conv_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
                       role TEXT NOT NULL,
                       content TEXT NOT NULL,
-                      tema TEXT,  -- Campo añadido para almacenar el tema
+                      tema TEXT,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 
         # Migrar tablas antiguas
@@ -542,7 +540,7 @@ def manage_conversation(conv_id):
 @chat_bp.route('/conversations', methods=['POST'])
 @limiter.limit("50 per hour")
 def create_conversation():
-    """Crea una nueva conversación."""
+    """Crea una nueva conversación con un mensaje de saludo inicial."""
     if 'usuario' not in session:
         session['usuario'] = uuid.uuid4().hex
     usuario = session['usuario']
@@ -556,12 +554,16 @@ def create_conversation():
                   (usuario, nombre))
         row = c.fetchone()
         conv_id = row[0]
+        # Guardar mensaje de saludo inicial
+        saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
+        c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
+                  (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
         conn.commit()
         conn.close()
 
         session['current_conv_id'] = conv_id
-        logger.info("Conversación creada", conv_id=conv_id, usuario=usuario, nombre=nombre)
-        return jsonify({"id": conv_id, "nombre": nombre, "created_at": row[1].isoformat()}), 201
+        logger.info("Conversación creada con saludo inicial", conv_id=conv_id, usuario=usuario, nombre=nombre)
+        return jsonify({"id": conv_id, "nombre": nombre, "created_at": row[1].isoformat(), "mensaje": saludo_inicial}), 201
     except ValidationError as e:
         logger.error("Validación fallida en /conversations POST", error=str(e), usuario=usuario)
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
@@ -572,18 +574,15 @@ def create_conversation():
 def validar_prerequisitos(temas_json, prerequisitos_json):
     """Valida consistencia entre temas y prerrequisitos."""
     temas_set = set()
-    # Itera sobre la nueva estructura del JSON de temas
     for unidad in temas_json.get("Unidades", []):
         for tema in unidad.get("temas", []):
             if 'nombre' in tema:
                 temas_set.add(tema['nombre'])
 
     prereq_set = set()
-    # Itera sobre la nueva estructura del JSON de prerrequisitos
     for unidad, subtemas in prerequisitos_json.items():
         prereq_set.update(subtemas.keys())
     
-    # Compara los sets de temas y prerrequisitos
     if temas_set != prereq_set:
         logger.warning("Diferencia en temas entre temas.json y prerequisitos.json", temas_diff=temas_set.symmetric_difference(prereq_set))
         return False
@@ -596,7 +595,6 @@ temas = {}
 prerequisitos = {}
 TEMAS_DISPONIBLES = cargar_temas()
 PREREQUISITOS = cargar_prerequisitos()
-# Llama a la función con los datos cargados
 validar_prerequisitos(temas, prerequisitos)
 
 @chat_bp.route('/buscar_respuesta', methods=['POST'])
@@ -621,10 +619,14 @@ def buscar_respuesta():
                 c = conn.cursor()
                 c.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
                 conv_id = c.fetchone()[0]
+                # Guardar mensaje de saludo inicial
+                saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
+                c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
+                          (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
                 conn.commit()
                 conn.close()
                 session['current_conv_id'] = conv_id
-                logger.info("Nueva conversación creada en /buscar_respuesta", conv_id=conv_id, usuario=usuario)
+                logger.info("Nueva conversación creada con saludo inicial en /buscar_respuesta", conv_id=conv_id, usuario=usuario)
             except Exception as e:
                 logger.error("Error creando conv en /buscar_respuesta", error=str(e), usuario=usuario)
                 conv_id = None
@@ -646,7 +648,7 @@ def buscar_respuesta():
                 tema_identificado = tema
                 break
         if not tema_identificado:
-            tema_identificado = TEMAS_DISPONIBLES[0]  # Tema por defecto si no se identifica
+            tema_identificado = TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'
 
         # Construir prerreq_str desde PREREQUISITOS
         prerreq_str = ""
@@ -655,22 +657,40 @@ def buscar_respuesta():
             if prerrequisitos:
                 prerreq_str = f"Prerrequisitos: {', '.join(prerrequisitos)}"
 
+        # Verificar si el último mensaje es el saludo inicial
+        saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
+        es_saludo_duplicado = False
+        if conv_id:
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("SELECT content FROM messages WHERE conv_id = %s ORDER BY created_at DESC LIMIT 1", (conv_id,))
+                ultimo_mensaje = c.fetchone()
+                conn.close()
+                if ultimo_mensaje and ultimo_mensaje[0] == saludo_inicial:
+                    es_saludo_duplicado = True
+            except Exception as e:
+                logger.error("Error verificando último mensaje", error=str(e), usuario=usuario)
+
         # Respuestas simples para preguntas comunes
         respuestas_simples = {
-            r"^(hola|¡hola!|buenos días|buenas tardes|buenas noches|hey|hi)$": "Hola, ¿cómo puedo ayudarte con Programación Avanzada hoy?",
+            r"^(hola|¡hola!|buenos días|buenas tardes|buenas noches|hey|hi)$": (
+                "Hola, ¿cómo puedo ayudarte con Programación Avanzada hoy?"
+                if not es_saludo_duplicado else None
+            ),
             r"^(qu[ié] eres|qu[ié] es yelia|quien eres|quien es yelia)$": (
                 "Soy YELIA, un tutor de Programación Avanzada para Ingeniería en Telemática. "
                 "Puedo explicarte temas como POO, UML, patrones de diseño, y más. ¿Qué quieres aprender?"
             ),
             r"^(ayuda|help|qué puedes hacer|que puedes hacer)$": (
                 "Puedo explicarte temas de Programación Avanzada, generar quizzes, recomendar temas y convertir texto a voz. "
-                f"Prueba con una pregunta sobre {TEMAS_DISPONIBLES[0]} o pide un quiz."
+                f"Prueba con una pregunta sobre {tema_identificado} o pide un quiz."
             )
         }
 
         # Verificar si la pregunta coincide con una respuesta simple
         for patron, respuesta in respuestas_simples.items():
-            if re.match(patron, pregunta_norm, re.IGNORECASE):
+            if re.match(patron, pregunta_norm, re.IGNORECASE) and respuesta:
                 if pregunta and conv_id:
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
                     guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
@@ -718,7 +738,7 @@ def buscar_respuesta():
             logger.error("Error al procesar respuesta", error=str(e), pregunta=pregunta, usuario=usuario)
             respuesta = (
                 f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-                f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
+                f"Intenta con una pregunta sobre Programación Avanzada, como {tema_identificado}. "
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
@@ -882,6 +902,10 @@ def responder_quiz():
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
             )
 
+        # Guardar la explicación como mensaje en la conversación
+        if conv_id := session.get('current_conv_id'):
+            guardar_mensaje(usuario, conv_id, 'bot', explicacion, tema=tema)
+
         logger.info("Respuesta de quiz procesada", es_correcta=es_correcta, usuario=usuario)
         return jsonify({
             'es_correcta': es_correcta,
@@ -976,8 +1000,10 @@ def recommend():
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
         temas_disponibles = []
-        for unidad, subtemas in temas.items():
-            temas_disponibles.extend(subtemas.keys())
+        for unidad in temas.get("Unidades", []):
+            for tema in unidad.get("temas", []):
+                if 'nombre' in tema:
+                    temas_disponibles.append(tema['nombre'])
 
         temas_no_aprendidos = [t for t in temas_disponibles if t not in temas_aprendidos]
         if not temas_no_aprendidos:
@@ -1051,6 +1077,10 @@ def recommend():
             nombre = 'Chat Recomendación'
             c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id", (usuario, nombre))
             conv_id = c.fetchone()[0]
+            # Guardar mensaje de saludo inicial
+            saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
+            c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
+                      (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
             conn.commit()
             conn.close()
             session['current_conv_id'] = conv_id
@@ -1084,8 +1114,10 @@ def get_temas():
 
     try:
         temas_disponibles = []
-        for unidad, subtemas in temas.items():
-            temas_disponibles.extend(subtemas.keys())
+        for unidad in temas.get("Unidades", []):
+            for tema in unidad.get("temas", []):
+                if 'nombre' in tema:
+                    temas_disponibles.append(tema['nombre'])
         response = jsonify({"temas": temas_disponibles})
         cache[cache_key] = response
         logger.info("Temas disponibles enviados", temas=temas_disponibles)
