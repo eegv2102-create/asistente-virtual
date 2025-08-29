@@ -1,16 +1,35 @@
-Flask==3.0.3
-gunicorn==22.0.0
-python-dotenv==1.0.1
-groq==0.11.0
-psycopg2-binary==2.9.10
-gTTS==2.5.3
-httpx==0.27.2
-bleach==6.1.0
-requests==2.32.3
-retrying==1.3.4
-flask-session==0.8.0
-flask-limiter==3.12
-cachetools==5.5.0
-structlog==24.4.0
-pydantic==2.9.2
-aiohttp==3.9.5  # Opcional para async
+# ==================================
+# --- Dependencias del Servidor ---
+# ==================================
+Flask==3.0.3            # Framework web para el servidor
+gunicorn==22.0.0        # Servidor web de producción para Flask
+
+# ==================================
+# --- Comunicación y APIs ---
+# ==================================
+groq==0.11.0            # Biblioteca para interactuar con la API de Groq
+httpx==0.27.2           # Cliente HTTP asíncrono, usado por Groq
+requests==2.32.3        # Biblioteca popular para peticiones HTTP
+retrying==1.3.4         # Utilidad para reintentar llamadas
+aiohttp==3.9.5          # Cliente HTTP asíncrono (opcional)
+
+# ==================================
+# --- Base de Datos ---
+# ==================================
+psycopg2-binary==2.9.10 # Adaptador de PostgreSQL para Python
+
+# ==================================
+# --- Seguridad y Sesiones ---
+# ==================================
+python-dotenv==1.0.1    # Gestión de variables de entorno
+flask-session==0.8.0    # Gestión de sesiones en Flask
+flask-limiter==3.12     # Limita las peticiones a la API para prevenir ataques
+cachetools==5.5.0       # Herramientas de caché para el servidor
+bleach==6.1.0           # Librería para sanitizar entradas de texto
+
+# ==================================
+# --- Utilidades y Herramientas ---
+# ==================================
+gTTS==2.5.3             # Generación de texto a voz
+structlog==24.4.0       # Herramienta de logging estructurado
+pydantic==2.9.2         # Biblioteca para validación de datos

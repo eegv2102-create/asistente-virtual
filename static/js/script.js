@@ -1,21 +1,31 @@
-let vozActiva = localStorage.getItem('vozActiva') === 'true';
-let isListening = false;
-let recognition = null;
-let selectedAvatar = localStorage.getItem('selectedAvatar') || 'default';
-let currentAudio = null;
-let userHasInteracted = false;
-let pendingWelcomeMessage = null;
-let lastVoiceHintTime = 0;
-let currentConvId = null;
-let historial = JSON.parse(localStorage.getItem('historial') || '[]');
-let quizHistory = JSON.parse(localStorage.getItem('quizHistory') || '[]');
-let TEMAS_DISPONIBLES = [
-    'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
-    'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
-    'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
-    'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
-];
+// script.js - Refactorizado
+// Estructura modularizada con secciones claras.
+// Variables globales organizadas en un objeto de configuración.
+// Manejo de errores robusto en llamadas API con try-catch.
 
+// --- Configuración Global ---
+const config = {
+    vozActiva: localStorage.getItem('vozActiva') === 'true',
+    isListening: false,
+    recognition: null,
+    selectedAvatar: localStorage.getItem('selectedAvatar') || 'default',
+    currentAudio: null,
+    userHasInteracted: false,
+    pendingWelcomeMessage: null,
+    lastVoiceHintTime: 0,
+    currentConvId: null,
+    historial: JSON.parse(localStorage.getItem('historial') || '[]'),
+    quizHistory: JSON.parse(localStorage.getItem('quizHistory') || '[]'),
+    TEMAS_DISPONIBLES: [
+        'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
+        'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
+        'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
+        'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
+    ]
+};
+
+// --- Utilidades Generales ---
+// Manejo de errores en fetch
 const handleFetchError = (error, context) => {
     console.error(`Error en ${context}:`, error);
     let message = 'Error inesperado';
@@ -28,6 +38,7 @@ const handleFetchError = (error, context) => {
     return null;
 };
 
+// Función debounce para optimizar eventos
 const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -36,6 +47,22 @@ const debounce = (func, wait) => {
     };
 };
 
+// Obtener elemento del DOM con logging
+const getElement = selector => {
+    const element = document.querySelector(selector);
+    if (!element) console.warn(`Elemento ${selector} no encontrado en el DOM`);
+    return element;
+};
+
+// Obtener múltiples elementos del DOM con logging
+const getElements = selector => {
+    const elements = document.querySelectorAll(selector);
+    if (!elements.length) console.warn(`No se encontraron elementos para ${selector}`);
+    return elements;
+};
+
+// --- Manejo de UI ---
+// Scroll al final del chat
 const scrollToBottom = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
@@ -46,43 +73,7 @@ const scrollToBottom = () => {
     }
 };
 
-const getHistorial = () => {
-    try {
-        const historial = JSON.parse(localStorage.getItem('historial') || '[]');
-        return Array.isArray(historial) ? historial : [];
-    } catch (error) {
-        console.error('Error al obtener historial:', error);
-        return [];
-    }
-};
-
-const showLoading = () => {
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) return null;
-    const loadingDiv = document.createElement('div');
-    loadingDiv.classList.add('loading');
-    loadingDiv.innerHTML = '<div class="spinner"></div> Cargando...';
-    container.appendChild(loadingDiv);
-    scrollToBottom();
-    return loadingDiv;
-};
-
-const hideLoading = (loadingDiv) => {
-    if (loadingDiv) loadingDiv.remove();
-};
-
-const getElement = selector => {
-    const element = document.querySelector(selector);
-    if (!element) console.warn(`Elemento ${selector} no encontrado en el DOM`);
-    return element;
-};
-
-const getElements = selector => {
-    const elements = document.querySelectorAll(selector);
-    if (!elements.length) console.warn(`No se encontraron elementos para ${selector}`);
-    return elements;
-};
-
+// Mostrar notificación
 const mostrarNotificacion = (mensaje, tipo) => {
     const notificationCard = getElement('#notification-card');
     if (!notificationCard) return;
@@ -94,6 +85,7 @@ const mostrarNotificacion = (mensaje, tipo) => {
     }, 5000);
 };
 
+// Toggle hint de voz
 const toggleVoiceHint = (show) => {
     const voiceHint = getElement('#voice-hint');
     if (!voiceHint) {
@@ -101,11 +93,12 @@ const toggleVoiceHint = (show) => {
         return;
     }
     const now = Date.now();
-    if (show && now - lastVoiceHintTime < 5000) return;
+    if (show && now - config.lastVoiceHintTime < 5000) return;
     voiceHint.classList.toggle('hidden', !show);
-    if (show) lastVoiceHintTime = now;
+    if (show) config.lastVoiceHintTime = now;
 };
 
+// Actualizar display del avatar
 const updateAvatarDisplay = () => {
     const avatarImg = getElement('#avatar-img');
     if (!avatarImg) {
@@ -113,23 +106,45 @@ const updateAvatarDisplay = () => {
         return;
     }
     const avatars = JSON.parse(localStorage.getItem('avatars') || '[]');
-    const selected = avatars.find(a => a.avatar_id === selectedAvatar) || { url: '/static/img/default-avatar.png' };
+    const selected = avatars.find(a => a.avatar_id === config.selectedAvatar) || { url: '/static/img/default-avatar.png' };
     avatarImg.src = selected.url;
     avatarImg.classList.add('animate-avatar');
     setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
 };
 
+// Mostrar loading en chat
+const showLoading = () => {
+    const container = getElement('#chatbox')?.querySelector('.message-container');
+    if (!container) return null;
+    const loadingDiv = document.createElement('div');
+    loadingDiv.classList.add('loading');
+    loadingDiv.innerHTML = '<div class="spinner"></div> Cargando...';
+    container.appendChild(loadingDiv);
+    scrollToBottom();
+    return loadingDiv;
+};
+
+// Ocultar loading
+const hideLoading = (loadingDiv) => {
+    if (loadingDiv) loadingDiv.remove();
+};
+
+// Detectar si es móvil
+const isMobile = () => window.innerWidth <= 768;
+
+// --- Lógica de Audio y Voz ---
+// Reproducir texto como audio
 const speakText = async (text) => {
-    console.log('Intentando reproducir audio:', { vozActiva, text, userHasInteracted });
-    if (!vozActiva || !text) {
-        console.warn('Audio desactivado o texto vacío', { vozActiva, text });
+    console.log('Intentando reproducir audio:', { vozActiva: config.vozActiva, text, userHasInteracted: config.userHasInteracted });
+    if (!config.vozActiva || !text) {
+        console.warn('Audio desactivado o texto vacío', { vozActiva: config.vozActiva, text });
         mostrarNotificacion('Audio desactivado o texto vacío', 'error');
         return;
     }
-    if (!userHasInteracted) {
+    if (!config.userHasInteracted) {
         console.warn('No se puede reproducir audio: el usuario no ha interactuado');
         toggleVoiceHint(true);
-        pendingWelcomeMessage = text;
+        config.pendingWelcomeMessage = text;
         return;
     }
     const reemplazosTTS = {
@@ -155,14 +170,14 @@ const speakText = async (text) => {
         .trim();
     const botMessage = getElement('.bot:last-child');
     if (botMessage) botMessage.classList.add('speaking');
-    if (currentAudio) {
-        if (currentAudio instanceof Audio) {
-            currentAudio.pause();
-            currentAudio.currentTime = 0;
+    if (config.currentAudio) {
+        if (config.currentAudio instanceof Audio) {
+            config.currentAudio.pause();
+            config.currentAudio.currentTime = 0;
         } else if ('speechSynthesis' in window) {
             speechSynthesis.cancel();
         }
-        currentAudio = null;
+        config.currentAudio = null;
     }
     try {
         console.log('Enviando solicitud al endpoint /tts');
@@ -176,15 +191,15 @@ const speakText = async (text) => {
             throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
         }
         const blob = await res.blob();
-        currentAudio = new Audio(URL.createObjectURL(blob));
-        currentAudio.play().catch(error => {
+        config.currentAudio = new Audio(URL.createObjectURL(blob));
+        config.currentAudio.play().catch(error => {
             console.error('Error al reproducir audio:', error);
             mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
             if (botMessage) botMessage.classList.remove('speaking');
         });
-        currentAudio.onended = () => {
+        config.currentAudio.onended = () => {
             if (botMessage) botMessage.classList.remove('speaking');
-            currentAudio = null;
+            config.currentAudio = null;
         };
     } catch (error) {
         console.error('Fallo en /tts, intentando speechSynthesis:', error);
@@ -204,7 +219,7 @@ const speakText = async (text) => {
             utterance.rate = 0.9;
             utterance.onend = () => {
                 if (botMessage) botMessage.classList.remove('speaking');
-                currentAudio = null;
+                config.currentAudio = null;
             };
             utterance.onerror = (event) => {
                 console.error('Error en speechSynthesis:', event.error);
@@ -215,7 +230,7 @@ const speakText = async (text) => {
                 if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
-            currentAudio = utterance;
+            config.currentAudio = utterance;
         } else {
             console.warn('speechSynthesis no soportado');
             mostrarNotificacion('Audio no soportado en este navegador', 'error');
@@ -224,20 +239,21 @@ const speakText = async (text) => {
     }
 };
 
+// Detener audio
 const stopSpeech = () => {
     console.log('Deteniendo audio');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
     }
-    if (currentAudio instanceof Audio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
+    if (config.currentAudio instanceof Audio) {
+        config.currentAudio.pause();
+        config.currentAudio.currentTime = 0;
     }
-    currentAudio = null;
-    if (isListening && recognition) {
-        recognition.stop();
-        isListening = false;
+    config.currentAudio = null;
+    if (config.isListening && config.recognition) {
+        config.recognition.stop();
+        config.isListening = false;
         if (voiceToggleBtn) {
             voiceToggleBtn.classList.remove('voice-active');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
@@ -250,22 +266,23 @@ const stopSpeech = () => {
     if (botMessage) botMessage.classList.remove('speaking');
 };
 
+// Toggle reconocimiento de voz
 const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) return;
-    if (!isListening) {
+    if (!config.isListening) {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
             mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
             return;
         }
-        recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
-        recognition.lang = 'es-ES';
-        recognition.interimResults = true;
-        recognition.continuous = true;
+        config.recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
+        config.recognition.lang = 'es-ES';
+        config.recognition.interimResults = true;
+        config.recognition.continuous = true;
         let timeoutId = null;
         try {
-            recognition.start();
-            isListening = true;
+            config.recognition.start();
+            config.isListening = true;
             voiceToggleBtn.classList.add('voice-active');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
             voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
@@ -280,20 +297,20 @@ const toggleVoiceRecognition = () => {
         const resetTimeout = () => {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                if (isListening) stopSpeech();
+                if (config.isListening) stopSpeech();
                 mostrarNotificacion('Reconocimiento de voz detenido por inactividad', 'info');
             }, 15000);
         };
         resetTimeout();
-        recognition.onresult = event => {
+        config.recognition.onresult = event => {
             resetTimeout();
             const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
             const input = getElement('#input');
             if (input) input.value = transcript;
             if (event.results[event.results.length - 1].isFinal) {
                 sendMessage();
-                recognition.stop();
-                isListening = false;
+                config.recognition.stop();
+                config.isListening = false;
                 clearTimeout(timeoutId);
                 voiceToggleBtn.classList.remove('voice-active', 'pulse');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
@@ -301,7 +318,7 @@ const toggleVoiceRecognition = () => {
                 voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
             }
         };
-        recognition.onerror = event => {
+        config.recognition.onerror = event => {
             clearTimeout(timeoutId);
             let errorMsg = `Error en reconocimiento de voz: ${event.error}`;
             if (event.error === 'no-speech') errorMsg = 'No se detectó voz, intenta de nuevo';
@@ -309,21 +326,21 @@ const toggleVoiceRecognition = () => {
             if (event.error === 'network') errorMsg = 'Error de red en reconocimiento de voz';
             if (event.error === 'not-allowed') errorMsg = 'Permiso de micrófono denegado';
             mostrarNotificacion(errorMsg, 'error');
-            recognition.stop();
-            isListening = false;
+            config.recognition.stop();
+            config.isListening = false;
             voiceToggleBtn.classList.remove('voice-active', 'pulse');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
             voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
             voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
         };
-        recognition.onend = () => {
-            if (isListening) {
+        config.recognition.onend = () => {
+            if (config.isListening) {
                 try {
-                    recognition.start();
+                    config.recognition.start();
                     resetTimeout();
                 } catch (error) {
                     console.error('Error al reiniciar reconocimiento de voz:', error);
-                    isListening = false;
+                    config.isListening = false;
                     voiceToggleBtn.classList.remove('voice-active', 'pulse');
                     voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
                     voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
@@ -342,6 +359,162 @@ const toggleVoiceRecognition = () => {
     }
 };
 
+// --- Lógica del Chat ---
+// Obtener historial desde localStorage
+const getHistorial = () => {
+    try {
+        const historial = JSON.parse(localStorage.getItem('historial') || '[]');
+        return Array.isArray(historial) ? historial : [];
+    } catch (error) {
+        console.error('Error al obtener historial:', error);
+        return [];
+    }
+};
+
+// Mostrar mensaje de bienvenida
+const mostrarMensajeBienvenida = () => {
+    const chatbox = getElement('#chatbox');
+    const container = chatbox?.querySelector('.message-container');
+    if (!container || !chatbox) {
+        console.error('Elemento #chatbox o .message-container no encontrado');
+        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
+        return;
+    }
+
+    const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
+    
+    if (container.children.length === 0) {
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) +
+            `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        container.appendChild(botDiv);
+        scrollToBottom();
+        if (window.Prism) Prism.highlightAll();
+
+        if (config.vozActiva && config.userHasInteracted) {
+            speakText(mensaje);
+        } else if (config.vozActiva) {
+            config.pendingWelcomeMessage = mensaje;
+        }
+    }
+};
+
+// Enviar mensaje al servidor
+const sendMessage = async () => {
+    const input = getElement('#input');
+    if (!input) return;
+    const pregunta = input.value.trim();
+    if (!pregunta) return;
+    input.value = '';
+
+    const container = getElement('#chatbox')?.querySelector('.message-container');
+    if (!container) return;
+    const userDiv = document.createElement('div');
+    userDiv.classList.add('user');
+    userDiv.innerHTML = pregunta + 
+        `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+    container.appendChild(userDiv);
+    const loadingDiv = showLoading();
+    scrollToBottom();
+
+    if (!config.currentConvId) {
+        try {
+            const res = await fetch('/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            if (!res.ok) throw new Error('Error al crear conversación: ' + res.status);
+            const data = await res.json();
+            config.currentConvId = data.id;
+            await cargarConversaciones();
+        } catch (error) {
+            handleFetchError(error, 'Creación de conversación');
+            hideLoading(loadingDiv);
+            return;
+        }
+    }
+
+    try {
+        await fetch(`/messages/${config.currentConvId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: "user", content: pregunta })
+        });
+    } catch (error) {
+        handleFetchError(error, 'Guardado de mensaje usuario');
+        hideLoading(loadingDiv);
+        return;
+    }
+
+    try {
+        const res = await fetch('/buscar_respuesta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pregunta,
+                historial: getHistorial(),
+                nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
+                conv_id: config.currentConvId
+            })
+        });
+        if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
+        const data = await res.json();
+        hideLoading(loadingDiv);
+
+        const botDiv = document.createElement('div');
+        botDiv.classList.add('bot');
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
+            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
+        container.appendChild(botDiv);
+        scrollToBottom();
+        if (window.Prism) Prism.highlightAll();
+        speakText(data.respuesta);
+
+        await fetch(`/messages/${config.currentConvId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: "bot", content: data.respuesta })
+        });
+
+        config.historial.push({ pregunta, respuesta: data.respuesta });
+        if (config.historial.length > 10) config.historial.shift();
+        localStorage.setItem('historial', JSON.stringify(config.historial));
+    } catch (error) {
+        handleFetchError(error, 'Envío de mensaje');
+        hideLoading(loadingDiv);
+    }
+};
+
+// Crear nueva conversación
+const nuevaConversacion = async () => {
+    try {
+        const res = await fetch('/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+        config.currentConvId = data.id;
+        const container = getElement('#chatbox')?.querySelector('.message-container');
+        if (container) container.innerHTML = '';
+        await cargarConversaciones();
+        mostrarMensajeBienvenida();
+        mostrarNotificacion('Nueva conversación iniciada', 'success');
+    } catch (error) {
+        handleFetchError(error, 'Creación de nueva conversación');
+    }
+};
+
+// Vaciar chat actual
+const vaciarChat = async () => {
+    if (!config.currentConvId) return;
+    await nuevaConversacion();
+};
+
+// --- Comunicación con el Servidor ---
+// Cargar avatares
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
     if (!avatarContainer) return;
@@ -363,13 +536,13 @@ const cargarAvatares = async () => {
             img.dataset.avatar = avatar.avatar_id;
             img.alt = `Avatar ${avatar.nombre}`;
             img.title = avatar.nombre;
-            if (avatar.avatar_id === selectedAvatar) img.classList.add('selected');
+            if (avatar.avatar_id === config.selectedAvatar) img.classList.add('selected');
             avatarContainer.appendChild(img);
             img.addEventListener('click', () => {
                 getElements('.avatar-option').forEach(opt => opt.classList.remove('selected'));
                 img.classList.add('selected');
-                selectedAvatar = avatar.avatar_id;
-                localStorage.setItem('selectedAvatar', selectedAvatar);
+                config.selectedAvatar = avatar.avatar_id;
+                localStorage.setItem('selectedAvatar', config.selectedAvatar);
                 updateAvatarDisplay();
                 mostrarNotificacion(`Avatar seleccionado: ${avatar.nombre}`, 'success');
             });
@@ -380,6 +553,7 @@ const cargarAvatares = async () => {
     }
 };
 
+// Cargar conversaciones
 const cargarConversaciones = async () => {
     try {
         const res = await fetch('/conversations');
@@ -403,8 +577,8 @@ const cargarConversaciones = async () => {
                 </div>
             `;
             li.addEventListener('click', () => {
-                currentConvId = conv.id;
-                localStorage.setItem('lastConvId', currentConvId);
+                config.currentConvId = conv.id;
+                localStorage.setItem('lastConvId', config.currentConvId);
                 cargarMensajes(conv.id);
             });
             chatList.appendChild(li);
@@ -419,17 +593,17 @@ const cargarConversaciones = async () => {
             });
         });
 
-        if (data.conversations.length > 0 && !currentConvId) {
+        if (data.conversations.length > 0 && !config.currentConvId) {
             const lastConvId = localStorage.getItem('lastConvId');
             if (lastConvId) {
-                currentConvId = parseInt(lastConvId);
-                if (!isNaN(currentConvId)) {
-                    cargarMensajes(currentConvId);
+                config.currentConvId = parseInt(lastConvId);
+                if (!isNaN(config.currentConvId)) {
+                    cargarMensajes(config.currentConvId);
                 }
             } else {
-                currentConvId = data.conversations[0].id;
-                cargarMensajes(currentConvId);
-                localStorage.setItem('lastConvId', currentConvId);
+                config.currentConvId = data.conversations[0].id;
+                cargarMensajes(config.currentConvId);
+                localStorage.setItem('lastConvId', config.currentConvId);
             }
         } else if (data.conversations.length === 0) {
             mostrarMensajeBienvenida();
@@ -439,12 +613,13 @@ const cargarConversaciones = async () => {
     }
 };
 
+// Cargar mensajes de una conversación
 const cargarMensajes = async (convId) => {
     if (!convId) {
         console.warn("⚠️ No hay convId válido, no se pueden cargar mensajes.");
         return;
     }
-    currentConvId = convId;
+    config.currentConvId = convId;
 
     try {
         const res = await fetch(`/messages/${convId}`);
@@ -473,6 +648,7 @@ const cargarMensajes = async (convId) => {
     }
 };
 
+// Eliminar conversación
 const eliminarConversacion = async (convId) => {
     if (!confirm("¿Estás seguro de que quieres eliminar esta conversación?")) return;
     try {
@@ -481,8 +657,8 @@ const eliminarConversacion = async (convId) => {
             headers: { 'Content-Type': 'application/json' }
         });
         if (res.ok) {
-            if (currentConvId === convId) {
-                currentConvId = null;
+            if (config.currentConvId === convId) {
+                config.currentConvId = null;
                 const container = getElement('#chatbox')?.querySelector('.message-container');
                 if (container) container.innerHTML = '';
                 mostrarMensajeBienvenida();
@@ -498,6 +674,7 @@ const eliminarConversacion = async (convId) => {
     }
 };
 
+// Renombrar conversación
 const renombrarConversacion = async (convId) => {
     const nuevoNombre = prompt('Nuevo nombre para la conversación:');
     if (!nuevoNombre) return;
@@ -519,296 +696,39 @@ const renombrarConversacion = async (convId) => {
     }
 };
 
-const sendMessage = async () => {
-    const input = getElement('#input');
-    if (!input) return;
-    const pregunta = input.value.trim();
-    if (!pregunta) return;
-    input.value = '';
+// Cargar temas
+const cargarTemas = async () => {
+    const cacheKey = 'temasCache';
+    const cacheTimeKey = 'temasCacheTime';
+    const cacheDuration = 24 * 60 * 60 * 1000;
+    const cachedTemas = localStorage.getItem(cacheKey);
+    const cachedTime = localStorage.getItem(cacheTimeKey);
 
-    const container = getElement('#chatbox')?.querySelector('.message-container');
-    if (!container) return;
-    const userDiv = document.createElement('div');
-    userDiv.classList.add('user');
-    userDiv.innerHTML = pregunta + 
-        `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-    container.appendChild(userDiv);
-    const loadingDiv = showLoading();
-    scrollToBottom();
-
-    if (!currentConvId) {
-        try {
-            const res = await fetch('/conversations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            });
-            if (!res.ok) throw new Error('Error al crear conversación: ' + res.status);
-            const data = await res.json();
-            currentConvId = data.id;
-            await cargarConversaciones();
-        } catch (error) {
-            handleFetchError(error, 'Creación de conversación');
-            hideLoading(loadingDiv);
-            return;
-        }
-    }
-
-    try {
-        await fetch(`/messages/${currentConvId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "user", content: pregunta })
-        });
-    } catch (error) {
-        handleFetchError(error, 'Guardado de mensaje usuario');
-        hideLoading(loadingDiv);
+    if (cachedTemas && cachedTime && Date.now() - parseInt(cachedTime) < cacheDuration) {
+        config.TEMAS_DISPONIBLES = JSON.parse(cachedTemas);
+        console.log('Temas cargados desde caché:', config.TEMAS_DISPONIBLES);
         return;
     }
 
     try {
-        const res = await fetch('/buscar_respuesta', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                pregunta,
-                historial: getHistorial(),
-                nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
-                conv_id: currentConvId
-            })
-        });
-        if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
+        const res = await fetch('/temas', { method: 'GET' });
+        if (!res.ok) throw new Error(`Error al cargar temas: ${res.status}`);
         const data = await res.json();
-        hideLoading(loadingDiv);
-
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(data.respuesta) : data.respuesta) +
-            `<button class="copy-btn" data-text="${data.respuesta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        container.appendChild(botDiv);
-        scrollToBottom();
-        if (window.Prism) Prism.highlightAll();
-        speakText(data.respuesta);
-
-        await fetch(`/messages/${currentConvId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "bot", content: data.respuesta })
-        });
-
-        historial.push({ pregunta, respuesta: data.respuesta });
-        if (historial.length > 10) historial.shift();
-        localStorage.setItem('historial', JSON.stringify(historial));
+        if (data.temas && Array.isArray(data.temas)) {
+            config.TEMAS_DISPONIBLES = data.temas;
+            localStorage.setItem(cacheKey, JSON.stringify(config.TEMAS_DISPONIBLES));
+            localStorage.setItem(cacheTimeKey, Date.now().toString());
+            console.log('Temas cargados desde servidor:', config.TEMAS_DISPONIBLES);
+        } else {
+            console.warn('No se pudieron cargar temas, usando lista por defecto');
+        }
     } catch (error) {
-        handleFetchError(error, 'Envío de mensaje');
-        hideLoading(loadingDiv);
+        handleFetchError(error, 'Carga de temas');
+        console.warn('Usando temas por defecto debido a error');
     }
 };
 
-const nuevaConversacion = async () => {
-    try {
-        const res = await fetch('/conversations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        });
-        const data = await res.json();
-        currentConvId = data.id;
-        const container = getElement('#chatbox')?.querySelector('.message-container');
-        if (container) container.innerHTML = '';
-        await cargarConversaciones();
-        mostrarMensajeBienvenida();
-        mostrarNotificacion('Nueva conversación iniciada', 'success');
-    } catch (error) {
-        handleFetchError(error, 'Creación de nueva conversación');
-    }
-};
-
-const vaciarChat = async () => {
-    if (!currentConvId) return;
-    await nuevaConversacion();
-};
-
-const addCopyButtonListeners = () => {
-    getElements('.copy-btn').forEach(btn => {
-        btn.removeEventListener('click', handleCopy);
-        btn.addEventListener('click', handleCopy);
-    });
-};
-
-const handleCopy = (event) => {
-    const btn = event.currentTarget;
-    const text = btn.dataset.text;
-    navigator.clipboard.writeText(text).then(() => {
-        mostrarNotificacion('Texto copiado al portapapeles', 'success');
-        btn.innerHTML = `<i class="fas fa-check"></i>`;
-        setTimeout(() => btn.innerHTML = `<i class="fas fa-copy"></i>`, 2000);
-    }).catch(err => {
-        console.error('Error al copiar texto:', err);
-        mostrarNotificacion('Error al copiar texto', 'error');
-    });
-};
-
-const toggleDropdown = (event) => {
-    const dropdownMenu = getElement('.dropdown-menu');
-    if (!dropdownMenu) {
-        console.error('Elemento .dropdown-menu no encontrado');
-        mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
-        return;
-    }
-    dropdownMenu.classList.toggle('active');
-    console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado');
-    if (event) event.stopPropagation();
-};
-
-const setNivelExplicacion = (nivel) => {
-    console.log('setNivelExplicacion llamado con nivel:', nivel);
-    if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
-        console.error('Nivel inválido:', nivel);
-        mostrarNotificacion('Error: Nivel inválido', 'error');
-        return;
-    }
-
-    localStorage.setItem('nivelExplicacion', nivel);
-    const nivelBtn = getElement('#nivel-btn');
-    if (nivelBtn) {
-        const nivelText =
-            nivel === 'basica' ? 'Explicación Básica' :
-            nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
-            'Avanzada/Teórica';
-        nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
-        console.log('Nivel actualizado a:', nivelText);
-
-        const dropdownMenu = getElement('.dropdown-menu');
-        if (dropdownMenu && dropdownMenu.classList.contains('active')) {
-            dropdownMenu.classList.remove('active');
-            console.log('Menú desplegable cerrado tras seleccionar nivel');
-        }
-
-        mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
-    } else {
-        console.error('Elemento #nivel-btn no encontrado');
-        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
-    }
-};
-
-const isMobile = () => window.innerWidth <= 768;
-
-document.addEventListener('click', (event) => {
-    const dropdownMenu = getElement('.dropdown-menu');
-    const nivelBtn = getElement('#nivel-btn');
-
-    if (nivelBtn && nivelBtn.contains(event.target)) {
-        console.log('Clic en botón de nivel, toggling menú');
-        return;
-    }
-
-    if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        console.log('Clic en opción del menú desplegable');
-        return;
-    }
-
-    if (dropdownMenu && dropdownMenu.classList.contains('active')) {
-        dropdownMenu.classList.remove('active');
-        console.log('Menú desplegable cerrado por clic fuera');
-    }
-
-    if (isMobile()) {
-        const leftSection = getElement('.left-section');
-        const rightSection = getElement('.right-section');
-
-        if (leftSection && leftSection.classList.contains('active') &&
-            !leftSection.contains(event.target) &&
-            !getElement('.menu-toggle').contains(event.target)) {
-            toggleMenu();
-        }
-
-        if (rightSection && rightSection.classList.contains('active') &&
-            !rightSection.contains(event.target) &&
-            !getElement('.menu-toggle-right').contains(event.target)) {
-            toggleRightMenu();
-        }
-    }
-});
-
-const toggleMenu = () => {
-    const leftSection = getElement('.left-section');
-    const rightSection = getElement('.right-section');
-    if (!leftSection) return;
-    leftSection.classList.toggle('active');
-
-    if (isMobile()) {
-        const menuToggle = getElement('.menu-toggle');
-        if (menuToggle) {
-            menuToggle.innerHTML = leftSection.classList.contains('active')
-                ? '<i class="fas fa-times"></i>'
-                : '<i class="fas fa-bars"></i>';
-        }
-    }
-
-    if (rightSection && rightSection.classList.contains('active')) {
-        rightSection.classList.remove('active');
-    }
-
-    const voiceHint = getElement('#voice-hint');
-    if (voiceHint && leftSection.classList.contains('active')) {
-        voiceHint.classList.add('hidden');
-    }
-};
-
-const toggleRightMenu = () => {
-    const rightSection = getElement('.right-section');
-    const leftSection = getElement('.left-section');
-    if (!rightSection) return;
-    rightSection.classList.toggle('active');
-
-    if (isMobile()) {
-        const menuToggleRight = getElement('.menu-toggle-right');
-        if (menuToggleRight) {
-            menuToggleRight.innerHTML = rightSection.classList.contains('active')
-                ? '<i class="fas fa-times"></i>'
-                : '<i class="fas fa-bars"></i>';
-        }
-    }
-
-    if (leftSection && leftSection.classList.contains('active')) {
-        leftSection.classList.remove('active');
-    }
-
-    const voiceHint = getElement('#voice-hint');
-    if (voiceHint && rightSection.classList.contains('active')) {
-        voiceHint.classList.add('hidden');
-    }
-};
-
-const mostrarMensajeBienvenida = () => {
-    const chatbox = getElement('#chatbox');
-    const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        console.error('Elemento #chatbox o .message-container no encontrado');
-        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
-        return;
-    }
-
-    const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
-    
-    if (container.children.length === 0) {
-        const botDiv = document.createElement('div');
-        botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) +
-            `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
-        container.appendChild(botDiv);
-        scrollToBottom();
-        if (window.Prism) Prism.highlightAll();
-
-        if (vozActiva && userHasInteracted) {
-            speakText(mensaje);
-        } else if (vozActiva) {
-            pendingWelcomeMessage = mensaje;
-        }
-    }
-};
-
+// Obtener quiz
 const obtenerQuiz = async (tipo) => {
     console.log('Obteniendo quiz, tipo:', tipo);
     const loadingDiv = showLoading();
@@ -820,8 +740,8 @@ const obtenerQuiz = async (tipo) => {
         });
         if (!res.ok) throw new Error(`Error al obtener quiz: ${res.status}`);
         const data = await res.json();
-        quizHistory.push(data);
-        localStorage.setItem('quizHistory', JSON.stringify(quizHistory));
+        config.quizHistory.push(data);
+        localStorage.setItem('quizHistory', JSON.stringify(config.quizHistory));
         hideLoading(loadingDiv);
         return data;
     } catch (error) {
@@ -831,6 +751,7 @@ const obtenerQuiz = async (tipo) => {
     }
 };
 
+// Mostrar quiz en chat
 const mostrarQuizEnChat = async (quizData) => {
     if (!quizData) return;
     console.log('Mostrando quiz en chat:', quizData);
@@ -847,7 +768,7 @@ const mostrarQuizEnChat = async (quizData) => {
         <div class="quiz-options">${optionsHtml}</div>
         <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
-    quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta;
+    quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta || '';
     quizDiv.dataset.tema = quizData.tema || 'unknown';
     container.appendChild(quizDiv);
     scrollToBottom();
@@ -865,6 +786,7 @@ const mostrarQuizEnChat = async (quizData) => {
     addCopyButtonListeners();
 };
 
+// Manejar selección de opción en quiz
 const handleQuizOption = async (event) => {
     const option = event.currentTarget;
     const selectedOption = option.dataset.option;
@@ -921,21 +843,22 @@ const handleQuizOption = async (event) => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
         speakText(data.explicacion);
-        await fetch(`/messages/${currentConvId}`, {
+        await fetch(`/messages/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role: "bot", content: data.explicacion, tema: quizData.tema })
         });
 
-        historial.push({ pregunta: quizData.pregunta, respuesta: data.explicacion, tema: quizData.tema });
-        if (historial.length > 10) historial.shift();
-        localStorage.setItem('historial', JSON.stringify(historial));
+        config.historial.push({ pregunta: quizData.pregunta, respuesta: data.explicacion, tema: quizData.tema });
+        if (config.historial.length > 10) config.historial.shift();
+        localStorage.setItem('historial', JSON.stringify(config.historial));
     } catch (error) {
         handleFetchError(error, 'Respuesta de quiz');
         hideLoading(loadingDiv);
     }
 };
 
+// Obtener recomendación
 const obtenerRecomendacion = async () => {
     console.log('Obteniendo recomendación');
     const loadingDiv = showLoading();
@@ -956,37 +879,105 @@ const obtenerRecomendacion = async () => {
     }
 };
 
-const cargarTemas = async () => {
-    const cacheKey = 'temasCache';
-    const cacheTimeKey = 'temasCacheTime';
-    const cacheDuration = 24 * 60 * 60 * 1000;
-    const cachedTemas = localStorage.getItem(cacheKey);
-    const cachedTime = localStorage.getItem(cacheTimeKey);
+// --- Eventos y Inicialización ---
+// Toggle menú desplegable
+const toggleDropdown = (event) => {
+    const dropdownMenu = getElement('.dropdown-menu');
+    if (!dropdownMenu) {
+        console.error('Elemento .dropdown-menu no encontrado');
+        mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
+        return;
+    }
+    dropdownMenu.classList.toggle('active');
+    console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado');
+    if (event) event.stopPropagation();
+};
 
-    if (cachedTemas && cachedTime && Date.now() - parseInt(cachedTime) < cacheDuration) {
-        TEMAS_DISPONIBLES = JSON.parse(cachedTemas);
-        console.log('Temas cargados desde caché:', TEMAS_DISPONIBLES);
+// Setear nivel de explicación
+const setNivelExplicacion = (nivel) => {
+    console.log('setNivelExplicacion llamado con nivel:', nivel);
+    if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
+        console.error('Nivel inválido:', nivel);
+        mostrarNotificacion('Error: Nivel inválido', 'error');
         return;
     }
 
-    try {
-        const res = await fetch('/temas', { method: 'GET' });
-        if (!res.ok) throw new Error(`Error al cargar temas: ${res.status}`);
-        const data = await res.json();
-        if (data.temas && Array.isArray(data.temas)) {
-            TEMAS_DISPONIBLES = data.temas;
-            localStorage.setItem(cacheKey, JSON.stringify(TEMAS_DISPONIBLES));
-            localStorage.setItem(cacheTimeKey, Date.now().toString());
-            console.log('Temas cargados desde servidor:', TEMAS_DISPONIBLES);
-        } else {
-            console.warn('No se pudieron cargar temas, usando lista por defecto');
+    localStorage.setItem('nivelExplicacion', nivel);
+    const nivelBtn = getElement('#nivel-btn');
+    if (nivelBtn) {
+        const nivelText =
+            nivel === 'basica' ? 'Explicación Básica' :
+            nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
+            'Avanzada/Teórica';
+        nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
+        console.log('Nivel actualizado a:', nivelText);
+
+        const dropdownMenu = getElement('.dropdown-menu');
+        if (dropdownMenu && dropdownMenu.classList.contains('active')) {
+            dropdownMenu.classList.remove('active');
+            console.log('Menú desplegable cerrado tras seleccionar nivel');
         }
-    } catch (error) {
-        handleFetchError(error, 'Carga de temas');
-        console.warn('Usando temas por defecto debido a error');
+
+        mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
+    } else {
+        console.error('Elemento #nivel-btn no encontrado');
+        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
     }
 };
 
+// Toggle menú izquierdo
+const toggleMenu = () => {
+    const leftSection = getElement('.left-section');
+    const rightSection = getElement('.right-section');
+    if (!leftSection) return;
+    leftSection.classList.toggle('active');
+
+    if (isMobile()) {
+        const menuToggle = getElement('.menu-toggle');
+        if (menuToggle) {
+            menuToggle.innerHTML = leftSection.classList.contains('active')
+                ? '<i class="fas fa-times"></i>'
+                : '<i class="fas fa-bars"></i>';
+        }
+    }
+
+    if (rightSection && rightSection.classList.contains('active')) {
+        rightSection.classList.remove('active');
+    }
+
+    const voiceHint = getElement('#voice-hint');
+    if (voiceHint && leftSection.classList.contains('active')) {
+        voiceHint.classList.add('hidden');
+    }
+};
+
+// Toggle menú derecho
+const toggleRightMenu = () => {
+    const rightSection = getElement('.right-section');
+    const leftSection = getElement('.left-section');
+    if (!rightSection) return;
+    rightSection.classList.toggle('active');
+
+    if (isMobile()) {
+        const menuToggleRight = getElement('.menu-toggle-right');
+        if (menuToggleRight) {
+            menuToggleRight.innerHTML = rightSection.classList.contains('active')
+                ? '<i class="fas fa-times"></i>'
+                : '<i class="fas fa-bars"></i>';
+        }
+    }
+
+    if (leftSection && leftSection.classList.contains('active')) {
+        leftSection.classList.remove('active');
+    }
+
+    const voiceHint = getElement('#voice-hint');
+    if (voiceHint && rightSection.classList.contains('active')) {
+        voiceHint.classList.add('hidden');
+    }
+};
+
+// Toggle modo oscuro
 const toggleDarkMode = () => {
     document.body.classList.toggle('modo-oscuro');
     const isModoOscuro = document.body.classList.contains('modo-oscuro');
@@ -1003,29 +994,32 @@ const toggleDarkMode = () => {
     mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
 };
 
+// Toggle voz
 const handleVoiceToggle = () => {
-    vozActiva = !vozActiva;
-    localStorage.setItem('vozActiva', vozActiva);
+    config.vozActiva = !config.vozActiva;
+    localStorage.setItem('vozActiva', config.vozActiva);
     const voiceBtn = getElement('#voice-btn');
     if (voiceBtn) {
         voiceBtn.innerHTML = `
-            <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
-            <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+            <i class="fas ${config.vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+            <span id="voice-text">${config.vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
         `;
-        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
-        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+        voiceBtn.setAttribute('data-tooltip', config.vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+        voiceBtn.setAttribute('aria-label', config.vozActiva ? 'Desactivar audio' : 'Activar audio');
     }
-    mostrarNotificacion(`Audio ${vozActiva ? 'activado' : 'desactivado'}`, 'success');
-    if (!vozActiva) stopSpeech();
-    if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
+    mostrarNotificacion(`Audio ${config.vozActiva ? 'activado' : 'desactivado'}`, 'success');
+    if (!config.vozActiva) stopSpeech();
+    if (config.vozActiva && !config.userHasInteracted) toggleVoiceHint(true);
 };
 
+// Manejar clic en quiz
 const handleQuizClick = async () => {
     console.log('Botón de quiz clickeado');
     const quiz = await obtenerQuiz('opciones');
     if (quiz) mostrarQuizEnChat(quiz);
 };
 
+// Manejar clic en recomendación
 const handleRecommendClick = async () => {
     console.log('Botón de recomendación clickeado');
     const data = await obtenerRecomendacion();
@@ -1048,12 +1042,12 @@ const handleRecommendClick = async () => {
     speakText(mensaje);
     addCopyButtonListeners();
 
-    historial.push({ pregunta: '', respuesta: mensaje, tema });
-    if (historial.length > 10) historial.shift();
-    localStorage.setItem('historial', JSON.stringify(historial));
+    config.historial.push({ pregunta: '', respuesta: mensaje, tema });
+    if (config.historial.length > 10) config.historial.shift();
+    localStorage.setItem('historial', JSON.stringify(config.historial));
 
-    if (currentConvId) {
-        await fetch(`/messages/${currentConvId}`, {
+    if (config.currentConvId) {
+        await fetch(`/messages/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role: 'bot', content: mensaje, tema })
@@ -1061,6 +1055,7 @@ const handleRecommendClick = async () => {
     }
 };
 
+// Manejar tecla enter en input
 const handleInputKeydown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -1068,17 +1063,41 @@ const handleInputKeydown = (event) => {
     }
 };
 
+// Manejar primera interacción del usuario
 const handleFirstInteraction = () => {
-    if (!userHasInteracted) {
-        userHasInteracted = true;
+    if (!config.userHasInteracted) {
+        config.userHasInteracted = true;
         toggleVoiceHint(false);
-        if (pendingWelcomeMessage) {
-            speakText(pendingWelcomeMessage);
-            pendingWelcomeMessage = null;
+        if (config.pendingWelcomeMessage) {
+            speakText(config.pendingWelcomeMessage);
+            config.pendingWelcomeMessage = null;
         }
     }
 };
 
+// Añadir listeners a botones de copia
+const addCopyButtonListeners = () => {
+    getElements('.copy-btn').forEach(btn => {
+        btn.removeEventListener('click', handleCopy);
+        btn.addEventListener('click', handleCopy);
+    });
+};
+
+// Manejar copia de texto
+const handleCopy = (event) => {
+    const btn = event.currentTarget;
+    const text = btn.dataset.text;
+    navigator.clipboard.writeText(text).then(() => {
+        mostrarNotificacion('Texto copiado al portapapeles', 'success');
+        btn.innerHTML = `<i class="fas fa-check"></i>`;
+        setTimeout(() => btn.innerHTML = `<i class="fas fa-copy"></i>`, 2000);
+    }).catch(err => {
+        console.error('Error al copiar texto:', err);
+        mostrarNotificacion('Error al copiar texto', 'error');
+    });
+};
+
+// Inicialización de la aplicación
 const init = () => {
     console.log('Inicializando aplicación');
     const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
@@ -1124,11 +1143,11 @@ const init = () => {
     const voiceBtn = getElement('#voice-btn');
     if (voiceBtn) {
         voiceBtn.addEventListener('click', handleVoiceToggle);
-        voiceBtn.setAttribute('data-tooltip', vozActiva ? 'Desactivar Audio' : 'Activar Audio');
-        voiceBtn.setAttribute('aria-label', vozActiva ? 'Desactivar audio' : 'Activar audio');
+        voiceBtn.setAttribute('data-tooltip', config.vozActiva ? 'Desactivar Audio' : 'Activar Audio');
+        voiceBtn.setAttribute('aria-label', config.vozActiva ? 'Desactivar audio' : 'Activar audio');
         voiceBtn.innerHTML = `
-            <i class="fas ${vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
-            <span id="voice-text">${vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
+            <i class="fas ${config.vozActiva ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
+            <span id="voice-text">${config.vozActiva ? 'Desactivar Audio' : 'Activar Audio'}</span>
         `;
     }
 
@@ -1205,8 +1224,47 @@ const init = () => {
 
     setTimeout(() => {
         mostrarMensajeBienvenida();
-        if (vozActiva && !userHasInteracted) toggleVoiceHint(true);
+        if (config.vozActiva && !config.userHasInteracted) toggleVoiceHint(true);
     }, 100);
 };
 
+// Evento para cerrar menús al clicar fuera
+document.addEventListener('click', (event) => {
+    const dropdownMenu = getElement('.dropdown-menu');
+    const nivelBtn = getElement('#nivel-btn');
+
+    if (nivelBtn && nivelBtn.contains(event.target)) {
+        console.log('Clic en botón de nivel, toggling menú');
+        return;
+    }
+
+    if (dropdownMenu && dropdownMenu.contains(event.target)) {
+        console.log('Clic en opción del menú desplegable');
+        return;
+    }
+
+    if (dropdownMenu && dropdownMenu.classList.contains('active')) {
+        dropdownMenu.classList.remove('active');
+        console.log('Menú desplegable cerrado por clic fuera');
+    }
+
+    if (isMobile()) {
+        const leftSection = getElement('.left-section');
+        const rightSection = getElement('.right-section');
+
+        if (leftSection && leftSection.classList.contains('active') &&
+            !leftSection.contains(event.target) &&
+            !getElement('.menu-toggle').contains(event.target)) {
+            toggleMenu();
+        }
+
+        if (rightSection && rightSection.classList.contains('active') &&
+            !rightSection.contains(event.target) &&
+            !getElement('.menu-toggle-right').contains(event.target)) {
+            toggleRightMenu();
+        }
+    }
+});
+
+// Inicializar al cargar DOM
 document.addEventListener('DOMContentLoaded', init);

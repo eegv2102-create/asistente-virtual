@@ -1,3 +1,8 @@
+# app.py - Refactorizado
+# Estructura modularizada con Blueprints para rutas relacionadas.
+# Funciones separadas para lógica de base de datos.
+# Comentarios añadidos para explicar secciones clave.
+
 import time
 import json
 import os
@@ -5,7 +10,7 @@ import random
 import logging
 import socket
 import webbrowser
-from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session, Blueprint
 from flask_session import Session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -70,7 +75,7 @@ GTTS_TIMEOUT = int(os.getenv('GTTS_TIMEOUT', 10))
 # Inicializar Groq client
 client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
-# Modelos de validación con Pydantic
+# --- Modelos de Validación con Pydantic ---
 class BuscarRespuestaInput(BaseModel):
     pregunta: Annotated[str, StringConstraints(max_length=500)]
     historial: List = []
@@ -99,18 +104,16 @@ class RecommendInput(BaseModel):
 class ConversationInput(BaseModel):
     nombre: Annotated[str, StringConstraints(max_length=100)] = 'Nuevo Chat'
 
-# Manejo global de errores
-@app.errorhandler(Exception)
-def handle_exception(e):
-    logger.error("Error inesperado", error=str(e), exc_info=True)
-    if isinstance(e, httpx.ConnectTimeout):
-        return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet", "status": 504}), 504
-    if isinstance(e, ValidationError):
-        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
-    return jsonify({"error": f"Error interno del servidor: {str(e)}", "status": 500}), 500
+class MessageInput(BaseModel):
+    role: str
+    content: str
+
+# --- Funciones de Lógica de Base de Datos ---
+# Estas funciones abstraen las consultas SQL para mejorar la mantenibilidad.
 
 @retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def get_db_connection():
+    """Establece una conexión a la base de datos PostgreSQL."""
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         conn.set_session(autocommit=False)
@@ -121,6 +124,7 @@ def get_db_connection():
         raise
 
 def _col_exists(cursor, table, column):
+    """Verifica si una columna existe en una tabla."""
     cursor.execute("""
         SELECT 1 FROM information_schema.columns
         WHERE table_name = %s AND column_name = %s
@@ -128,6 +132,7 @@ def _col_exists(cursor, table, column):
     return cursor.fetchone() is not None
 
 def _ensure_created_at(cursor, table):
+    """Asegura que la columna 'created_at' exista en la tabla, migrando si es necesario."""
     has_created = _col_exists(cursor, table, 'created_at')
     has_timestamp = _col_exists(cursor, table, 'timestamp')
     if has_timestamp and not has_created:
@@ -143,15 +148,8 @@ def _ensure_created_at(cursor, table):
         )
         logger.info(f"[migración] Añadido created_at en {table}")
 
-# Validar variables de entorno
-if not os.getenv("GROQ_API_KEY"):
-    logger.error("GROQ_API_KEY no configurada")
-    exit(1)
-if not os.getenv("DATABASE_URL"):
-    logger.error("DATABASE_URL no configurada")
-    exit(1)
-
 def init_db():
+    """Inicializa la base de datos creando tablas, migrando y añadiendo índices."""
     conn = None
     try:
         conn = get_db_connection()
@@ -243,7 +241,67 @@ def init_db():
         if conn:
             conn.close()
 
+def cargar_progreso(usuario):
+    """Carga el progreso de un usuario desde la base de datos."""
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT puntos, temas_aprendidos, avatar_id FROM progreso WHERE usuario = %s", (usuario,))
+        row = c.fetchone()
+        conn.close()
+        if row:
+            return {"puntos": row[0], "temas_aprendidos": row[1], "avatar_id": row[2]}
+        return {"puntos": 0, "temas_aprendidos": "", "avatar_id": "default"}
+    except PsycopgError as e:
+        logger.error("Error al cargar progreso", error=str(e))
+        return {"puntos": 0, "temas_aprendidos": "", "avatar_id": "default"}
+
+def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
+    """Guarda o actualiza el progreso de un usuario en la base de datos."""
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO progreso (usuario, puntos, temas_aprendidos, avatar_id) VALUES (%s, %s, %s, %s) "
+                  "ON CONFLICT (usuario) DO UPDATE SET puntos = %s, temas_aprendidos = %s, avatar_id = %s",
+                  (usuario, puntos, temas_aprendidos, avatar_id, puntos, temas_aprendidos, avatar_id))
+        conn.commit()
+        conn.close()
+        logger.info(f"Progreso guardado", usuario=usuario, puntos=puntos, temas=temas_aprendidos)
+    except PsycopgError as e:
+        logger.error("Error al guardar progreso", error=str(e))
+
+def guardar_mensaje(usuario, conv_id, role, content, tema=None):
+    """Guarda un mensaje en la base de datos."""
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)", 
+                  (conv_id, role, content, tema))
+        conn.commit()
+        conn.close()
+        logger.info(f"Mensaje guardado", usuario=usuario, conv_id=conv_id, role=role, tema=tema)
+    except PsycopgError as e:
+        logger.error("Error al guardar mensaje", error=str(e))
+
+# --- Funciones Auxiliares ---
+@retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
+def call_groq_api(messages, model, max_tokens, temperature):
+    """Llama a la API de Groq con reintentos."""
+    try:
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+    except Exception as e:
+        logger.error("Error en Groq API", error=str(e))
+        if '503' in str(e):
+            raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
+        raise
+
 def cargar_temas():
+    """Carga temas desde archivo JSON o usa defaults, con caché."""
     global temas
     cache_key = 'temas'
     if cache_key in cache:
@@ -278,6 +336,7 @@ def cargar_temas():
         return []
 
 def cargar_prerequisitos():
+    """Carga prerrequisitos desde archivo JSON o usa defaults, con caché."""
     global prerequisitos
     cache_key = 'prerequisitos'
     if cache_key in cache:
@@ -300,12 +359,8 @@ def cargar_prerequisitos():
         prerequisitos = {}
         return {}
 
-temas = {}
-prerequisitos = {}
-TEMAS_DISPONIBLES = cargar_temas()
-PREREQUISITOS = cargar_prerequisitos()
-
 def validar_prerequisitos(temas_json, prerequisitos_json):
+    """Valida consistencia entre temas y prerrequisitos."""
     temas_set = set()
     for unidad, subtemas in temas_json.items():
         temas_set.update(subtemas.keys())
@@ -317,69 +372,40 @@ def validar_prerequisitos(temas_json, prerequisitos_json):
     else:
         logger.info("Validación de JSON exitosa: temas coinciden")
 
+# --- Carga Inicial de Datos Globales ---
+temas = {}
+prerequisitos = {}
+TEMAS_DISPONIBLES = cargar_temas()
+PREREQUISITOS = cargar_prerequisitos()
 validar_prerequisitos(temas, prerequisitos)
 
-def cargar_progreso(usuario):
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT puntos, temas_aprendidos, avatar_id FROM progreso WHERE usuario = %s", (usuario,))
-        row = c.fetchone()
-        conn.close()
-        if row:
-            return {"puntos": row[0], "temas_aprendidos": row[1], "avatar_id": row[2]}
-        return {"puntos": 0, "temas_aprendidos": "", "avatar_id": "default"}
-    except PsycopgError as e:
-        logger.error("Error al cargar progreso", error=str(e))
-        return {"puntos": 0, "temas_aprendidos": "", "avatar_id": "default"}
+# --- Manejo Global de Errores ---
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Maneja errores globales en la aplicación."""
+    logger.error("Error inesperado", error=str(e), exc_info=True)
+    if isinstance(e, httpx.ConnectTimeout):
+        return jsonify({"error": "Tiempo de conexión agotado, verifica tu conexión a internet", "status": 504}), 504
+    if isinstance(e, ValidationError):
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
+    return jsonify({"error": f"Error interno del servidor: {str(e)}", "status": 500}), 500
 
-def guardar_progreso(usuario, puntos, temas_aprendidos, avatar_id="default"):
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("INSERT INTO progreso (usuario, puntos, temas_aprendidos, avatar_id) VALUES (%s, %s, %s, %s) "
-                  "ON CONFLICT (usuario) DO UPDATE SET puntos = %s, temas_aprendidos = %s, avatar_id = %s",
-                  (usuario, puntos, temas_aprendidos, avatar_id, puntos, temas_aprendidos, avatar_id))
-        conn.commit()
-        conn.close()
-        logger.info(f"Progreso guardado", usuario=usuario, puntos=puntos, temas=temas_aprendidos)
-    except PsycopgError as e:
-        logger.error("Error al guardar progreso", error=str(e))
+# Validar variables de entorno
+if not os.getenv("GROQ_API_KEY"):
+    logger.error("GROQ_API_KEY no configurada")
+    exit(1)
+if not os.getenv("DATABASE_URL"):
+    logger.error("DATABASE_URL no configurada")
+    exit(1)
 
-def guardar_mensaje(usuario, conv_id, role, content, tema=None):
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)", 
-                  (conv_id, role, content, tema))
-        conn.commit()
-        conn.close()
-        logger.info(f"Mensaje guardado", usuario=usuario, conv_id=conv_id, role=role, tema=tema)
-    except PsycopgError as e:
-        logger.error("Error al guardar mensaje", error=str(e))
+# --- Blueprints para Modularizar Rutas ---
+# Blueprint para rutas relacionadas con conversaciones y mensajes
+chat_bp = Blueprint('chat', __name__)
 
-@retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
-def call_groq_api(messages, model, max_tokens, temperature):
-    try:
-        return client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature
-        )
-    except Exception as e:
-        logger.error("Error en Groq API", error=str(e))
-        if '503' in str(e):
-            raise Exception("Groq API unavailable (503). Check https://groqstatus.com/")
-        raise
-
-class MessageInput(BaseModel):
-    role: str
-    content: str
-
-@app.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
+@chat_bp.route('/messages/<int:conv_id>', methods=['GET', 'POST'])
 @limiter.limit("50 per hour")
 def handle_messages(conv_id):
+    """Maneja obtención y guardado de mensajes en una conversación."""
     usuario = session.get('usuario', 'anonimo')
 
     if request.method == 'GET':
@@ -439,9 +465,10 @@ def handle_messages(conv_id):
         logger.error("Error guardando mensaje", error=str(e), conv_id=conv_id, usuario=usuario)
         return jsonify({"error": "No se pudo guardar el mensaje", "status": 500}), 500
 
-@app.route('/conversations', methods=['GET'])
+@chat_bp.route('/conversations', methods=['GET'])
 @limiter.limit("50 per hour")
 def list_conversations():
+    """Lista todas las conversaciones de un usuario."""
     usuario = session.get('usuario', 'anonimo')
     try:
         conn = get_db_connection()
@@ -468,9 +495,10 @@ def list_conversations():
         logger.error("Error listando conversaciones", error=str(e), usuario=usuario)
         return jsonify({"error": "No se pudieron obtener las conversaciones", "status": 500}), 500
 
-@app.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
+@chat_bp.route('/conversations/<int:conv_id>', methods=['DELETE', 'PUT'])
 @limiter.limit("50 per hour")
 def manage_conversation(conv_id):
+    """Maneja eliminación y renombrado de conversaciones."""
     usuario = session.get('usuario', 'anonimo')
     if request.method == 'DELETE':
         try:
@@ -512,9 +540,10 @@ def manage_conversation(conv_id):
             logger.error("Error renombrando conversación", error=str(e), conv_id=conv_id, usuario=usuario)
             return jsonify({'error': f"No se pudo renombrar la conversación: {str(e)}", "status": 500}), 500
 
-@app.route('/conversations', methods=['POST'])
+@chat_bp.route('/conversations', methods=['POST'])
 @limiter.limit("50 per hour")
 def create_conversation():
+    """Crea una nueva conversación."""
     usuario = session.get('usuario', 'anonimo')
     try:
         data = ConversationInput(**request.get_json(silent=True) or {})
@@ -539,9 +568,10 @@ def create_conversation():
         logger.error("Error creando conversación", error=str(e), usuario=usuario)
         return jsonify({"error": "No se pudo crear la conversación", "status": 500}), 500
 
-@app.route('/buscar_respuesta', methods=['POST'])
+@chat_bp.route('/buscar_respuesta', methods=['POST'])
 @limiter.limit("50 per hour")
 def buscar_respuesta():
+    """Busca respuesta usando Groq API basada en la pregunta del usuario."""
     try:
         data = BuscarRespuestaInput(**request.get_json())
         pregunta = data.pregunta
@@ -603,107 +633,11 @@ def buscar_respuesta():
                     """, (conv_id,))
                     row = c.fetchone()
                     conn.close()
-                    if row:
-                        tema_contexto = row[0] if row[0] in TEMAS_DISPONIBLES else None
+                    tema_contexto = row[0] if row else None
                 except Exception as e:
-                    logger.error("Error obteniendo tema del historial de mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
+                    logger.error("Error al buscar tema en mensajes", error=str(e), conv_id=conv_id, usuario=usuario)
 
-        if tema_contexto:
-            # Obtener prerrequisitos del tema
-            prerrequisitos_tema = []
-            for unidad, subtemas in PREREQUISITOS.items():
-                for tema, info in subtemas.items():
-                    if tema == tema_contexto and 'definición' in info:  # Asumiendo que prerequisitos.json tiene estructura similar, ajusta si es diferente
-                        # Asumir que 'pre' es una clave para prerrequisitos; ajusta según tu JSON
-                        prerrequisitos_tema = []  # Placeholder, ajusta a la clave real si existe
-                        break
-            prerreq_str = f"Prerrequisitos: {', '.join(prerrequisitos_tema)}" if prerrequisitos_tema else ""
-
-            # Generar respuesta con contexto y prerrequisitos
-            prompt = (
-                f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
-                f"Proporciona una explicación sobre el tema '{tema_contexto}' en el nivel '{nivel_explicacion}'. "
-                f"Sigue estrictamente estas reglas:\n"
-                f"1. Responde solo sobre el tema: {tema_contexto}.\n"
-                f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
-                f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
-                f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
-                f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
-                f"3. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
-                f"4. Mantén el hilo de la conversación basado en el contexto previo, respondiendo naturalmente como un chat continuo.\n"
-                f"5. Si la pregunta menciona 'curiosidad' o 'dato curioso', incluye un hecho interesante breve (máximo 50 palabras) relacionado con el tema.\n"
-                f"6. Incluye los prerrequisitos del tema si los hay: {prerreq_str}.\n"
-                f"7. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-                f"8. No uses emoticones ni emojis.\n"
-                f"9. Si no se puede responder, sugiere un tema de la lista."
-            )
-            try:
-                completion = call_groq_api(
-                    messages=[
-                        {"role": "system", "content": prompt},
-                        {"role": "user", "content": pregunta}
-                    ],
-                    model="llama3-70b-8192",
-                    max_tokens=300,
-                    temperature=0.2
-                )
-                respuesta = completion.choices[0].message.content.strip()
-                tema_identificado = tema_contexto
-                if pregunta and conv_id:
-                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
-                logger.info("Respuesta generada con contexto", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
-            except Exception as e:
-                logger.error("Error al procesar respuesta con contexto", error=str(e), pregunta=pregunta, usuario=usuario)
-                respuesta = (
-                    f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-                    f"Intenta con una pregunta sobre Programación Avanzada, como {TEMAS_DISPONIBLES[0]}. "
-                )
-                if pregunta and conv_id:
-                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                    guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
-
-        # Verificar relevancia de la pregunta
-        contexto = ""
-        if historial:
-            contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
-
-        prompt_relevancia = (
-            f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
-            f"Responde 'sí' si la pregunta '{pregunta}' está relacionada con {', '.join(TEMAS_DISPONIBLES)}, curiosidades sobre estos temas, o ejemplos en vida real. "
-            f"Responde 'no' en cualquier otro caso. Solo responde 'sí' o 'no'."
-        )
-
-        try:
-            completion_relevancia = call_groq_api(
-                messages=[
-                    {"role": "system", "content": prompt_relevancia},
-                    {"role": "user", "content": pregunta}
-                ],
-                model="llama3-70b-8192",
-                max_tokens=10,
-                temperature=0.1
-            )
-            es_relevante = completion_relevancia.choices[0].message.content.strip().lower() == 'sí'
-        except Exception as e:
-            logger.error("Error al verificar relevancia", error=str(e), pregunta=pregunta, usuario=usuario)
-            es_relevante = any(tema.lower() in pregunta_norm for tema in TEMAS_DISPONIBLES)
-
-        if not es_relevante:
-            respuesta = (
-                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, solo respondo sobre Programación Avanzada para Ingeniería en Telemática. "
-                f"Algunos temas que puedo explicarte son: {', '.join(TEMAS_DISPONIBLES[:3])}. "
-            )
-            if pregunta and conv_id:
-                guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                guardar_mensaje(usuario, conv_id, 'bot', respuesta)
-            logger.info("Pregunta no relevante", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
-
-        # Validación de prerrequisitos
-        tema_identificado = next((tema for tema in TEMAS_DISPONIBLES if tema.lower() in pregunta_norm), None)
+        tema_identificado = tema_contexto or next((tema for tema in TEMAS_DISPONIBLES if tema.lower() in pregunta_norm), None)
         prerrequisitos_tema = []
         if tema_identificado and PREREQUISITOS:
             for unidad, subtemas in PREREQUISITOS.items():
@@ -767,9 +701,13 @@ def buscar_respuesta():
         logger.error("Validación fallida en /buscar_respuesta", error=str(e), usuario=usuario)
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
 
-@app.route('/quiz', methods=['POST'])
+# Blueprint para rutas relacionadas con quiz
+quiz_bp = Blueprint('quiz', __name__)
+
+@quiz_bp.route('/quiz', methods=['POST'])
 @limiter.limit("20 per hour")
 def quiz():
+    """Genera una pregunta de quiz usando Groq API."""
     try:
         data = QuizInput(**request.get_json())
         usuario = data.usuario
@@ -848,9 +786,10 @@ def quiz():
             return jsonify({"error": "Groq API unavailable (503). Check https://groqstatus.com/", "status": 503}), 503
         return jsonify({"error": f"Error al generar quiz: {str(e)}", "status": 500}), 500
 
-@app.route('/responder_quiz', methods=['POST'])
+@quiz_bp.route('/responder_quiz', methods=['POST'])
 @limiter.limit("20 per hour")
 def responder_quiz():
+    """Procesa la respuesta del usuario a un quiz."""
     try:
         data = ResponderQuizInput(**request.get_json())
         respuesta = data.respuesta
@@ -925,9 +864,13 @@ def responder_quiz():
             return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
         return jsonify({"error": f"No se pudo procesar la respuesta del quiz: {str(e)}", "status": 500}), 500
 
-@app.route("/tts", methods=["POST"])
+# Blueprint para rutas relacionadas con TTS
+tts_bp = Blueprint('tts', __name__)
+
+@tts_bp.route("/tts", methods=["POST"])
 @limiter.limit("30 per hour")
 def tts():
+    """Genera audio TTS a partir de texto."""
     try:
         data = TTSInput(**request.get_json())
         text = data.text
@@ -977,10 +920,14 @@ def tts():
         logger.error("Error en /tts", error=str(e), usuario=session.get('usuario', 'anonimo'))
         return jsonify({"error": f"Error al procesar la solicitud: {str(e)}", "status": 500}), 500
 
-@app.route("/recommend", methods=["POST"])
+# Blueprint para rutas relacionadas con recomendaciones
+recommend_bp = Blueprint('recommend', __name__)
+
+@recommend_bp.route("/recommend", methods=["POST"])
 @limiter.limit("20 per hour")
 @retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def recommend():
+    """Genera una recomendación de tema usando Groq API."""
     try:
         data = RecommendInput(**request.get_json())
         usuario = data.usuario
@@ -1083,9 +1030,13 @@ def recommend():
         logger.warning(f"Usando recomendación de fallback: {recomendacion_texto}", usuario=session.get('usuario', 'anonimo'))
         return jsonify({"recommendation": recomendacion_texto})
 
-@app.route("/temas", methods=["GET"])
+# Blueprint para rutas de recursos (temas, prerequisitos, avatars)
+resources_bp = Blueprint('resources', __name__)
+
+@resources_bp.route("/temas", methods=["GET"])
 @limiter.limit("100 per hour")
 def get_temas():
+    """Obtiene la lista de temas disponibles."""
     cache_key = 'temas_response'
     if cache_key in cache:
         logger.info("Temas servidos desde caché")
@@ -1103,9 +1054,10 @@ def get_temas():
         logger.error("Error en /temas", error=str(e))
         return jsonify({"error": "Error al obtener temas", "status": 500}), 500
 
-@app.route('/prerequisitos', methods=['GET'])
+@resources_bp.route('/prerequisitos', methods=['GET'])
 @limiter.limit("100 per hour")
 def get_prerequisitos():
+    """Obtiene los prerrequisitos de temas."""
     cache_key = 'prerequisitos_response'
     if cache_key in cache:
         logger.info("Prerrequisitos servidos desde caché")
@@ -1120,19 +1072,10 @@ def get_prerequisitos():
         logger.error("Error en /prerequisitos", error=str(e))
         return jsonify({"error": "Error al obtener prerrequisitos", "status": 500}), 500
 
-@app.route('/')
-def index():
-    try:
-        usuario = session.get('usuario', 'anonimo')
-        logger.info("Accediendo a la ruta raíz", usuario=usuario)
-        return render_template('index.html')
-    except Exception as e:
-        logger.error("Error al renderizar index.html", error=str(e), usuario=session.get('usuario', 'anonimo'))
-        return jsonify({'error': 'Error al cargar la página principal', "status": 500}), 500
-
-@app.route('/avatars', methods=['GET'])
+@resources_bp.route('/avatars', methods=['GET'])
 @limiter.limit("100 per hour")
 def get_avatars():
+    """Obtiene la lista de avatares disponibles."""
     cache_key = 'avatars_response'
     if cache_key in cache:
         logger.info("Avatares servidos desde caché")
@@ -1154,6 +1097,26 @@ def get_avatars():
         cache[cache_key] = response
         return response, 200
 
+# --- Rutas Principales ---
+@app.route('/')
+def index():
+    """Ruta principal que renderiza la interfaz."""
+    try:
+        usuario = session.get('usuario', 'anonimo')
+        logger.info("Accediendo a la ruta raíz", usuario=usuario)
+        return render_template('index.html')
+    except Exception as e:
+        logger.error("Error al renderizar index.html", error=str(e), usuario=session.get('usuario', 'anonimo'))
+        return jsonify({'error': 'Error al cargar la página principal', "status": 500}), 500
+
+# Registrar Blueprints
+app.register_blueprint(chat_bp)
+app.register_blueprint(quiz_bp)
+app.register_blueprint(tts_bp)
+app.register_blueprint(recommend_bp)
+app.register_blueprint(resources_bp)
+
+# --- Inicialización de la Aplicación ---
 try:
     logger.info("Iniciando inicialización de DB")
     init_db()
