@@ -606,30 +606,36 @@ def buscar_respuesta():
             session['usuario'] = uuid.uuid4().hex
         usuario = session['usuario']
 
-        data = BuscarRespuestaInput(**request.get_json())
-        pregunta = data.pregunta
-        historial = data.historial
-        nivel_explicacion = data.nivel_explicacion
+        # Validar JSON recibido
+        data = request.get_json()
+        logger.info(f"JSON recibido en /buscar_respuesta: {data}")
+        required_fields = ['pregunta', 'historial', 'nivel_explicacion', 'conv_id']
+        for field in required_fields:
+            if field not in data or data[field] is None:
+                logger.error(f"Campo '{field}' faltante o nulo en el JSON")
+                return jsonify({"error": f"Campo '{field}' es requerido"}), 400
 
-        # Crear conversación si no existe
-        conv_id = session.get('current_conv_id')
-        if not conv_id and pregunta:
-            try:
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
-                conv_id = c.fetchone()[0]
-                # Guardar mensaje de saludo inicial
-                saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
-                c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
-                          (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
-                conn.commit()
-                conn.close()
-                session['current_conv_id'] = conv_id
-                logger.info("Nueva conversación creada con saludo inicial en /buscar_respuesta", conv_id=conv_id, usuario=usuario)
-            except Exception as e:
-                logger.error("Error creando conv en /buscar_respuesta", error=str(e), usuario=usuario)
-                conv_id = None
+        pregunta = data['pregunta'].strip()
+        historial = data['historial']
+        nivel_explicacion = data['nivel_explicacion']
+        conv_id = data['conv_id']
+
+        # Validar que conv_id existe en la base de datos
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM conversations WHERE id = %s AND usuario = %s", 
+                           (conv_id, usuario))
+                if not cur.fetchone():
+                    logger.error(f"Conversación con conv_id {conv_id} no encontrada para usuario {usuario}")
+                    # Crear nueva conversación si conv_id no es válido
+                    cur.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
+                    conv_id = cur.fetchone()[0]
+                    saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
+                    cur.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
+                               (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
+                    conn.commit()
+                    session['current_conv_id'] = conv_id
+                    logger.info(f"Nueva conversación creada: conv_id={conv_id}, usuario={usuario}")
 
         # Normalizar pregunta para identificar tema
         pregunta_norm = pregunta.lower().strip()
@@ -660,17 +666,12 @@ def buscar_respuesta():
         # Verificar si el último mensaje es el saludo inicial
         saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
         es_saludo_duplicado = False
-        if conv_id:
-            try:
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute("SELECT content FROM messages WHERE conv_id = %s ORDER BY created_at DESC LIMIT 1", (conv_id,))
-                ultimo_mensaje = c.fetchone()
-                conn.close()
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT content FROM messages WHERE conv_id = %s ORDER BY created_at DESC LIMIT 1", (conv_id,))
+                ultimo_mensaje = cur.fetchone()
                 if ultimo_mensaje and ultimo_mensaje[0] == saludo_inicial:
                     es_saludo_duplicado = True
-            except Exception as e:
-                logger.error("Error verificando último mensaje", error=str(e), usuario=usuario)
 
         # Respuestas simples para preguntas comunes
         respuestas_simples = {
@@ -695,7 +696,7 @@ def buscar_respuesta():
                     guardar_mensaje(usuario, conv_id, 'user', pregunta)
                     guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
                 logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
-                return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+                return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
 
         # Construir prompt completo para Groq API
         prompt = (
@@ -733,20 +734,20 @@ def buscar_respuesta():
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
             logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
         except Exception as e:
             logger.error("Error al procesar respuesta", error=str(e), pregunta=pregunta, usuario=usuario)
             respuesta = (
-                f"Lo siento, {usuario if usuario != 'anonimo' else 'amigo'}, no pude procesar tu pregunta. "
-                f"Intenta con una pregunta sobre Programación Avanzada, como {tema_identificado}. "
+                f"Lo siento, no pude procesar tu pregunta. "
+                f"Intenta con una pregunta sobre Programación Avanzada, como {tema_identificado}."
             )
             if pregunta and conv_id:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id if conv_id else None})
-    except ValidationError as e:
-        logger.error("Validación fallida en /buscar_respuesta", error=str(e), usuario=usuario)
-        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
+            return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
+    except Exception as e:
+        logger.error("Error en /buscar_respuesta", error=str(e), usuario=usuario)
+        return jsonify({"error": str(e), "status": 500}), 500
 
 # Blueprint para rutas relacionadas con quiz
 quiz_bp = Blueprint('quiz', __name__)

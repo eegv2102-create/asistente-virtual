@@ -418,16 +418,19 @@ const sendMessage = async () => {
     const loadingDiv = showLoading();
     scrollToBottom();
 
+    // Asegurar que conv_id es válido
     if (!config.currentConvId) {
+        console.warn('No hay conv_id, creando nueva conversación');
         try {
             const res = await fetch('/conversations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            if (!res.ok) throw new Error('Error al crear conversación: ' + res.status);
+            if (!res.ok) throw new Error(`Error al crear conversación: ${res.status} - ${await res.text()}`);
             const data = await res.json();
             config.currentConvId = data.id;
+            localStorage.setItem('lastConvId', config.currentConvId);
             await cargarConversaciones();
         } catch (error) {
             handleFetchError(error, 'Creación de conversación');
@@ -448,19 +451,27 @@ const sendMessage = async () => {
         return;
     }
 
+    const payload = {
+        pregunta,
+        historial: getHistorial(),
+        nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
+        conv_id: config.currentConvId
+    };
+    console.log('Enviando a /buscar_respuesta:', payload);
     try {
         const res = await fetch('/buscar_respuesta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                pregunta,
-                historial: getHistorial(),
-                nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
-                conv_id: config.currentConvId
-            })
+            body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status}`);
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Error al procesar la solicitud: ${res.status} - ${errorText}`);
+        }
         const data = await res.json();
+        if (!data.respuesta) {
+            throw new Error('Respuesta vacía desde el servidor');
+        }
         hideLoading(loadingDiv);
 
         const botDiv = document.createElement('div');
