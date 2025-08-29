@@ -65,7 +65,7 @@ limiter = Limiter(
 )
 
 # Configurar caché en memoria
-cache = TTLCache(maxsize=100, ttl=24 * 60 * 60)  # 24 horas
+cache = TTLCache(maxsize=100, ttl=72 * 60 * 60)  # Aumentado a 72 horas para TTS y temas
 
 # Configurar timeouts desde .env
 GROQ_RETRY_ATTEMPTS = int(os.getenv('GROQ_RETRY_ATTEMPTS', 3))
@@ -182,7 +182,7 @@ def init_db():
         c.execute("""INSERT INTO avatars (avatar_id, nombre, url, animation_url)
                      VALUES (%s, %s, %s, %s)
                      ON CONFLICT (avatar_id) DO NOTHING""",
-                  ("default", "Avatar Predeterminado", "/static/img/default-avatar.png", ""))
+                  ("default", "Avatar Predeterminado", "/static/favicon.ico", ""))
 
         c.execute('''CREATE TABLE IF NOT EXISTS quiz_logs
                      (id SERIAL PRIMARY KEY,
@@ -345,30 +345,6 @@ def cargar_temas():
         logger.error("Error al decodificar temas.json", error=str(e))
         temas = {}
         return []
-    
-def cargar_prerequisitos():
-    """Carga prerrequisitos desde archivo JSON o usa defaults, con caché."""
-    global prerequisitos
-    cache_key = 'prerequisitos'
-    if cache_key in cache:
-        prerequisitos = cache[cache_key]
-        logger.info("Prerrequisitos cargados desde caché")
-        return prerequisitos
-
-    try:
-        with open('prerequisitos.json', 'r', encoding='utf-8') as f:
-            prerequisitos = json.load(f)
-        cache[cache_key] = prerequisitos
-        logger.info("Prerrequisitos cargados desde archivo")
-        return prerequisitos
-    except FileNotFoundError:
-        logger.error("Archivo prerequisitos.json no encontrado")
-        prerequisitos = {}
-        return prerequisitos
-    except json.JSONDecodeError as e:
-        logger.error("Error al decodificar prerequisitos.json", error=str(e))
-        prerequisitos = {}
-        return {}
 
 # --- Manejo Global de Errores ---
 @app.errorhandler(Exception)
@@ -571,31 +547,9 @@ def create_conversation():
         logger.error("Error creando conversación", error=str(e), usuario=usuario)
         return jsonify({"error": "No se pudo crear la conversación", "status": 500}), 500
 
-def validar_prerequisitos(temas_json, prerequisitos_json):
-    """Valida consistencia entre temas y prerrequisitos."""
-    temas_set = set()
-    for unidad in temas_json.get("Unidades", []):
-        for tema in unidad.get("temas", []):
-            if 'nombre' in tema:
-                temas_set.add(tema['nombre'])
-
-    prereq_set = set()
-    for unidad, subtemas in prerequisitos_json.items():
-        prereq_set.update(subtemas.keys())
-    
-    if temas_set != prereq_set:
-        logger.warning("Diferencia en temas entre temas.json y prerequisitos.json", temas_diff=temas_set.symmetric_difference(prereq_set))
-        return False
-    else:
-        logger.info("Validación de JSON exitosa: temas coinciden")
-        return True
-
 # --- Carga Inicial de Datos Globales ---
 temas = {}
-prerequisitos = {}
 TEMAS_DISPONIBLES = cargar_temas()
-PREREQUISITOS = cargar_prerequisitos()
-validar_prerequisitos(temas, prerequisitos)
 
 @chat_bp.route('/buscar_respuesta', methods=['POST'])
 @limiter.limit("50 per hour")
@@ -656,13 +610,6 @@ def buscar_respuesta():
         if not tema_identificado:
             tema_identificado = TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'
 
-        # Construir prerreq_str desde PREREQUISITOS
-        prerreq_str = ""
-        if tema_identificado in PREREQUISITOS:
-            prerrequisitos = PREREQUISITOS[tema_identificado]
-            if prerrequisitos:
-                prerreq_str = f"Prerrequisitos: {', '.join(prerrequisitos)}"
-
         # Verificar si el último mensaje es el saludo inicial
         saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
         es_saludo_duplicado = False
@@ -711,10 +658,9 @@ def buscar_respuesta():
             f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
             f"5. Mantén el hilo de la conversación basado en el contexto previo, respondiendo naturalmente como un chat continuo (ej. si piden ejemplo en vida real, extiende el ejemplo anterior).\n"
             f"6. Si la pregunta menciona 'curiosidad' o 'dato curioso', proporciona un hecho interesante breve (máximo 50 palabras) relacionado con el tema, motivando al aprendizaje.\n"
-            f"7. Incluye los prerrequisitos del tema si los hay: {prerreq_str}.\n"
-            f"8. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-            f"9. No uses emoticones ni emojis.\n"
-            f"10. Si no se puede responder, sugiere un tema de la lista.\n"
+            f"7. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
+            f"8. No uses emoticones ni emojis.\n"
+            f"9. Si no se puede responder, sugiere un tema de la lista.\n"
             f"Contexto: {contexto}\n"
             f"Timestamp: {int(time.time())}"
         )
@@ -926,7 +872,7 @@ def responder_quiz():
 tts_bp = Blueprint('tts', __name__)
 
 @tts_bp.route("/tts", methods=["POST"])
-@limiter.limit("30 per hour")
+@limiter.limit("5 per hour")  # Reducido para evitar 429
 def tts():
     """Genera audio TTS a partir de texto."""
     try:
@@ -972,6 +918,8 @@ def tts():
             return send_file(audio_io, mimetype='audio/mp3')
         except Exception as gtts_error:
             logger.error("Error en gTTS", error=str(gtts_error), usuario=usuario)
+            if "429" in str(gtts_error):
+                return jsonify({"error": "Límite de solicitudes alcanzado en gTTS, espera unos minutos", "status": 429}), 429
             if isinstance(gtts_error, httpx.ConnectTimeout):
                 return jsonify({"error": "Tiempo de conexión agotado en gTTS, verifica tu conexión a internet", "status": 504}), 504
             return jsonify({"error": f"Error en la generación de audio: {str(gtts_error)}", "status": 500}), 500
@@ -1127,24 +1075,6 @@ def get_temas():
         logger.error("Error en /temas", error=str(e))
         return jsonify({"error": "Error al obtener temas", "status": 500}), 500
 
-@resources_bp.route('/prerequisitos', methods=['GET'])
-@limiter.limit("100 per hour")
-def get_prerequisitos():
-    """Obtiene los prerrequisitos de temas."""
-    cache_key = 'prerequisitos_response'
-    if cache_key in cache:
-        logger.info("Prerrequisitos servidos desde caché")
-        return cache[cache_key]
-
-    try:
-        response = jsonify({"prerequisitos": prerequisitos})
-        cache[cache_key] = response
-        logger.info("Prerrequisitos enviados")
-        return response
-    except Exception as e:
-        logger.error("Error en /prerequisitos", error=str(e))
-        return jsonify({"error": "Error al obtener prerrequisitos", "status": 500}), 500
-
 @resources_bp.route('/avatars', methods=['GET'])
 @limiter.limit("100 per hour")
 def get_avatars():
@@ -1166,7 +1096,7 @@ def get_avatars():
         return response
     except Exception as e:
         logger.error("Error al obtener avatares", error=str(e))
-        response = jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/img/default-avatar.png', 'animation_url': ''}]})
+        response = jsonify({'avatars': [{'avatar_id': 'default', 'nombre': 'Avatar Predeterminado', 'url': '/static/favicon.ico', 'animation_url': ''}]})
         cache[cache_key] = response
         return response, 200
 
