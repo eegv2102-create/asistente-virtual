@@ -561,6 +561,36 @@ def create_conversation():
         logger.error("Error creando conversación", error=str(e), usuario=usuario)
         return jsonify({"error": "No se pudo crear la conversación", "status": 500}), 500
 
+def validar_prerequisitos(temas_json, prerequisitos_json):
+    """Valida consistencia entre temas y prerrequisitos."""
+    temas_set = set()
+    # Itera sobre la nueva estructura del JSON de temas
+    for unidad in temas_json.get("Unidades", []):
+        for tema in unidad.get("temas", []):
+            if 'nombre' in tema:
+                temas_set.add(tema['nombre'])
+
+    prereq_set = set()
+    # Itera sobre la nueva estructura del JSON de prerrequisitos
+    for unidad, subtemas in prerequisitos_json.items():
+        prereq_set.update(subtemas.keys())
+    
+    # Compara los sets de temas y prerrequisitos
+    if temas_set != prereq_set:
+        logger.warning("Diferencia en temas entre temas.json y prerequisitos.json", temas_diff=temas_set.symmetric_difference(prereq_set))
+        return False
+    else:
+        logger.info("Validación de JSON exitosa: temas coinciden")
+        return True
+
+# --- Carga Inicial de Datos Globales ---
+temas = {}
+prerequisitos = {}
+TEMAS_DISPONIBLES = cargar_temas()
+PREREQUISITOS = cargar_prerequisitos()
+# Llama a la función con los datos cargados
+validar_prerequisitos(temas, prerequisitos)
+
 @chat_bp.route('/buscar_respuesta', methods=['POST'])
 @limiter.limit("50 per hour")
 def buscar_respuesta():
@@ -644,10 +674,6 @@ def buscar_respuesta():
         if historial:
             contexto = "\nHistorial reciente:\n" + "\n".join([f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]])
 
-        # Cargar temas y prerrequisitos actualizados desde JSON
-        TEMAS_DISPONIBLES = cargar_temas()
-        PREREQUISITOS = cargar_prerequisitos()
-
         prompt = (
             f"Eres YELIA, un tutor especializado en Programación Avanzada para estudiantes de Ingeniería en Telemática. "
             f"Responde en español con un tono claro, amigable y motivador a la pregunta: '{pregunta}'. "
@@ -710,8 +736,6 @@ def quiz():
         usuario = data.usuario
         historial = data.historial
         nivel = data.nivel.lower()
-        # Cargar temas desde JSON y obtener la lista de temas disponibles
-        TEMAS_DISPONIBLES = cargar_temas()
         tema_seleccionado = data.tema if data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)
 
         def validate_quiz_format(quiz_data):
