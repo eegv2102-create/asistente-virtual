@@ -871,26 +871,35 @@ const handleQuizOption = async (event) => {
         hideLoading(loadingDiv);
         const container = getElement('#chatbox')?.querySelector('.message-container');
         if (!container) return;
+
+        // Generar mensaje de retroalimentación
+        let feedbackMessage = '';
+        if (isCorrect) {
+            feedbackMessage = `¡Felicidades! Seleccionaste la opción correcta: "${selectedOption}". ${data.explicacion}`;
+        } else {
+            feedbackMessage = `Incorrecto. Seleccionaste: "${selectedOption}". La opción correcta es: "${data.respuesta_correcta}". ${data.explicacion}`;
+        }
+
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('bot');
         feedbackDiv.innerHTML = `
             <span class="quiz-feedback ${isCorrect ? 'correct' : 'incorrect'}">
                 ${isCorrect ? '<i class="fas fa-check-circle"></i> ¡Correcto!' : '<i class="fas fa-times-circle"></i> Incorrecto'}
             </span>
-            <p>${data.explicacion}</p>
-            <button class="copy-btn" data-text="${data.explicacion}" aria-label="Copiar explicación"><i class="fas fa-copy"></i></button>
+            <p>${feedbackMessage}</p>
+            <button class="copy-btn" data-text="${feedbackMessage}" aria-label="Copiar explicación"><i class="fas fa-copy"></i></button>
         `;
         container.appendChild(feedbackDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
-        speakText(data.explicacion);
+        speakText(feedbackMessage);
         await fetch(`/messages/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "bot", content: data.explicacion, tema: quizData.tema })
+            body: JSON.stringify({ role: "bot", content: feedbackMessage, tema: quizData.tema })
         });
 
-        config.historial.push({ pregunta: quizData.pregunta, respuesta: data.explicacion, tema: quizData.tema });
+        config.historial.push({ pregunta: quizData.pregunta, respuesta: feedbackMessage, tema: quizData.tema });
         if (config.historial.length > 10) config.historial.shift();
         localStorage.setItem('historial', JSON.stringify(config.historial));
     } catch (error) {
