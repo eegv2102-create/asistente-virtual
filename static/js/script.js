@@ -1,3 +1,4 @@
+
 // script.js - Refactorizado
 // Estructura modularizada con secciones claras.
 // Variables globales organizadas en un objeto de configuración.
@@ -860,12 +861,15 @@ const handleQuizOption = async (event) => {
                 tema: quizData.tema
             })
         });
-        if (!res.ok) throw new Error(`Error al responder quiz: ${res.status}`);
+        if (!res.ok) throw new Error(`Error al responder quiz: ${res.status} - ${await res.text()}`);
         const data = await res.json();
+        if (!data.hasOwnProperty('es_correcta') || !data.explicacion) {
+            throw new Error('Respuesta del servidor incompleta');
+        }
         const isCorrect = data.es_correcta;
         option.classList.add(isCorrect ? 'correct' : 'incorrect');
         if (!isCorrect) {
-            const correctOption = quizContainer.querySelector(`.quiz-option[data-option="${data.respuesta_correcta}"]`);
+            const correctOption = quizContainer.querySelector(`.quiz-option[data-option="${quizData.respuesta_correcta}"]`);
             if (correctOption) correctOption.classList.add('correct');
         }
         hideLoading(loadingDiv);
@@ -875,9 +879,9 @@ const handleQuizOption = async (event) => {
         // Generar mensaje de retroalimentación
         let feedbackMessage = '';
         if (isCorrect) {
-            feedbackMessage = `¡Felicidades! Seleccionaste la opción correcta: "${selectedOption}". ${data.explicacion}`;
+            feedbackMessage = `¡Felicidades! Seleccionaste la opción correcta: "${selectedOption}". ${data.explicacion || 'Esta es la respuesta correcta porque aborda el objetivo principal del tema.'}`;
         } else {
-            feedbackMessage = `Incorrecto. Seleccionaste: "${selectedOption}". La opción correcta es: "${data.respuesta_correcta}". ${data.explicacion}`;
+            feedbackMessage = `Incorrecto. Seleccionaste: "${selectedOption}". La opción correcta es: "${quizData.respuesta_correcta}". ${data.explicacion || 'La respuesta correcta es la que mejor representa el concepto evaluado.'}`;
         }
 
         const feedbackDiv = document.createElement('div');
@@ -893,15 +897,31 @@ const handleQuizOption = async (event) => {
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
         speakText(feedbackMessage);
-        await fetch(`/messages/${config.currentConvId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "bot", content: feedbackMessage, tema: quizData.tema })
-        });
 
-        config.historial.push({ pregunta: quizData.pregunta, respuesta: feedbackMessage, tema: quizData.tema });
+        // Guardar en historial
+        config.historial.push({ 
+            pregunta: quizData.pregunta, 
+            respuesta: feedbackMessage, 
+            tema: quizData.tema,
+            es_correcta: isCorrect,
+            opcion_seleccionada: selectedOption
+        });
         if (config.historial.length > 10) config.historial.shift();
         localStorage.setItem('historial', JSON.stringify(config.historial));
+
+        // Guardar en el servidor
+        if (config.currentConvId) {
+            await fetch(`/messages/${config.currentConvId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    role: "bot", 
+                    content: feedbackMessage, 
+                    tema: quizData.tema,
+                    metadata: { es_correcta: isCorrect, opcion_seleccionada: selectedOption }
+                })
+            });
+        }
     } catch (error) {
         handleFetchError(error, 'Respuesta de quiz');
         hideLoading(loadingDiv);
