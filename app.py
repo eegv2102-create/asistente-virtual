@@ -375,21 +375,31 @@ def cargar_prerequisitos():
 def validar_prerequisitos(temas_json, prerequisitos_json):
     """Valida consistencia entre temas y prerrequisitos."""
     temas_set = set()
-    for unidad, subtemas in temas_json.items():
-        temas_set.update(subtemas.keys())
+    # Itera sobre la nueva estructura del JSON de temas
+    for unidad in temas_json.get("Unidades", []):
+        for tema in unidad.get("temas", []):
+            if 'nombre' in tema:
+                temas_set.add(tema['nombre'])
+
     prereq_set = set()
+    # Itera sobre la nueva estructura del JSON de prerrequisitos
     for unidad, subtemas in prerequisitos_json.items():
         prereq_set.update(subtemas.keys())
+    
+    # Compara los sets de temas y prerrequisitos
     if temas_set != prereq_set:
         logger.warning("Diferencia en temas entre temas.json y prerequisitos.json", temas_diff=temas_set.symmetric_difference(prereq_set))
+        return False
     else:
         logger.info("Validación de JSON exitosa: temas coinciden")
+        return True
 
 # --- Carga Inicial de Datos Globales ---
 temas = {}
 prerequisitos = {}
 TEMAS_DISPONIBLES = cargar_temas()
 PREREQUISITOS = cargar_prerequisitos()
+# Llama a la función con los datos cargados
 validar_prerequisitos(temas, prerequisitos)
 
 # --- Manejo Global de Errores ---
