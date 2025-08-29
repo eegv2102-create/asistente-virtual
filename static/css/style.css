@@ -1,27 +1,30 @@
+/* === Variables y Configuración Base === */
+/* Define colores y transiciones globales para temas claro y oscuro */
 :root {
-  --primary: #1abc9c; /* Color principal personalizable (verde por defecto) */
-  --primary-hover: #16a085; /* Hover para el color principal */
+  --primary: #1abc9c; /* Color principal (verde) */
+  --primary-hover: #16a085; /* Color principal en hover */
   --accent: #3498db; /* Color secundario para detalles */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f6f5;
-  --text-primary: #1a1a1a;
-  --text-secondary: #4a4a4a;
-  --border: #e0e0e0;
-  --shadow: rgba(0, 0, 0, 0.1);
-  --message-user-bg: #3498db;
-  --message-user-text: #ffffff;
-  --message-bot-bg: #e5e5ea;
-  --message-bot-text: #1a1a1a;
-  --button-bg: var(--primary);
-  --button-text: #ffffff;
-  --button-hover: var(--primary-hover);
-  --scrollbar-thumb: var(--primary);
-  --scrollbar-track: #f5f6f5;
-  --success: #2ecc71;
-  --error: #e74c3c;
+  --bg-primary: #ffffff; /* Fondo principal */
+  --bg-secondary: #f5f6f5; /* Fondo secundario */
+  --text-primary: #1a1a1a; /* Texto principal */
+  --text-secondary: #4a4a4a; /* Texto secundario */
+  --border: #e0e0e0; /* Bordes */
+  --shadow: rgba(0, 0, 0, 0.1); /* Sombras */
+  --message-user-bg: #3498db; /* Fondo mensajes usuario */
+  --message-user-text: #ffffff; /* Texto mensajes usuario */
+  --message-bot-bg: #e5e5ea; /* Fondo mensajes bot */
+  --message-bot-text: #1a1a1a; /* Texto mensajes bot */
+  --button-bg: var(--primary); /* Fondo botones */
+  --button-text: #ffffff; /* Texto botones */
+  --button-hover: var(--primary-hover); /* Botones en hover */
+  --scrollbar-thumb: var(--primary); /* Color barra de desplazamiento */
+  --scrollbar-track: #f5f6f5; /* Fondo barra de desplazamiento */
+  --success: #2ecc71; /* Color éxito */
+  --error: #e74c3c; /* Color error */
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
+/* Tema oscuro: ajusta colores para modo oscuro */
 body.modo-oscuro {
   --bg-primary: #1a1a1a;
   --bg-secondary: #2c2c2c;
@@ -42,6 +45,8 @@ body.modo-oscuro {
   --error: #e74c3c;
 }
 
+/* === Estilos Globales === */
+/* Configuración base para todos los elementos */
 * {
   margin: 0;
   padding: 0;
@@ -50,6 +55,7 @@ body.modo-oscuro {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
+/* Estilo del cuerpo de la página */
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -60,6 +66,8 @@ body {
   overflow-x: hidden;
 }
 
+/* === Encabezado === */
+/* Estilo para el título de la aplicación */
 .app-title {
   width: 100%;
   background-color: var(--bg-primary);
@@ -92,7 +100,7 @@ body {
   margin: 0;
 }
 
-/* Botones de función: rectangulares con ícono + texto */
+/* === Botones de Función (rectangulares con ícono + texto) === */
 #modo-btn, #voice-btn, #quiz-btn, #recommend-btn {
   background: var(--button-bg);
   border: none;
@@ -111,7 +119,7 @@ body {
   box-shadow: 0 2px 4px var(--shadow);
 }
 
-/* Botones de acción rápida: circulares, solo ícono */
+/* === Botones de Acción Rápida (circulares, solo ícono) === */
 #send-btn, #new-chat-btn, #btn-clear, #voice-toggle-btn {
   background: var(--button-bg);
   border: none;
@@ -132,12 +140,14 @@ body {
   box-shadow: 0 2px 4px var(--shadow);
 }
 
+/* Efectos al hacer clic en botones */
 #modo-btn:active, #voice-btn:active, #quiz-btn:active, #recommend-btn:active,
 #send-btn:active, #new-chat-btn:active, #btn-clear:active, #voice-toggle-btn:active {
   background-color: var(--button-hover);
   transform: scale(0.95);
 }
 
+/* Botón de nivel (especial) */
 #nivel-btn {
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -161,12 +171,11 @@ body {
   transform: scale(0.95);
 }
 
+/* Efectos hover y focus para botones */
 #modo-btn:hover, #voice-btn:hover, #quiz-btn:hover, #recommend-btn:hover {
   background-color: var(--button-hover);
   transform: scale(1.05);
   box-shadow: 0 4px 8px var(--shadow);
-  text-shadow: none; /* Eliminado sombreado de texto */
-  text-decoration: none; /* Eliminado subrayado */
 }
 
 #send-btn:hover, #new-chat-btn:hover, #btn-clear:hover, #voice-toggle-btn:hover,
@@ -184,6 +193,7 @@ body {
   box-shadow: 0 4px 8px var(--shadow);
 }
 
+/* === Tooltips para Botones === */
 #modo-btn[data-tooltip], #voice-btn[data-tooltip], #quiz-btn[data-tooltip], #recommend-btn[data-tooltip],
 #new-chat-btn[data-tooltip], #btn-clear[data-tooltip], #send-btn[data-tooltip], #voice-toggle-btn[data-tooltip] {
   position: relative;
@@ -211,8 +221,8 @@ body {
 }
 
 #btn-clear[data-tooltip]::after {
-  z-index: 10010; /* Mayor z-index para estar encima de todo */
-  background-color: color-mix(in srgb, var(--bg-secondary) 90%, #000 10%); /* Mejor contraste */
+  z-index: 10010;
+  background-color: color-mix(in srgb, var(--bg-secondary) 90%, #000 10%);
 }
 
 #modo-btn:hover::after, #voice-btn:hover::after, #quiz-btn:hover::after, #recommend-btn:hover::after,
@@ -224,6 +234,7 @@ body {
   transform: translateX(-50%) scale(1);
 }
 
+/* === Indicador de Voz === */
 .voice-hint {
   position: fixed;
   bottom: 80px;
@@ -250,6 +261,7 @@ body.modo-oscuro .voice-hint {
   visibility: hidden;
 }
 
+/* === Contenedor Principal === */
 .container {
   display: flex;
   justify-content: space-between;
@@ -262,6 +274,7 @@ body.modo-oscuro .voice-hint {
   box-shadow: 0 4px 12px var(--shadow);
 }
 
+/* === Secciones Laterales (Izquierda y Derecha) === */
 .left-section, .right-section {
   width: 240px;
   background-color: var(--bg-secondary);
@@ -297,6 +310,7 @@ body.modo-oscuro .voice-hint {
   text-align: center;
 }
 
+/* === Contenido de Barras Laterales === */
 .sidebar-content {
   display: flex;
   flex-direction: column;
@@ -310,10 +324,10 @@ body.modo-oscuro .voice-hint {
   gap: 8px;
 }
 
+/* === Historial de Chats === */
 .chat-history {
   flex: 1;
   overflow: hidden;
-  overflow-x: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   background-color: var(--bg-primary);
@@ -453,6 +467,7 @@ body.modo-oscuro .voice-hint {
   transform: translate(-10px, -10px) scale(1);
 }
 
+/* === Sección Principal (Chat) === */
 .main-section {
   flex: 1;
   display: flex;
@@ -476,7 +491,7 @@ body.modo-oscuro .voice-hint {
 }
 
 .message, .user, .bot {
-  padding: 12px 16px 12px 40px; /* Espacio para ícono */
+  padding: 12px 16px 12px 40px;
   border-radius: 16px;
   max-width: 70%;
   word-wrap: break-word;
@@ -484,7 +499,7 @@ body.modo-oscuro .voice-hint {
   box-shadow: 0 2px 4px var(--shadow);
   line-height: 1.5;
   animation: fadeInUp 0.3s ease-out;
-  position: relative; /* Para posicionar el ícono */
+  position: relative;
 }
 
 @keyframes fadeInUp {
@@ -515,11 +530,11 @@ body.modo-oscuro .voice-hint {
 }
 
 .user::before, .bot::before {
-  content: ''; /* Vacío para evitar conflictos, el ícono se maneja en ::after */
+  content: '';
 }
 
 .user::after {
-  content: '\f007'; /* Ícono de Font Awesome fa-user */
+  content: '\f007';
   font-family: 'Font Awesome 5 Free';
   font-weight: 900;
   position: absolute;
@@ -539,7 +554,7 @@ body.modo-oscuro .voice-hint {
 }
 
 .bot::after {
-  content: '\f544'; /* Ícono de Font Awesome fa-robot */
+  content: '\f544';
   font-family: 'Font Awesome 5 Free';
   font-weight: 900;
   position: absolute;
@@ -558,11 +573,12 @@ body.modo-oscuro .voice-hint {
   visibility: visible;
 }
 
+/* === Indicador de Escritura === */
 .typing-indicator {
   align-self: flex-start;
   background-color: var(--message-bot-bg);
   color: var(--message-bot-text);
-  padding: 12px 16px 12px 40px; /* Espacio para ícono */
+  padding: 12px 16px 12px 40px;
   border-radius: 16px 16px 16px 0;
   max-width: 70%;
   margin-right: 10%;
@@ -589,6 +605,7 @@ body.modo-oscuro .voice-hint {
   100% { content: '.'; }
 }
 
+/* === Botón de Copiar === */
 .copy-btn {
   background: none;
   border: none;
@@ -603,6 +620,7 @@ body.modo-oscuro .voice-hint {
   color: var(--primary);
 }
 
+/* === Retroalimentación de Quiz === */
 .quiz-feedback {
   font-size: 1.2rem;
   margin-right: 8px;
@@ -616,6 +634,7 @@ body.modo-oscuro .voice-hint {
   color: var(--error);
 }
 
+/* === Código y Bloques de Código === */
 .bot pre {
   background: color-mix(in srgb, var(--message-bot-bg), #000 20%);
   padding: 12px;
@@ -671,6 +690,7 @@ body.modo-oscuro .bot code {
   font-style: italic;
 }
 
+/* === Opciones de Quiz === */
 .quiz-options {
   display: flex;
   flex-direction: column;
@@ -698,6 +718,17 @@ body.modo-oscuro .bot code {
   color: var(--button-text);
 }
 
+.quiz-option.correct {
+  border-color: var(--success);
+  background-color: color-mix(in srgb, var(--success) 20%, var(--bg-primary));
+}
+
+.quiz-option.incorrect {
+  border-color: var(--error);
+  background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
+}
+
+/* === Grupo de Entrada (Input) === */
 .input-group {
   display: flex;
   align-items: center;
@@ -714,7 +745,7 @@ body.modo-oscuro .bot code {
 }
 
 .input-buttons.left {
-  margin-right: 12px; /* Evita solapamiento con el desplegable */
+  margin-right: 12px;
 }
 
 .dropdown-container {
@@ -790,6 +821,7 @@ body.modo-oscuro .dropdown-menu {
   box-shadow: 0 0 8px var(--shadow);
 }
 
+/* === Notificaciones === */
 #notification-card {
   position: fixed;
   bottom: 100px;
@@ -826,6 +858,7 @@ body.modo-oscuro #notification-card {
   border-left: 4px solid var(--error);
 }
 
+/* === Botones de Menú Lateral (Móvil) === */
 .menu-toggle, .menu-toggle-right {
   display: none;
   background: var(--primary);
@@ -852,6 +885,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   background-color: var(--primary-hover);
 }
 
+/* === Opciones de Avatar === */
 .avatar-options {
   display: flex;
   flex-direction: column;
@@ -882,6 +916,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   transform: scale(1.1);
 }
 
+/* === Indicador de Carga === */
 .loading {
   opacity: 0.7;
   animation: pulse 1.5s infinite ease-in-out;
@@ -918,6 +953,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   100% { transform: rotate(360deg); }
 }
 
+/* === Listas en Mensajes del Bot === */
 .bot ul {
   padding-left: 20px;
   margin: 10px 0;
@@ -927,6 +963,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   margin-bottom: 5px;
 }
 
+/* === Media Queries: Dispositivos Móviles (max-width: 768px) === */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -1001,7 +1038,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-right: 12px; /* Evita solapamiento en móvil */
+    margin-right: 12px;
   }
 
   .input-group .toolbar-center {
@@ -1125,8 +1162,8 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
 
   #new-chat-btn[data-tooltip]::after, #btn-clear[data-tooltip]::after,
   #send-btn[data-tooltip]::after, #voice-toggle-btn[data-tooltip]::after {
-    z-index: 10010; /* Mayor z-index para estar encima de todo */
-    background-color: color-mix(in srgb, var(--bg-secondary) 90%, #000 10%); /* Mejor contraste */
+    z-index: 10010;
+    background-color: color-mix(in srgb, var(--bg-secondary) 90%, #000 10%);
   }
 
   #modo-btn:hover::after, #voice-btn:hover::after,
@@ -1257,13 +1294,13 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   .user, .bot {
     max-width: 85%;
     font-size: 0.9rem;
-    padding: 10px 12px 10px 40px; /* Espacio para ícono */
+    padding: 10px 12px 10px 40px;
   }
 
   .typing-indicator {
     max-width: 85%;
     font-size: 0.9rem;
-    padding: 10px 12px 10px 40px; /* Espacio para ícono */
+    padding: 10px 12px 10px 40px;
   }
 
   .bot pre {
@@ -1324,18 +1361,11 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 
   .typing-indicator {
-    padding: 8px 12px 8px 40px; /* Espacio para ícono */
+    padding: 8px 12px 8px 40px;
   }
 
   .header-divider {
     display: block;
-  }
-
-  #notification-card {
-    bottom: 140px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
   }
 
   .quiz-option {
@@ -1344,6 +1374,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 }
 
+/* === Media Queries: Escritorio (min-width: 769px) === */
 @media (min-width: 769px) {
   .menu-toggle, .menu-toggle-right {
     display: none;
@@ -1393,7 +1424,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 
   .input-buttons.left {
-    margin-right: 12px; /* Evita solapamiento en PC */
+    margin-right: 12px;
   }
 
   .input-group > .input-buttons.left,
@@ -1425,7 +1456,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 
   .header-divider {
-    display: none; /* Oculta el divisor en PC */
+    display: none;
   }
 
   #new-chat-btn i, 
@@ -1446,7 +1477,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
 
   #modo-btn[data-tooltip]::after, #voice-btn[data-tooltip]::after,
   #quiz-btn[data-tooltip]::after, #recommend-btn[data-tooltip]::after {
-    content: none; /* Elimina tooltips en PC */
+    content: none;
   }
 
   .toolbar-row {
@@ -1477,16 +1508,7 @@ body.modo-oscuro .menu-toggle, body.modo-oscuro .menu-toggle-right {
   }
 }
 
+/* === Corrección de Overflow === */
 .container, .main-section, .right-section, .left-section {
   overflow: visible !important;
-}
-
-.quiz-option.correct {
-  border-color: var(--success);
-  background-color: color-mix(in srgb, var(--success) 20%, var(--bg-primary));
-}
-
-.quiz-option.incorrect {
-  border-color: var(--error);
-  background-color: color-mix(in srgb, var(--error) 20%, var(--bg-primary));
 }
