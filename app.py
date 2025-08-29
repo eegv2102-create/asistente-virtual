@@ -826,12 +826,9 @@ def responder_quiz():
                 f"La respuesta dada fue: '{respuesta}'. "
                 f"La respuesta correcta es: '{respuesta_correcta}'. "
                 f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
-                f"Sigue estrictamente este formato en Markdown: "
-                f"- Si es correcta: '**¡Felicidades, está bien! Seleccionaste: {respuesta}.** [Explicación breve de por qué la respuesta es correcta, máximo 50 palabras].' "
-                f"- Si es incorrecta: '**Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.** [Explicación breve de por qué la respuesta seleccionada es errónea y por qué la correcta es adecuada, máximo 50 palabras].' "
-                f"No uses términos fuera de las opciones proporcionadas ni digas 'parcialmente correcta' o 'no completa'. "
-                f"Usa solo el contexto de la pregunta y las opciones. "
-                f"Responde en español, en formato Markdown."
+                f"Proporciona una explicación breve en español de por qué la respuesta correcta es adecuada (máximo 50 palabras). "
+                f"Si es incorrecta, explica por qué la seleccionada es errónea y por qué la correcta es adecuada. "
+                f"Responde solo con la explicación, sin formato adicional ni Markdown."
             )
             response = call_groq_api(
                 messages=[{"role": "system", "content": prompt}],
@@ -845,7 +842,7 @@ def responder_quiz():
             if '503' in str(e):
                 return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
             explicacion = (
-                f"**{'¡Felicidades, está bien! Seleccionaste: ' + respuesta + '.' if es_correcta else f'Incorrecto. Seleccionaste: {respuesta}. La respuesta correcta es: {respuesta_correcta}.'}** "
+                f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
             )
 
@@ -856,7 +853,7 @@ def responder_quiz():
         logger.info("Respuesta de quiz procesada", es_correcta=es_correcta, usuario=usuario)
         return jsonify({
             'es_correcta': es_correcta,
-            'respuesta': explicacion,
+            'explicacion': explicacion,
             'respuesta_correcta': respuesta_correcta
         })
     except ValidationError as e:
