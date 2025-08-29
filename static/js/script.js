@@ -1,8 +1,5 @@
-
-// script.js - Refactorizado
-// Estructura modularizada con secciones claras.
-// Variables globales organizadas en un objeto de configuración.
-// Manejo de errores robusto en llamadas API con try-catch.
+// script.js - Refactorizado para alinearse con app.py
+// Soporte para logout, manejo robusto de conv_id, y consistencia con endpoints.
 
 // --- Configuración Global ---
 const config = {
@@ -14,32 +11,36 @@ const config = {
     userHasInteracted: false,
     pendingWelcomeMessage: null,
     lastVoiceHintTime: 0,
-    currentConvId: null,
+    currentConvId: localStorage.getItem('lastConvId') || null,
     historial: JSON.parse(localStorage.getItem('historial') || '[]'),
     quizHistory: JSON.parse(localStorage.getItem('quizHistory') || '[]'),
-    TEMAS_DISPONIBLES: [
-        'Introducción a la POO', 'Clases y Objetos', 'Encapsulamiento', 'Herencia',
-        'Polimorfismo', 'Clases Abstractas e Interfaces', 'UML', 'Diagramas UML',
-        'Patrones de Diseño en POO', 'Patrón MVC', 'Acceso a Archivos',
-        'Bases de Datos y ORM', 'Integración POO + MVC + BD', 'Pruebas y Buenas Prácticas'
-    ]
+    nivelExplicacion: localStorage.getItem('nivelExplicacion') || 'basica',
+    temaSeleccionado: null,
+    API_URL: '/buscar_respuesta',
+    QUIZ_URL: '/quiz',
+    TTS_URL: '/tts',
+    RECOMMEND_URL: '/recommend',
+    CONVERSATIONS_URL: '/conversations',
+    MESSAGES_URL: '/messages',
+    AVATARS_URL: '/avatars',
+    TEMAS_URL: '/temas',
+    LOGOUT_URL: '/logout',
+    TEMAS_DISPONIBLES: []
 };
 
 // --- Utilidades Generales ---
-// Manejo de errores en fetch
 const handleFetchError = (error, context) => {
     console.error(`Error en ${context}:`, error);
     let message = 'Error inesperado';
     if (!navigator.onLine) message = 'Sin conexión a internet';
     else if (error.message.includes('503')) message = 'El servidor está ocupado, intenta de nuevo';
     else if (error.message.includes('429')) message = 'Demasiadas solicitudes, espera un momento';
-    else if (error.message.includes('401')) message = 'No autorizado, verifica tu sesión';
+    else if (error.message.includes('401') || error.message.includes('404')) message = 'No autorizado, verifica tu sesión';
     else if (error.message) message = error.message;
     mostrarNotificacion(`${context}: ${message}`, 'error');
     return null;
 };
 
-// Función debounce para optimizar eventos
 const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -48,14 +49,12 @@ const debounce = (func, wait) => {
     };
 };
 
-// Obtener elemento del DOM con logging
 const getElement = selector => {
     const element = document.querySelector(selector);
     if (!element) console.warn(`Elemento ${selector} no encontrado en el DOM`);
     return element;
 };
 
-// Obtener múltiples elementos del DOM con logging
 const getElements = selector => {
     const elements = document.querySelectorAll(selector);
     if (!elements.length) console.warn(`No se encontraron elementos para ${selector}`);
@@ -63,7 +62,6 @@ const getElements = selector => {
 };
 
 // --- Manejo de UI ---
-// Scroll al final del chat
 const scrollToBottom = () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
@@ -74,7 +72,6 @@ const scrollToBottom = () => {
     }
 };
 
-// Mostrar notificación
 const mostrarNotificacion = (mensaje, tipo) => {
     const notificationCard = getElement('#notification-card');
     if (!notificationCard) return;
@@ -86,34 +83,25 @@ const mostrarNotificacion = (mensaje, tipo) => {
     }, 5000);
 };
 
-// Toggle hint de voz
 const toggleVoiceHint = (show) => {
     const voiceHint = getElement('#voice-hint');
-    if (!voiceHint) {
-        console.error('Elemento #voice-hint no encontrado');
-        return;
-    }
+    if (!voiceHint) return;
     const now = Date.now();
     if (show && now - config.lastVoiceHintTime < 5000) return;
     voiceHint.classList.toggle('hidden', !show);
     if (show) config.lastVoiceHintTime = now;
 };
 
-// Actualizar display del avatar
 const updateAvatarDisplay = () => {
     const avatarImg = getElement('#avatar-img');
-    if (!avatarImg) {
-        console.warn('Elemento #avatar-img no encontrado, omitiendo actualización');
-        return;
-    }
+    if (!avatarImg) return;
     const avatars = JSON.parse(localStorage.getItem('avatars') || '[]');
-    const selected = avatars.find(a => a.avatar_id === config.selectedAvatar) || { url: '/static/img/default-avatar.png' };
+    const selected = avatars.find(a => a.avatar_id === config.selectedAvatar) || { url: '/static/favicon.ico' };
     avatarImg.src = selected.url;
     avatarImg.classList.add('animate-avatar');
     setTimeout(() => avatarImg.classList.remove('animate-avatar'), 300);
 };
 
-// Mostrar loading en chat
 const showLoading = () => {
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container) return null;
@@ -125,25 +113,19 @@ const showLoading = () => {
     return loadingDiv;
 };
 
-// Ocultar loading
 const hideLoading = (loadingDiv) => {
     if (loadingDiv) loadingDiv.remove();
 };
 
-// Detectar si es móvil
 const isMobile = () => window.innerWidth <= 768;
 
 // --- Lógica de Audio y Voz ---
-// Reproducir texto como audio
 const speakText = async (text) => {
-    console.log('Intentando reproducir audio:', { vozActiva: config.vozActiva, text, userHasInteracted: config.userHasInteracted });
     if (!config.vozActiva || !text) {
-        console.warn('Audio desactivado o texto vacío', { vozActiva: config.vozActiva, text });
         mostrarNotificacion('Audio desactivado o texto vacío', 'error');
         return;
     }
     if (!config.userHasInteracted) {
-        console.warn('No se puede reproducir audio: el usuario no ha interactuado');
         toggleVoiceHint(true);
         config.pendingWelcomeMessage = text;
         return;
@@ -166,7 +148,7 @@ const speakText = async (text) => {
         .replace(/#+\s*/g, '')
         .replace(/-\s*/g, '')
         .replace(/\n+/g, ' ')
-        .replace(/\b(POO|UML|MVC|ORM|BD)\b/g, match => reemplazosTTS[match] || match)
+        .replace(/\b(POO|UML|MVC|ORM|BD|API|SQL)\b/g, match => reemplazosTTS[match] || match)
         .replace(/\bYELIA\b/g, 'Yelia')
         .trim();
     const botMessage = getElement('.bot:last-child');
@@ -181,20 +163,18 @@ const speakText = async (text) => {
         config.currentAudio = null;
     }
     try {
-        console.log('Enviando solicitud al endpoint /tts');
-        const res = await fetch('/tts', {
+        const res = await fetch(config.TTS_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: textoParaVoz })
         });
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.error || `Error en /tts: ${res.status} ${res.statusText}`);
+            throw new Error(err.error || `Error en /tts: ${res.status}`);
         }
         const blob = await res.blob();
         config.currentAudio = new Audio(URL.createObjectURL(blob));
         config.currentAudio.play().catch(error => {
-            console.error('Error al reproducir audio:', error);
             mostrarNotificacion('Error al reproducir audio: ' + error.message, 'error');
             if (botMessage) botMessage.classList.remove('speaking');
         });
@@ -207,45 +187,13 @@ const speakText = async (text) => {
         if ('speechSynthesis' in window) {
             let voices = speechSynthesis.getVoices();
             if (voices.length === 0) {
-                // Forzar carga de voces si no están listas
                 speechSynthesis.speak(new SpeechSynthesisUtterance(''));
                 voices = speechSynthesis.getVoices();
             }
             const esVoice = voices.find(v => v.lang.includes('es') || v.lang.includes('es-ES') || v.lang.includes('es_MX'));
-            if (!esVoice) {
-                console.warn('No se encontró voz en español');
-                mostrarNotificacion('No se encontró voz en español. Usando voz predeterminada.', 'warning');
-                const defaultVoice = voices.find(v => v.default) || voices[0];
-                if (!defaultVoice) {
-                    console.error('No hay voces disponibles');
-                    mostrarNotificacion('No hay voces disponibles en este navegador', 'error');
-                    if (botMessage) botMessage.classList.remove('speaking');
-                    return;
-                }
-                const utterance = new SpeechSynthesisUtterance(textoParaVoz);
-                utterance.voice = defaultVoice;
-                utterance.lang = defaultVoice.lang;
-                utterance.pitch = 1;
-                utterance.rate = 0.9;
-                utterance.onend = () => {
-                    if (botMessage) botMessage.classList.remove('speaking');
-                    config.currentAudio = null;
-                };
-                utterance.onerror = (event) => {
-                    console.error('Error en speechSynthesis:', event.error);
-                    let errorMsg = 'Error en audio local: ' + event.error;
-                    if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página primero';
-                    if (event.error === 'network') errorMsg = 'Error de red en síntesis de voz';
-                    mostrarNotificacion(errorMsg, 'error');
-                    if (botMessage) botMessage.classList.remove('speaking');
-                };
-                speechSynthesis.speak(utterance);
-                config.currentAudio = utterance;
-                return;
-            }
             const utterance = new SpeechSynthesisUtterance(textoParaVoz);
             utterance.lang = 'es-ES';
-            utterance.voice = esVoice;
+            utterance.voice = esVoice || voices.find(v => v.default) || voices[0];
             utterance.pitch = 1;
             utterance.rate = 0.9;
             utterance.onend = () => {
@@ -253,26 +201,21 @@ const speakText = async (text) => {
                 config.currentAudio = null;
             };
             utterance.onerror = (event) => {
-                console.error('Error en speechSynthesis:', event.error);
                 let errorMsg = 'Error en audio local: ' + event.error;
-                if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página primero';
-                if (event.error === 'network') errorMsg = 'Error de red en síntesis de voz';
+                if (event.error === 'not-allowed') errorMsg = 'Audio no permitido, interactúa con la página';
                 mostrarNotificacion(errorMsg, 'error');
                 if (botMessage) botMessage.classList.remove('speaking');
             };
             speechSynthesis.speak(utterance);
             config.currentAudio = utterance;
         } else {
-            console.warn('speechSynthesis no soportado');
             mostrarNotificacion('Audio no soportado en este navegador', 'error');
             if (botMessage) botMessage.classList.remove('speaking');
         }
     }
 };
 
-// Detener audio
 const stopSpeech = () => {
-    console.log('Deteniendo audio');
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
@@ -297,13 +240,12 @@ const stopSpeech = () => {
     if (botMessage) botMessage.classList.remove('speaking');
 };
 
-// Toggle reconocimiento de voz
 const toggleVoiceRecognition = () => {
     const voiceToggleBtn = getElement('#voice-toggle-btn');
     if (!voiceToggleBtn) return;
     if (!config.isListening) {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            mostrarNotificacion('Reconocimiento de voz no soportado en este navegador', 'error');
+            mostrarNotificacion('Reconocimiento de voz no soportado', 'error');
             return;
         }
         config.recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : new SpeechRecognition();
@@ -318,10 +260,8 @@ const toggleVoiceRecognition = () => {
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone-slash"></i>`;
             voiceToggleBtn.setAttribute('data-tooltip', 'Detener Voz');
             voiceToggleBtn.setAttribute('aria-label', 'Detener reconocimiento de voz');
-            voiceToggleBtn.classList.add('pulse');
             mostrarNotificacion('Reconocimiento de voz iniciado', 'success');
         } catch (error) {
-            console.error('Error al iniciar reconocimiento de voz:', error);
             mostrarNotificacion('Error al iniciar reconocimiento de voz', 'error');
             return;
         }
@@ -343,7 +283,7 @@ const toggleVoiceRecognition = () => {
                 config.recognition.stop();
                 config.isListening = false;
                 clearTimeout(timeoutId);
-                voiceToggleBtn.classList.remove('voice-active', 'pulse');
+                voiceToggleBtn.classList.remove('voice-active');
                 voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
                 voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
                 voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
@@ -353,13 +293,10 @@ const toggleVoiceRecognition = () => {
             clearTimeout(timeoutId);
             let errorMsg = `Error en reconocimiento de voz: ${event.error}`;
             if (event.error === 'no-speech') errorMsg = 'No se detectó voz, intenta de nuevo';
-            if (event.error === 'aborted') errorMsg = 'Reconocimiento de voz cancelado';
-            if (event.error === 'network') errorMsg = 'Error de red en reconocimiento de voz';
-            if (event.error === 'not-allowed') errorMsg = 'Permiso de micrófono denegado';
             mostrarNotificacion(errorMsg, 'error');
             config.recognition.stop();
             config.isListening = false;
-            voiceToggleBtn.classList.remove('voice-active', 'pulse');
+            voiceToggleBtn.classList.remove('voice-active');
             voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
             voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
             voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
@@ -370,19 +307,12 @@ const toggleVoiceRecognition = () => {
                     config.recognition.start();
                     resetTimeout();
                 } catch (error) {
-                    console.error('Error al reiniciar reconocimiento de voz:', error);
                     config.isListening = false;
-                    voiceToggleBtn.classList.remove('voice-active', 'pulse');
+                    voiceToggleBtn.classList.remove('voice-active');
                     voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
                     voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
                     voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
                 }
-            } else {
-                clearTimeout(timeoutId);
-                voiceToggleBtn.classList.remove('voice-active', 'pulse');
-                voiceToggleBtn.innerHTML = `<i class="fas fa-microphone"></i>`;
-                voiceToggleBtn.setAttribute('data-tooltip', 'Iniciar Voz');
-                voiceToggleBtn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
             }
         };
     } else {
@@ -391,47 +321,51 @@ const toggleVoiceRecognition = () => {
 };
 
 // --- Lógica del Chat ---
-// Obtener historial desde localStorage
 const getHistorial = () => {
     try {
         const historial = JSON.parse(localStorage.getItem('historial') || '[]');
         return Array.isArray(historial) ? historial : [];
     } catch (error) {
-        console.error('Error al obtener historial:', error);
         return [];
     }
 };
 
-// Mostrar mensaje de bienvenida
-const mostrarMensajeBienvenida = () => {
+const mostrarMensajeBienvenida = async () => {
     const chatbox = getElement('#chatbox');
     const container = chatbox?.querySelector('.message-container');
-    if (!container || !chatbox) {
-        console.error('Elemento #chatbox o .message-container no encontrado');
-        mostrarNotificacion('Error: Contenedor de chat no encontrado', 'error');
-        return;
-    }
+    if (!container || !chatbox) return;
 
-    const mensaje = '👋 ¡Hola! Soy YELIA, tu asistente de Programación Avanzada en Ingeniería en Telemática. ¿Qué quieres aprender hoy?';
-    
-    if (container.children.length === 0) {
+    // Evitar duplicar mensaje si ya existe una conversación
+    if (container.children.length > 0) return;
+
+    try {
+        const res = await fetch(config.CONVERSATIONS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+        config.currentConvId = data.id;
+        localStorage.setItem('lastConvId', config.currentConvId);
+        const mensaje = data.mensaje;
         const botDiv = document.createElement('div');
         botDiv.classList.add('bot');
-        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje, { breaks: true, gfm: true }) : mensaje) +
+        botDiv.innerHTML = (typeof marked !== 'undefined' ? marked.parse(mensaje) : mensaje) +
             `<button class="copy-btn" data-text="${mensaje.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
         container.appendChild(botDiv);
         scrollToBottom();
         if (window.Prism) Prism.highlightAll();
-
         if (config.vozActiva && config.userHasInteracted) {
             speakText(mensaje);
         } else if (config.vozActiva) {
             config.pendingWelcomeMessage = mensaje;
         }
+        await cargarConversaciones();
+    } catch (error) {
+        handleFetchError(error, 'Carga de mensaje de bienvenida');
     }
 };
 
-// Enviar mensaje al servidor
 const sendMessage = async () => {
     const input = getElement('#input');
     if (!input) return;
@@ -443,22 +377,20 @@ const sendMessage = async () => {
     if (!container) return;
     const userDiv = document.createElement('div');
     userDiv.classList.add('user');
-    userDiv.innerHTML = pregunta + 
+    userDiv.innerHTML = pregunta +
         `<button class="copy-btn" data-text="${pregunta.replace(/"/g, '&quot;')}" aria-label="Copiar mensaje"><i class="fas fa-copy"></i></button>`;
     container.appendChild(userDiv);
     const loadingDiv = showLoading();
     scrollToBottom();
 
-    // Asegurar que conv_id es válido
     if (!config.currentConvId) {
-        console.warn('No hay conv_id, creando nueva conversación');
         try {
-            const res = await fetch('/conversations', {
+            const res = await fetch(config.CONVERSATIONS_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            if (!res.ok) throw new Error(`Error al crear conversación: ${res.status} - ${await res.text()}`);
+            if (!res.ok) throw new Error(`Error al crear conversación: ${res.status}`);
             const data = await res.json();
             config.currentConvId = data.id;
             localStorage.setItem('lastConvId', config.currentConvId);
@@ -471,38 +403,28 @@ const sendMessage = async () => {
     }
 
     try {
-        await fetch(`/messages/${config.currentConvId}`, {
+        await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "user", content: pregunta })
+            body: JSON.stringify({ role: 'user', content: pregunta })
         });
-    } catch (error) {
-        handleFetchError(error, 'Guardado de mensaje usuario');
-        hideLoading(loadingDiv);
-        return;
-    }
 
-    const payload = {
-        pregunta,
-        historial: getHistorial(),
-        nivel_explicacion: localStorage.getItem('nivelExplicacion') || 'basica',
-        conv_id: config.currentConvId
-    };
-    console.log('Enviando a /buscar_respuesta:', payload);
-    try {
-        const res = await fetch('/buscar_respuesta', {
+        const payload = {
+            pregunta,
+            historial: getHistorial(),
+            nivel_explicacion: config.nivelExplicacion,
+            conv_id: config.currentConvId
+        };
+        const res = await fetch(config.API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`Error al procesar la solicitud: ${res.status} - ${errorText}`);
-        }
+        if (!res.ok) throw new Error(`Error al procesar la solicitud: ${res.status} - ${await res.text()}`);
         const data = await res.json();
-        if (!data.respuesta) {
-            throw new Error('Respuesta vacía desde el servidor');
-        }
+        if (!data.respuesta) throw new Error('Respuesta vacía desde el servidor');
+        config.currentConvId = data.conv_id;
+        localStorage.setItem('lastConvId', config.currentConvId);
         hideLoading(loadingDiv);
 
         const botDiv = document.createElement('div');
@@ -514,10 +436,10 @@ const sendMessage = async () => {
         if (window.Prism) Prism.highlightAll();
         speakText(data.respuesta);
 
-        await fetch(`/messages/${config.currentConvId}`, {
+        await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: "bot", content: data.respuesta })
+            body: JSON.stringify({ role: 'bot', content: data.respuesta })
         });
 
         config.historial.push({ pregunta, respuesta: data.respuesta });
@@ -529,16 +451,16 @@ const sendMessage = async () => {
     }
 };
 
-// Crear nueva conversación
 const nuevaConversacion = async () => {
     try {
-        const res = await fetch('/conversations', {
+        const res = await fetch(config.CONVERSATIONS_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
         });
         const data = await res.json();
         config.currentConvId = data.id;
+        localStorage.setItem('lastConvId', config.currentConvId);
         const container = getElement('#chatbox')?.querySelector('.message-container');
         if (container) container.innerHTML = '';
         await cargarConversaciones();
@@ -549,25 +471,47 @@ const nuevaConversacion = async () => {
     }
 };
 
-// Vaciar chat actual
+const cerrarSesion = async () => {
+    try {
+        const res = await fetch(config.LOGOUT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) throw new Error(`Error al cerrar sesión: ${res.status}`);
+        const data = await res.json();
+        config.currentConvId = null;
+        config.historial = [];
+        config.quizHistory = [];
+        localStorage.removeItem('lastConvId');
+        localStorage.removeItem('historial');
+        localStorage.removeItem('quizHistory');
+        const container = getElement('#chatbox')?.querySelector('.message-container');
+        if (container) container.innerHTML = '';
+        await cargarConversaciones();
+        mostrarMensajeBienvenida();
+        mostrarNotificacion(data.message, 'success');
+    } catch (error) {
+        handleFetchError(error, 'Cerrar sesión');
+    }
+};
+
 const vaciarChat = async () => {
     if (!config.currentConvId) return;
     await nuevaConversacion();
 };
 
 // --- Comunicación con el Servidor ---
-// Cargar avatares
 const cargarAvatares = async () => {
     const avatarContainer = getElement('.avatar-options');
     if (!avatarContainer) return;
     try {
-        const response = await fetch('/avatars', { cache: 'no-store' });
+        const response = await fetch(config.AVATARS_URL, { cache: 'no-store' });
         let avatares = [];
         if (response.ok) {
             const data = await response.json();
             avatares = data.avatars || [];
         } else {
-            avatares = [{ avatar_id: 'default', nombre: 'Default', url: '/static/img/default-avatar.png', animation_url: '' }];
+            avatares = [{ avatar_id: 'default', nombre: 'Default', url: '/static/favicon.ico', animation_url: '' }];
         }
         localStorage.setItem('avatars', JSON.stringify(avatares));
         avatarContainer.innerHTML = '';
@@ -595,14 +539,10 @@ const cargarAvatares = async () => {
     }
 };
 
-// Cargar conversaciones
 const cargarConversaciones = async () => {
     try {
-        const res = await fetch('/conversations');
-        if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Error HTTP ${res.status}: ${text}`);
-        }
+        const res = await fetch(config.CONVERSATIONS_URL);
+        if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
         const chatList = getElement('#chat-list');
         if (!chatList) return;
@@ -636,17 +576,9 @@ const cargarConversaciones = async () => {
         });
 
         if (data.conversations.length > 0 && !config.currentConvId) {
-            const lastConvId = localStorage.getItem('lastConvId');
-            if (lastConvId) {
-                config.currentConvId = parseInt(lastConvId);
-                if (!isNaN(config.currentConvId)) {
-                    cargarMensajes(config.currentConvId);
-                }
-            } else {
-                config.currentConvId = data.conversations[0].id;
-                cargarMensajes(config.currentConvId);
-                localStorage.setItem('lastConvId', config.currentConvId);
-            }
+            config.currentConvId = data.conversations[0].id;
+            localStorage.setItem('lastConvId', config.currentConvId);
+            cargarMensajes(config.currentConvId);
         } else if (data.conversations.length === 0) {
             mostrarMensajeBienvenida();
         }
@@ -655,22 +587,14 @@ const cargarConversaciones = async () => {
     }
 };
 
-// Cargar mensajes de una conversación
 const cargarMensajes = async (convId) => {
-    if (!convId) {
-        console.warn("⚠️ No hay convId válido, no se pueden cargar mensajes.");
-        return;
-    }
+    if (!convId) return;
     config.currentConvId = convId;
-
+    localStorage.setItem('lastConvId', convId);
     try {
-        const res = await fetch(`/messages/${convId}`);
-        if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Error HTTP ${res.status}: ${text}`);
-        }
+        const res = await fetch(`${config.MESSAGES_URL}/${convId}`);
+        if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
-
         const container = getElement('#chatbox')?.querySelector('.message-container');
         if (!container) return;
         container.innerHTML = '';
@@ -690,17 +614,17 @@ const cargarMensajes = async (convId) => {
     }
 };
 
-// Eliminar conversación
 const eliminarConversacion = async (convId) => {
     if (!confirm("¿Estás seguro de que quieres eliminar esta conversación?")) return;
     try {
-        const res = await fetch(`/conversations/${convId}`, {
+        const res = await fetch(`${config.CONVERSATIONS_URL}/${convId}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' }
         });
         if (res.ok) {
             if (config.currentConvId === convId) {
                 config.currentConvId = null;
+                localStorage.removeItem('lastConvId');
                 const container = getElement('#chatbox')?.querySelector('.message-container');
                 if (container) container.innerHTML = '';
                 mostrarMensajeBienvenida();
@@ -708,20 +632,18 @@ const eliminarConversacion = async (convId) => {
             cargarConversaciones();
             mostrarNotificacion('Conversación eliminada', 'success');
         } else {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'Error al eliminar conversación');
+            throw new Error((await res.json()).error || 'Error al eliminar conversación');
         }
     } catch (error) {
         handleFetchError(error, 'Eliminación de conversación');
     }
 };
 
-// Renombrar conversación
 const renombrarConversacion = async (convId) => {
     const nuevoNombre = prompt('Nuevo nombre para la conversación:');
     if (!nuevoNombre) return;
     try {
-        const res = await fetch(`/conversations/${convId}`, {
+        const res = await fetch(`${config.CONVERSATIONS_URL}/${convId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre: nuevoNombre })
@@ -730,15 +652,13 @@ const renombrarConversacion = async (convId) => {
             cargarConversaciones();
             mostrarNotificacion('Conversación renombrada', 'success');
         } else {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'Error al renombrar conversación');
+            throw new Error((await res.json()).error || 'Error al renombrar conversación');
         }
     } catch (error) {
         handleFetchError(error, 'Renombrar conversación');
     }
 };
 
-// Cargar temas
 const cargarTemas = async () => {
     const cacheKey = 'temasCache';
     const cacheTimeKey = 'temasCacheTime';
@@ -748,40 +668,57 @@ const cargarTemas = async () => {
 
     if (cachedTemas && cachedTime && Date.now() - parseInt(cachedTime) < cacheDuration) {
         config.TEMAS_DISPONIBLES = JSON.parse(cachedTemas);
-        console.log('Temas cargados desde caché:', config.TEMAS_DISPONIBLES);
+        actualizarSelectTemas();
         return;
     }
 
     try {
-        const res = await fetch('/temas', { method: 'GET' });
+        const res = await fetch(config.TEMAS_URL, { method: 'GET' });
         if (!res.ok) throw new Error(`Error al cargar temas: ${res.status}`);
         const data = await res.json();
         if (data.temas && Array.isArray(data.temas)) {
             config.TEMAS_DISPONIBLES = data.temas;
             localStorage.setItem(cacheKey, JSON.stringify(config.TEMAS_DISPONIBLES));
             localStorage.setItem(cacheTimeKey, Date.now().toString());
-            console.log('Temas cargados desde servidor:', config.TEMAS_DISPONIBLES);
-        } else {
-            console.warn('No se pudieron cargar temas, usando lista por defecto');
+            actualizarSelectTemas();
         }
     } catch (error) {
         handleFetchError(error, 'Carga de temas');
-        console.warn('Usando temas por defecto debido a error');
     }
 };
 
-// Obtener quiz
-const obtenerQuiz = async (tipo) => {
-    console.log('Obteniendo quiz, tipo:', tipo);
+const actualizarSelectTemas = () => {
+    const temaSelect = getElement('#temaSelect');
+    if (!temaSelect) return;
+    temaSelect.innerHTML = '<option value="">Selecciona un tema</option>';
+    config.TEMAS_DISPONIBLES.forEach(tema => {
+        const option = document.createElement('option');
+        option.value = tema;
+        option.textContent = tema;
+        temaSelect.appendChild(option);
+    });
+    temaSelect.addEventListener('change', () => {
+        config.temaSeleccionado = temaSelect.value || null;
+    });
+};
+
+const obtenerQuiz = async () => {
     const loadingDiv = showLoading();
     try {
-        const res = await fetch('/quiz', {
+        const res = await fetch(config.QUIZ_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', nivel: localStorage.getItem('nivelExplicacion') || 'basica' })
+            body: JSON.stringify({
+                usuario: 'anonimo',
+                nivel: config.nivelExplicacion,
+                tema: config.temaSeleccionado,
+                historial: getHistorial()
+            })
         });
-        if (!res.ok) throw new Error(`Error al obtener quiz: ${res.status}`);
+        if (!res.ok) throw new Error(`Error al obtener quiz: ${res.status} - ${await res.text()}`);
         const data = await res.json();
+        config.currentConvId = data.conv_id;
+        localStorage.setItem('lastConvId', config.currentConvId);
         config.quizHistory.push(data);
         localStorage.setItem('quizHistory', JSON.stringify(config.quizHistory));
         hideLoading(loadingDiv);
@@ -793,10 +730,8 @@ const obtenerQuiz = async (tipo) => {
     }
 };
 
-// Mostrar quiz en chat
 const mostrarQuizEnChat = async (quizData) => {
     if (!quizData) return;
-    console.log('Mostrando quiz en chat:', quizData);
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container) return;
     const quizDiv = document.createElement('div');
@@ -811,12 +746,11 @@ const mostrarQuizEnChat = async (quizData) => {
         <button class="copy-btn" data-text="${quizData.pregunta}" aria-label="Copiar pregunta"><i class="fas fa-copy"></i></button>
     `;
     quizDiv.dataset.respuestaCorrecta = quizData.respuesta_correcta || '';
-    quizDiv.dataset.tema = quizData.tema || 'unknown';
+    quizDiv.dataset.tema = quizData.tema || 'General';
     container.appendChild(quizDiv);
     scrollToBottom();
 
     getElements('.quiz-option').forEach(option => {
-        option.removeEventListener('click', handleQuizOption);
         option.addEventListener('click', handleQuizOption);
         option.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -828,22 +762,16 @@ const mostrarQuizEnChat = async (quizData) => {
     addCopyButtonListeners();
 };
 
-// Manejar selección de opción en quiz
 const handleQuizOption = async (event) => {
     const option = event.currentTarget;
     const selectedOption = option.dataset.option;
     const quizContainer = option.closest('.bot');
     const quizData = {
         pregunta: quizContainer.querySelector('p').textContent,
-        opciones: Array.from(quizContainer.querySelectorAll('.quiz-option')).map(opt => opt.dataset.option),
+        respuesta: selectedOption,
         respuesta_correcta: quizContainer.dataset.respuestaCorrecta || '',
-        tema: quizContainer.dataset.tema || 'unknown'
+        tema: quizContainer.dataset.tema || 'General'
     };
-    if (!quizData.respuesta_correcta) {
-        console.error('No se proporcionó respuesta_correcta');
-        mostrarNotificacion('Error: No se pudo determinar la respuesta correcta', 'error');
-        return;
-    }
     getElements('.quiz-option').forEach(opt => {
         opt.classList.remove('selected', 'correct', 'incorrect');
         opt.style.pointerEvents = 'none';
@@ -854,18 +782,12 @@ const handleQuizOption = async (event) => {
         const res = await fetch('/responder_quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                pregunta: quizData.pregunta,
-                respuesta: selectedOption,
-                respuesta_correcta: quizData.respuesta_correcta,
-                tema: quizData.tema
-            })
+            body: JSON.stringify(quizData)
         });
         if (!res.ok) throw new Error(`Error al responder quiz: ${res.status} - ${await res.text()}`);
         const data = await res.json();
-        if (!data.hasOwnProperty('es_correcta') || !data.explicacion) {
-            throw new Error('Respuesta del servidor incompleta');
-        }
+        config.currentConvId = data.conv_id;
+        localStorage.setItem('lastConvId', config.currentConvId);
         const isCorrect = data.es_correcta;
         option.classList.add(isCorrect ? 'correct' : 'incorrect');
         if (!isCorrect) {
@@ -876,14 +798,9 @@ const handleQuizOption = async (event) => {
         const container = getElement('#chatbox')?.querySelector('.message-container');
         if (!container) return;
 
-        // Generar mensaje de retroalimentación
-        let feedbackMessage = '';
-        if (isCorrect) {
-            feedbackMessage = `¡Felicidades! Seleccionaste la opción correcta: "${selectedOption}". ${data.explicacion || 'Esta es la respuesta correcta porque aborda el objetivo principal del tema.'}`;
-        } else {
-            feedbackMessage = `Incorrecto. Seleccionaste: "${selectedOption}". La opción correcta es: "${quizData.respuesta_correcta}". ${data.explicacion || 'La respuesta correcta es la que mejor representa el concepto evaluado.'}`;
-        }
-
+        let feedbackMessage = isCorrect
+            ? `¡Correcto! ${data.explicacion}`
+            : `Incorrecto. La opción correcta es: "${quizData.respuesta_correcta}". ${data.explicacion}`;
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('bot');
         feedbackDiv.innerHTML = `
@@ -898,10 +815,9 @@ const handleQuizOption = async (event) => {
         if (window.Prism) Prism.highlightAll();
         speakText(feedbackMessage);
 
-        // Guardar en historial
-        config.historial.push({ 
-            pregunta: quizData.pregunta, 
-            respuesta: feedbackMessage, 
+        config.historial.push({
+            pregunta: quizData.pregunta,
+            respuesta: feedbackMessage,
             tema: quizData.tema,
             es_correcta: isCorrect,
             opcion_seleccionada: selectedOption
@@ -909,17 +825,11 @@ const handleQuizOption = async (event) => {
         if (config.historial.length > 10) config.historial.shift();
         localStorage.setItem('historial', JSON.stringify(config.historial));
 
-        // Guardar en el servidor
         if (config.currentConvId) {
-            await fetch(`/messages/${config.currentConvId}`, {
+            await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    role: "bot", 
-                    content: feedbackMessage, 
-                    tema: quizData.tema,
-                    metadata: { es_correcta: isCorrect, opcion_seleccionada: selectedOption }
-                })
+                body: JSON.stringify({ role: 'bot', content: feedbackMessage, tema: quizData.tema })
             });
         }
     } catch (error) {
@@ -928,18 +838,18 @@ const handleQuizOption = async (event) => {
     }
 };
 
-// Obtener recomendación
 const obtenerRecomendacion = async () => {
-    console.log('Obteniendo recomendación');
     const loadingDiv = showLoading();
     try {
-        const res = await fetch('/recommend', {
+        const res = await fetch(config.RECOMMEND_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuario: 'anonimo', historial: getHistorial() })
         });
-        if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status}`);
+        if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status} - ${await res.text()}`);
         const data = await res.json();
+        config.currentConvId = data.conv_id;
+        localStorage.setItem('lastConvId', config.currentConvId);
         hideLoading(loadingDiv);
         return data;
     } catch (error) {
@@ -950,58 +860,39 @@ const obtenerRecomendacion = async () => {
 };
 
 // --- Eventos y Inicialización ---
-// Toggle menú desplegable
 const toggleDropdown = (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
-    if (!dropdownMenu) {
-        console.error('Elemento .dropdown-menu no encontrado');
-        mostrarNotificacion('Error: Menú de niveles no encontrado', 'error');
-        return;
-    }
+    if (!dropdownMenu) return;
     dropdownMenu.classList.toggle('active');
-    console.log('Menú desplegable toggled:', dropdownMenu.classList.contains('active') ? 'abierto' : 'cerrado');
     if (event) event.stopPropagation();
 };
 
-// Setear nivel de explicación
 const setNivelExplicacion = (nivel) => {
-    console.log('setNivelExplicacion llamado con nivel:', nivel);
     if (!['basica', 'ejemplos', 'avanzada'].includes(nivel)) {
-        console.error('Nivel inválido:', nivel);
         mostrarNotificacion('Error: Nivel inválido', 'error');
         return;
     }
-
+    config.nivelExplicacion = nivel;
     localStorage.setItem('nivelExplicacion', nivel);
     const nivelBtn = getElement('#nivel-btn');
     if (nivelBtn) {
-        const nivelText =
-            nivel === 'basica' ? 'Explicación Básica' :
-            nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
-            'Avanzada/Teórica';
+        const nivelText = nivel === 'basica' ? 'Explicación Básica' :
+                          nivel === 'ejemplos' ? 'Con Ejemplos de Código' :
+                          'Avanzada/Teórica';
         nivelBtn.innerHTML = `${nivelText} <i class="fas fa-caret-down"></i>`;
-        console.log('Nivel actualizado a:', nivelText);
-
         const dropdownMenu = getElement('.dropdown-menu');
         if (dropdownMenu && dropdownMenu.classList.contains('active')) {
             dropdownMenu.classList.remove('active');
-            console.log('Menú desplegable cerrado tras seleccionar nivel');
         }
-
         mostrarNotificacion(`Nivel cambiado a: ${nivelText}`, 'success');
-    } else {
-        console.error('Elemento #nivel-btn no encontrado');
-        mostrarNotificacion('Error: Botón de nivel no encontrado', 'error');
     }
 };
 
-// Toggle menú izquierdo
 const toggleMenu = () => {
     const leftSection = getElement('.left-section');
     const rightSection = getElement('.right-section');
     if (!leftSection) return;
     leftSection.classList.toggle('active');
-
     if (isMobile()) {
         const menuToggle = getElement('.menu-toggle');
         if (menuToggle) {
@@ -1010,24 +901,20 @@ const toggleMenu = () => {
                 : '<i class="fas fa-bars"></i>';
         }
     }
-
     if (rightSection && rightSection.classList.contains('active')) {
         rightSection.classList.remove('active');
     }
-
     const voiceHint = getElement('#voice-hint');
     if (voiceHint && leftSection.classList.contains('active')) {
         voiceHint.classList.add('hidden');
     }
 };
 
-// Toggle menú derecho
 const toggleRightMenu = () => {
     const rightSection = getElement('.right-section');
     const leftSection = getElement('.left-section');
     if (!rightSection) return;
     rightSection.classList.toggle('active');
-
     if (isMobile()) {
         const menuToggleRight = getElement('.menu-toggle-right');
         if (menuToggleRight) {
@@ -1036,18 +923,15 @@ const toggleRightMenu = () => {
                 : '<i class="fas fa-bars"></i>';
         }
     }
-
     if (leftSection && leftSection.classList.contains('active')) {
         leftSection.classList.remove('active');
     }
-
     const voiceHint = getElement('#voice-hint');
     if (voiceHint && rightSection.classList.contains('active')) {
         voiceHint.classList.add('hidden');
     }
 };
 
-// Toggle modo oscuro
 const toggleDarkMode = () => {
     document.body.classList.toggle('modo-oscuro');
     const isModoOscuro = document.body.classList.contains('modo-oscuro');
@@ -1064,7 +948,6 @@ const toggleDarkMode = () => {
     mostrarNotificacion(`Modo ${isModoOscuro ? 'oscuro' : 'claro'} activado`, 'success');
 };
 
-// Toggle voz
 const handleVoiceToggle = () => {
     config.vozActiva = !config.vozActiva;
     localStorage.setItem('vozActiva', config.vozActiva);
@@ -1082,23 +965,19 @@ const handleVoiceToggle = () => {
     if (config.vozActiva && !config.userHasInteracted) toggleVoiceHint(true);
 };
 
-// Manejar clic en quiz
 const handleQuizClick = async () => {
-    console.log('Botón de quiz clickeado');
-    const quiz = await obtenerQuiz('opciones');
+    const quiz = await obtenerQuiz();
     if (quiz) mostrarQuizEnChat(quiz);
 };
 
-// Manejar clic en recomendación
 const handleRecommendClick = async () => {
-    console.log('Botón de recomendación clickeado');
     const data = await obtenerRecomendacion();
     const mensaje = data.recommendation;
     if (!mensaje) {
         mostrarNotificacion('No se pudo obtener recomendación', 'error');
         return;
     }
-    const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || 'unknown';
+    const tema = mensaje.match(/Te recomiendo estudiar: (.*)/)?.[1] || 'General';
     const container = getElement('#chatbox')?.querySelector('.message-container');
     if (!container) return;
     const botDiv = document.createElement('div');
@@ -1112,12 +991,12 @@ const handleRecommendClick = async () => {
     speakText(mensaje);
     addCopyButtonListeners();
 
-    config.historial.push({ pregunta: '', respuesta: mensaje, tema });
+    config.historial.push({ pregunta: 'Recomendar tema', respuesta: mensaje, tema });
     if (config.historial.length > 10) config.historial.shift();
     localStorage.setItem('historial', JSON.stringify(config.historial));
 
     if (config.currentConvId) {
-        await fetch(`/messages/${config.currentConvId}`, {
+        await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role: 'bot', content: mensaje, tema })
@@ -1125,7 +1004,6 @@ const handleRecommendClick = async () => {
     }
 };
 
-// Manejar tecla enter en input
 const handleInputKeydown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -1133,7 +1011,6 @@ const handleInputKeydown = (event) => {
     }
 };
 
-// Manejar primera interacción del usuario
 const handleFirstInteraction = () => {
     if (!config.userHasInteracted) {
         config.userHasInteracted = true;
@@ -1145,7 +1022,6 @@ const handleFirstInteraction = () => {
     }
 };
 
-// Añadir listeners a botones de copia
 const addCopyButtonListeners = () => {
     getElements('.copy-btn').forEach(btn => {
         btn.removeEventListener('click', handleCopy);
@@ -1153,7 +1029,6 @@ const addCopyButtonListeners = () => {
     });
 };
 
-// Manejar copia de texto
 const handleCopy = (event) => {
     const btn = event.currentTarget;
     const text = btn.dataset.text;
@@ -1162,19 +1037,15 @@ const handleCopy = (event) => {
         btn.innerHTML = `<i class="fas fa-check"></i>`;
         setTimeout(() => btn.innerHTML = `<i class="fas fa-copy"></i>`, 2000);
     }).catch(err => {
-        console.error('Error al copiar texto:', err);
         mostrarNotificacion('Error al copiar texto', 'error');
     });
 };
 
-// Inicialización de la aplicación
 const init = () => {
-    console.log('Inicializando aplicación');
     const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
     if (modoOscuro) document.body.classList.add('modo-oscuro');
 
-    const nivel = localStorage.getItem('nivelExplicacion') || 'basica';
-    setNivelExplicacion(nivel);
+    setNivelExplicacion(config.nivelExplicacion);
 
     const dropdownMenu = getElement('.dropdown-menu');
     if (dropdownMenu) {
@@ -1256,6 +1127,13 @@ const init = () => {
         clearBtn.setAttribute('aria-label', 'Limpiar chat actual');
     }
 
+    const logoutBtn = getElement('#logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', cerrarSesion);
+        logoutBtn.setAttribute('data-tooltip', 'Cerrar Sesión');
+        logoutBtn.setAttribute('aria-label', 'Cerrar sesión');
+    }
+
     const nivelBtn = getElement('#nivel-btn');
     if (nivelBtn) {
         nivelBtn.addEventListener('click', toggleDropdown);
@@ -1293,50 +1171,38 @@ const init = () => {
     }, 250));
 
     setTimeout(() => {
-        mostrarMensajeBienvenida();
+        if (config.currentConvId) {
+            cargarMensajes(config.currentConvId);
+        } else {
+            mostrarMensajeBienvenida();
+        }
         if (config.vozActiva && !config.userHasInteracted) toggleVoiceHint(true);
     }, 100);
 
-    // Precargar voces para speechSynthesis
     if ('speechSynthesis' in window) {
         speechSynthesis.onvoiceschanged = () => {
             speechSynthesis.getVoices();
         };
-        // Forzar carga inicial
         speechSynthesis.getVoices();
     }
 };
 
-// Evento para cerrar menús al clicar fuera
 document.addEventListener('click', (event) => {
     const dropdownMenu = getElement('.dropdown-menu');
     const nivelBtn = getElement('#nivel-btn');
-
-    if (nivelBtn && nivelBtn.contains(event.target)) {
-        console.log('Clic en botón de nivel, toggling menú');
-        return;
-    }
-
-    if (dropdownMenu && dropdownMenu.contains(event.target)) {
-        console.log('Clic en opción del menú desplegable');
-        return;
-    }
-
+    if (nivelBtn && nivelBtn.contains(event.target)) return;
+    if (dropdownMenu && dropdownMenu.contains(event.target)) return;
     if (dropdownMenu && dropdownMenu.classList.contains('active')) {
         dropdownMenu.classList.remove('active');
-        console.log('Menú desplegable cerrado por clic fuera');
     }
-
     if (isMobile()) {
         const leftSection = getElement('.left-section');
         const rightSection = getElement('.right-section');
-
         if (leftSection && leftSection.classList.contains('active') &&
             !leftSection.contains(event.target) &&
             !getElement('.menu-toggle').contains(event.target)) {
             toggleMenu();
         }
-
         if (rightSection && rightSection.classList.contains('active') &&
             !rightSection.contains(event.target) &&
             !getElement('.menu-toggle-right').contains(event.target)) {
@@ -1345,5 +1211,4 @@ document.addEventListener('click', (event) => {
     }
 });
 
-// Inicializar al cargar DOM
 document.addEventListener('DOMContentLoaded', init);

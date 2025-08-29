@@ -1,7 +1,5 @@
-# app.py - Refactorizado
-# Estructura modularizada con Blueprints para rutas relacionadas.
-# Funciones separadas para lógica de base de datos.
-# Comentarios añadidos para explicar secciones clave.
+# app.py - Refactorizado con correcciones para conversaciones y error en /buscar_respuesta
+# Estructura modular con Blueprints, funciones de base de datos y manejo robusto de sesiones.
 
 import time
 import json
@@ -54,6 +52,7 @@ load_dotenv()
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'tu_clave_secreta')
 app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = True  # Persistir sesión tras reinicios
 Session(app)
 
 # Configurar rate limiting
@@ -65,7 +64,7 @@ limiter = Limiter(
 )
 
 # Configurar caché en memoria
-cache = TTLCache(maxsize=100, ttl=72 * 60 * 60)  # Aumentado a 72 horas para TTS y temas
+cache = TTLCache(maxsize=100, ttl=72 * 60 * 60)  # 72 horas para TTS y temas
 
 # Configurar timeouts desde .env
 GROQ_RETRY_ATTEMPTS = int(os.getenv('GROQ_RETRY_ATTEMPTS', 3))
@@ -281,6 +280,37 @@ def guardar_mensaje(usuario, conv_id, role, content, tema=None):
     except PsycopgError as e:
         logger.error("Error al guardar mensaje", error=str(e))
 
+def validar_conversacion(usuario, conv_id):
+    """Valida si una conversación pertenece al usuario y existe."""
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT id FROM conversations WHERE id = %s AND usuario = %s", (conv_id, usuario))
+        result = c.fetchone()
+        conn.close()
+        return result is not None
+    except PsycopgError as e:
+        logger.error("Error al validar conversación", error=str(e))
+        return False
+
+def crear_nueva_conversacion(usuario, nombre="Nuevo Chat"):
+    """Crea una nueva conversación y devuelve su ID."""
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id", (usuario, nombre))
+        conv_id = c.fetchone()[0]
+        saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
+        c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
+                  (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
+        conn.commit()
+        conn.close()
+        logger.info("Nueva conversación creada", conv_id=conv_id, usuario=usuario, nombre=nombre)
+        return conv_id
+    except PsycopgError as e:
+        logger.error("Error al crear nueva conversación", error=str(e))
+        raise
+
 # --- Funciones Auxiliares ---
 @retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
 def call_groq_api(messages, model, max_tokens, temperature):
@@ -304,34 +334,25 @@ def cargar_temas():
     cache_key = 'temas'
     temas_disponibles = []
 
-    # Intenta cargar desde la caché primero
     if cache_key in cache:
         temas = cache[cache_key]
         logger.info("Temas cargados desde caché")
-        # Itera sobre la nueva estructura de lista en la caché
         for unidad in temas.get("Unidades", []):
             for tema in unidad.get("temas", []):
                 if 'nombre' in tema:
                     temas_disponibles.append(tema['nombre'])
         return temas_disponibles
 
-    # Si no está en caché, lee desde el archivo
     try:
         with open('temas.json', 'r', encoding='utf-8') as f:
             temas = json.load(f)
-        
-        # Guarda en caché para futuras cargas
         cache[cache_key] = temas
-        
-        # Itera sobre la nueva estructura de lista del archivo
         for unidad in temas.get("Unidades", []):
             for tema in unidad.get("temas", []):
                 if 'nombre' in tema:
                     temas_disponibles.append(tema['nombre'])
-
         logger.info(f"Temas cargados desde archivo: {temas_disponibles}")
         return temas_disponibles
-
     except FileNotFoundError:
         logger.error("Archivo temas.json no encontrado")
         temas = {}
@@ -376,6 +397,11 @@ def handle_messages(conv_id):
     if 'usuario' not in session:
         session['usuario'] = uuid.uuid4().hex
     usuario = session['usuario']
+
+    if not validar_conversacion(usuario, conv_id):
+        logger.warning("Conversación no válida, creando una nueva", conv_id=conv_id, usuario=usuario)
+        conv_id = crear_nueva_conversacion(usuario)
+        session['current_conv_id'] = conv_id
 
     if request.method == 'GET':
         try:
@@ -523,23 +549,15 @@ def create_conversation():
     try:
         data = ConversationInput(**request.get_json(silent=True) or {})
         nombre = data.nombre
-
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id, created_at",
-                  (usuario, nombre))
-        row = c.fetchone()
-        conv_id = row[0]
-        # Guardar mensaje de saludo inicial
-        saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
-        c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
-                  (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
-        conn.commit()
-        conn.close()
-
+        conv_id = crear_nueva_conversacion(usuario, nombre)
         session['current_conv_id'] = conv_id
-        logger.info("Conversación creada con saludo inicial", conv_id=conv_id, usuario=usuario, nombre=nombre)
-        return jsonify({"id": conv_id, "nombre": nombre, "created_at": row[1].isoformat(), "mensaje": saludo_inicial}), 201
+        logger.info("Conversación creada manualmente", conv_id=conv_id, usuario=usuario, nombre=nombre)
+        return jsonify({
+            "id": conv_id,
+            "nombre": nombre,
+            "created_at": time.time(),
+            "mensaje": "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
+        }), 201
     except ValidationError as e:
         logger.error("Validación fallida en /conversations POST", error=str(e), usuario=usuario)
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
@@ -547,9 +565,16 @@ def create_conversation():
         logger.error("Error creando conversación", error=str(e), usuario=usuario)
         return jsonify({"error": "No se pudo crear la conversación", "status": 500}), 500
 
-# --- Carga Inicial de Datos Globales ---
-temas = {}
-TEMAS_DISPONIBLES = cargar_temas()
+@chat_bp.route('/logout', methods=['POST'])
+@limiter.limit("10 per hour")
+def logout():
+    """Limpia la sesión del usuario para forzar un nuevo chat al volver a entrar."""
+    if 'usuario' in session:
+        usuario = session['usuario']
+        session.clear()
+        logger.info("Sesión cerrada", usuario=usuario)
+        return jsonify({"success": True, "message": "Sesión cerrada, se creará un nuevo chat al volver a entrar."})
+    return jsonify({"success": True, "message": "No había sesión activa."})
 
 @chat_bp.route('/buscar_respuesta', methods=['POST'])
 @limiter.limit("50 per hour")
@@ -561,35 +586,18 @@ def buscar_respuesta():
         usuario = session['usuario']
 
         # Validar JSON recibido
-        data = request.get_json()
-        logger.info(f"JSON recibido en /buscar_respuesta: {data}")
-        required_fields = ['pregunta', 'historial', 'nivel_explicacion', 'conv_id']
-        for field in required_fields:
-            if field not in data or data[field] is None:
-                logger.error(f"Campo '{field}' faltante o nulo en el JSON")
-                return jsonify({"error": f"Campo '{field}' es requerido"}), 400
+        data = BuscarRespuestaInput(**request.get_json())
+        pregunta = data.pregunta.strip()
+        historial = data.historial
+        nivel_explicacion = data.nivel_explicacion
+        conv_id = data.conv_id
 
-        pregunta = data['pregunta'].strip()
-        historial = data['historial']
-        nivel_explicacion = data['nivel_explicacion']
-        conv_id = data['conv_id']
-
-        # Validar que conv_id existe en la base de datos
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT id FROM conversations WHERE id = %s AND usuario = %s", 
-                           (conv_id, usuario))
-                if not cur.fetchone():
-                    logger.error(f"Conversación con conv_id {conv_id} no encontrada para usuario {usuario}")
-                    # Crear nueva conversación si conv_id no es válido
-                    cur.execute("INSERT INTO conversations (usuario) VALUES (%s) RETURNING id", (usuario,))
-                    conv_id = cur.fetchone()[0]
-                    saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
-                    cur.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
-                               (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
-                    conn.commit()
-                    session['current_conv_id'] = conv_id
-                    logger.info(f"Nueva conversación creada: conv_id={conv_id}, usuario={usuario}")
+        # Validar o crear conversación
+        if not conv_id or not validar_conversacion(usuario, conv_id):
+            conv_id = crear_nueva_conversacion(usuario)
+            session['current_conv_id'] = conv_id
+        elif conv_id != session.get('current_conv_id'):
+            session['current_conv_id'] = conv_id
 
         # Normalizar pregunta para identificar tema
         pregunta_norm = pregunta.lower().strip()
@@ -639,9 +647,8 @@ def buscar_respuesta():
         # Verificar si la pregunta coincide con una respuesta simple
         for patron, respuesta in respuestas_simples.items():
             if re.match(patron, pregunta_norm, re.IGNORECASE) and respuesta:
-                if pregunta and conv_id:
-                    guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                    guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
+                guardar_mensaje(usuario, conv_id, 'user', pregunta)
+                guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
                 logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
 
@@ -676,24 +683,27 @@ def buscar_respuesta():
                 temperature=0.2
             )
             respuesta = completion.choices[0].message.content.strip()
-            if pregunta and conv_id:
-                guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
+            if not respuesta:
+                respuesta = f"Lo siento, no pude generar una respuesta. Intenta con una pregunta sobre {tema_identificado}."
+            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
             logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
         except Exception as e:
-            logger.error("Error al procesar respuesta", error=str(e), pregunta=pregunta, usuario=usuario)
+            logger.error("Error al procesar respuesta de Groq", error=str(e), pregunta=pregunta, usuario=usuario)
             respuesta = (
                 f"Lo siento, no pude procesar tu pregunta. "
                 f"Intenta con una pregunta sobre Programación Avanzada, como {tema_identificado}."
             )
-            if pregunta and conv_id:
-                guardar_mensaje(usuario, conv_id, 'user', pregunta)
-                guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
+            guardar_mensaje(usuario, conv_id, 'user', pregunta)
+            guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
+    except ValidationError as e:
+        logger.error("Validación fallida en /buscar_respuesta", error=str(e), usuario=usuario)
+        return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
         logger.error("Error en /buscar_respuesta", error=str(e), usuario=usuario)
-        return jsonify({"error": str(e), "status": 500}), 500
+        return jsonify({"error": f"Error al procesar la solicitud: {str(e)}", "status": 500}), 500
 
 # Blueprint para rutas relacionadas con quiz
 quiz_bp = Blueprint('quiz', __name__)
@@ -711,6 +721,12 @@ def quiz():
         historial = data.historial
         nivel = data.nivel.lower()
         tema_seleccionado = data.tema if data.tema in TEMAS_DISPONIBLES else random.choice(TEMAS_DISPONIBLES)
+
+        # Crear o validar conversación
+        conv_id = session.get('current_conv_id')
+        if not conv_id or not validar_conversacion(usuario, conv_id):
+            conv_id = crear_nueva_conversacion(usuario)
+            session['current_conv_id'] = conv_id
 
         def validate_quiz_format(quiz_data):
             required_keys = ["pregunta", "opciones", "respuesta_correcta", "tema", "nivel"]
@@ -768,12 +784,10 @@ def quiz():
                 return jsonify({"error": "No se pudo generar un quiz válido", "status": 500}), 500
 
         # Guardar la pregunta del quiz como mensaje
-        if conv_id := session.get('current_conv_id'):
-            pregunta_texto = f"{quiz_data['pregunta']} Opciones: {', '.join(quiz_data['opciones'])}"
-            guardar_mensaje(usuario, conv_id, 'bot', pregunta_texto, tema=quiz_data['tema'])
-
-        logger.info("Quiz generado", usuario=usuario, tema=quiz_data['tema'], nivel=nivel)
-        return jsonify(quiz_data)
+        pregunta_texto = f"{quiz_data['pregunta']} Opciones: {', '.join(quiz_data['opciones'])}"
+        guardar_mensaje(usuario, conv_id, 'bot', pregunta_texto, tema=quiz_data['tema'])
+        logger.info("Quiz generado", usuario=usuario, tema=quiz_data['tema'], nivel=nivel, conv_id=conv_id)
+        return jsonify(quiz_data | {"conv_id": conv_id})
     except ValidationError as e:
         logger.error("Validación fallida en /quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
@@ -797,6 +811,12 @@ def responder_quiz():
         respuesta_correcta = data.respuesta_correcta
         tema = data.tema
         pregunta = data.pregunta
+
+        # Validar o crear conversación
+        conv_id = session.get('current_conv_id')
+        if not conv_id or not validar_conversacion(usuario, conv_id):
+            conv_id = crear_nueva_conversacion(usuario)
+            session['current_conv_id'] = conv_id
 
         respuesta_norm = ''.join(respuesta.strip().lower().split())
         respuesta_correcta_norm = ''.join(respuesta_correcta.strip().lower().split())
@@ -839,22 +859,19 @@ def responder_quiz():
             explicacion = response.choices[0].message.content.strip()
         except Exception as e:
             logger.error("Error al generar explicación con Groq", error=str(e), usuario=usuario)
-            if '503' in str(e):
-                return jsonify({"error": "Servidor de Groq no disponible, intenta de nuevo más tarde", "status": 503}), 503
             explicacion = (
                 f"La respuesta es {'correcta' if es_correcta else 'incorrecta'}. "
                 f"{'La respuesta es correcta.' if es_correcta else 'La respuesta seleccionada no es adecuada.'} "
             )
 
-        # Guardar la explicación como mensaje en la conversación
-        if conv_id := session.get('current_conv_id'):
-            guardar_mensaje(usuario, conv_id, 'bot', explicacion, tema=tema)
-
-        logger.info("Respuesta de quiz procesada", es_correcta=es_correcta, usuario=usuario)
+        # Guardar la explicación como mensaje
+        guardar_mensaje(usuario, conv_id, 'bot', explicacion, tema=tema)
+        logger.info("Respuesta de quiz procesada", es_correcta=es_correcta, usuario=usuario, conv_id=conv_id)
         return jsonify({
             'es_correcta': es_correcta,
             'explicacion': explicacion,
-            'respuesta_correcta': respuesta_correcta
+            'respuesta_correcta': respuesta_correcta,
+            'conv_id': conv_id
         })
     except ValidationError as e:
         logger.error("Validación fallida en /responder_quiz", error=str(e), usuario=session.get('usuario', 'anonimo'))
@@ -869,7 +886,7 @@ def responder_quiz():
 tts_bp = Blueprint('tts', __name__)
 
 @tts_bp.route("/tts", methods=["POST"])
-@limiter.limit("5 per hour")  # Reducido para evitar 429
+@limiter.limit("5 per hour")
 def tts():
     """Genera audio TTS a partir de texto."""
     try:
@@ -891,7 +908,7 @@ def tts():
         if cache_key in cache:
             logger.info("Audio servido desde caché", text=text, usuario=usuario)
             audio_bytes = cache[cache_key]
-            audio_io = io.BytesIO(audio_bytes)  # Crear nuevo BytesIO desde bytes
+            audio_io = io.BytesIO(audio_bytes)
             return send_file(audio_io, mimetype='audio/mp3')
 
         reemplazos = {
@@ -908,8 +925,8 @@ def tts():
             tts = gTTS(text=text, lang='es', tld='com.mx', timeout=GTTS_TIMEOUT)
             audio_io = io.BytesIO()
             tts.write_to_fp(audio_io)
-            audio_bytes = audio_io.getvalue()  # Obtener bytes del audio
-            cache[cache_key] = audio_bytes  # Guardar bytes en caché
+            audio_bytes = audio_io.getvalue()
+            cache[cache_key] = audio_bytes
             audio_io.seek(0)
             logger.info("Audio generado exitosamente", text=text, usuario=usuario)
             return send_file(audio_io, mimetype='audio/mp3')
@@ -942,6 +959,12 @@ def recommend():
 
         data = RecommendInput(**request.get_json())
         historial = data.historial
+
+        # Crear o validar conversación
+        conv_id = session.get('current_conv_id')
+        if not conv_id or not validar_conversacion(usuario, conv_id):
+            conv_id = crear_nueva_conversacion(usuario)
+            session['current_conv_id'] = conv_id
 
         progreso = cargar_progreso(usuario)
         temas_aprendidos = progreso["temas_aprendidos"].split(",") if progreso["temas_aprendidos"] else []
@@ -1015,23 +1038,6 @@ def recommend():
         except PsycopgError as e:
             logger.error("Error al guardar temas recomendados", error=str(e), usuario=usuario)
 
-        # Crear conversación si no existe
-        conv_id = session.get('current_conv_id')
-        if not conv_id:
-            conn = get_db_connection()
-            c = conn.cursor()
-            nombre = 'Chat Recomendación'
-            c.execute("INSERT INTO conversations (usuario, nombre) VALUES (%s, %s) RETURNING id", (usuario, nombre))
-            conv_id = c.fetchone()[0]
-            # Guardar mensaje de saludo inicial
-            saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
-            c.execute("INSERT INTO messages (conv_id, role, content, tema) VALUES (%s, %s, %s, %s)",
-                      (conv_id, 'bot', saludo_inicial, TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'))
-            conn.commit()
-            conn.close()
-            session['current_conv_id'] = conv_id
-            logger.info("Conversación creada automáticamente para recomendación", conv_id=conv_id, usuario=usuario)
-
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         guardar_mensaje(usuario, conv_id, 'bot', recomendacion_texto, tema=recomendacion)
         logger.info("Recomendación generada", recomendacion=recomendacion_texto, usuario=usuario, conv_id=conv_id)
@@ -1044,9 +1050,9 @@ def recommend():
         recomendacion = random.choice(temas_no_aprendidos) if temas_no_aprendidos else random.choice(temas_disponibles)
         recomendacion_texto = f"Te recomiendo estudiar: {recomendacion}"
         logger.warning(f"Usando recomendación de fallback: {recomendacion_texto}", usuario=session.get('usuario', 'anonimo'))
-        return jsonify({"recommendation": recomendacion_texto})
+        return jsonify({"recommendation": recomendacion_texto, 'conv_id': session.get('current_conv_id')})
 
-# Blueprint para rutas de recursos (temas, prerequisitos, avatars)
+# Blueprint para rutas de recursos (temas, avatares)
 resources_bp = Blueprint('resources', __name__)
 
 @resources_bp.route("/temas", methods=["GET"])
@@ -1105,6 +1111,10 @@ def index():
         if 'usuario' not in session:
             session['usuario'] = uuid.uuid4().hex
         usuario = session['usuario']
+        # Verificar si hay un chat activo
+        conv_id = session.get('current_conv_id')
+        if conv_id and not validar_conversacion(usuario, conv_id):
+            session.pop('current_conv_id', None)
         logger.info("Accediendo a la ruta raíz", usuario=usuario)
         return render_template('index.html')
     except Exception as e:
@@ -1126,6 +1136,10 @@ try:
 except Exception as e:
     logger.error("Falló inicialización de DB", error=str(e))
     exit(1)
+
+# Carga inicial de temas
+temas = {}
+TEMAS_DISPONIBLES = cargar_temas()
 
 if __name__ == "__main__":
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv("PORT", 10000)))
