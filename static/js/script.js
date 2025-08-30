@@ -25,7 +25,8 @@ const config = {
     AVATARS_URL: '/avatars',
     TEMAS_URL: '/temas',
     LOGOUT_URL: '/logout',
-    TEMAS_DISPONIBLES: []
+    TEMAS_DISPONIBLES: [],
+    userId: null  // Añadido para userId persistente
 };
 
 // --- Utilidades Generales ---
@@ -342,7 +343,7 @@ const mostrarMensajeBienvenida = async () => {
         const res = await fetch(config.CONVERSATIONS_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
         });
         const data = await res.json();
         config.currentConvId = data.id;
@@ -388,7 +389,7 @@ const sendMessage = async () => {
             const res = await fetch(config.CONVERSATIONS_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+                body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
             });
             if (!res.ok) throw new Error(`Error al crear conversación: ${res.status}`);
             const data = await res.json();
@@ -406,14 +407,15 @@ const sendMessage = async () => {
         await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'user', content: pregunta })
+            body: JSON.stringify({ role: 'user', content: pregunta, usuario: config.userId })  // Incluir userId persistente
         });
 
         const payload = {
             pregunta,
             historial: getHistorial(),
             nivel_explicacion: config.nivelExplicacion,
-            conv_id: config.currentConvId
+            conv_id: config.currentConvId,
+            usuario: config.userId  // Incluir userId persistente
         };
         const res = await fetch(config.API_URL, {
             method: 'POST',
@@ -439,7 +441,7 @@ const sendMessage = async () => {
         await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'bot', content: data.respuesta })
+            body: JSON.stringify({ role: 'bot', content: data.respuesta, usuario: config.userId })  // Incluir userId persistente
         });
 
         config.historial.push({ pregunta, respuesta: data.respuesta });
@@ -456,7 +458,7 @@ const nuevaConversacion = async () => {
         const res = await fetch(config.CONVERSATIONS_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
         });
         const data = await res.json();
         config.currentConvId = data.id;
@@ -475,7 +477,8 @@ const cerrarSesion = async () => {
     try {
         const res = await fetch(config.LOGOUT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
         });
         if (!res.ok) throw new Error(`Error al cerrar sesión: ${res.status}`);
         const data = await res.json();
@@ -541,7 +544,11 @@ const cargarAvatares = async () => {
 
 const cargarConversaciones = async () => {
     try {
-        const res = await fetch(config.CONVERSATIONS_URL);
+        const res = await fetch(config.CONVERSATIONS_URL, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente (aunque GET no usa body, se ajusta para consistencia; en práctica, usar query params si es necesario)
+        });
         if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
         const chatList = getElement('#chat-list');
@@ -592,7 +599,11 @@ const cargarMensajes = async (convId) => {
     config.currentConvId = convId;
     localStorage.setItem('lastConvId', convId);
     try {
-        const res = await fetch(`${config.MESSAGES_URL}/${convId}`);
+        const res = await fetch(`${config.MESSAGES_URL}/${convId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente (aunque GET no usa body)
+        });
         if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
         const container = getElement('#chatbox')?.querySelector('.message-container');
@@ -619,7 +630,8 @@ const eliminarConversacion = async (convId) => {
     try {
         const res = await fetch(`${config.CONVERSATIONS_URL}/${convId}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
         });
         if (res.ok) {
             if (config.currentConvId === convId) {
@@ -646,7 +658,7 @@ const renombrarConversacion = async (convId) => {
         const res = await fetch(`${config.CONVERSATIONS_URL}/${convId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre: nuevoNombre })
+            body: JSON.stringify({ nombre: nuevoNombre, usuario: config.userId })  // Incluir userId persistente
         });
         if (res.ok) {
             cargarConversaciones();
@@ -709,7 +721,7 @@ const obtenerQuiz = async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                usuario: 'anonimo',
+                usuario: config.userId,  // Usar userId persistente
                 nivel: config.nivelExplicacion,
                 tema: config.temaSeleccionado,
                 historial: getHistorial()
@@ -770,7 +782,8 @@ const handleQuizOption = async (event) => {
         pregunta: quizContainer.querySelector('p').textContent,
         respuesta: selectedOption,
         respuesta_correcta: quizContainer.dataset.respuestaCorrecta || '',
-        tema: quizContainer.dataset.tema || 'General'
+        tema: quizContainer.dataset.tema || 'General',
+        usuario: config.userId  // Incluir userId persistente
     };
     getElements('.quiz-option').forEach(opt => {
         opt.classList.remove('selected', 'correct', 'incorrect');
@@ -829,7 +842,7 @@ const handleQuizOption = async (event) => {
             await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: 'bot', content: feedbackMessage, tema: quizData.tema })
+                body: JSON.stringify({ role: 'bot', content: feedbackMessage, tema: quizData.tema, usuario: config.userId })  // Incluir userId persistente
             });
         }
     } catch (error) {
@@ -844,7 +857,7 @@ const obtenerRecomendacion = async () => {
         const res = await fetch(config.RECOMMEND_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: 'anonimo', historial: getHistorial() })
+            body: JSON.stringify({ usuario: config.userId, historial: getHistorial() })  // Usar userId persistente
         });
         if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status} - ${await res.text()}`);
         const data = await res.json();
@@ -999,7 +1012,7 @@ const handleRecommendClick = async () => {
         await fetch(`${config.MESSAGES_URL}/${config.currentConvId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'bot', content: mensaje, tema })
+            body: JSON.stringify({ role: 'bot', content: mensaje, tema, usuario: config.userId })  // Incluir userId persistente
         });
     }
 };
@@ -1042,6 +1055,15 @@ const handleCopy = (event) => {
 };
 
 const init = () => {
+    // --- Inicialización de userId persistente ---
+    if (!localStorage.getItem('userId')) {
+        config.userId = crypto.randomUUID();  // Generar userId único si no existe
+        localStorage.setItem('userId', config.userId);
+    } else {
+        config.userId = localStorage.getItem('userId');
+    }
+    // ---
+
     const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
     if (modoOscuro) document.body.classList.add('modo-oscuro');
 
