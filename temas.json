@@ -5,19 +5,19 @@
       "temas": [
         {
           "nombre": "Introducción a la POO",
-          "definición": "La Programación Orientada a Objetos (POO) es un paradigma que organiza el software en torno a objetos que combinan estado (atributos) y comportamiento (métodos).",
-          "ventajas": ["Reutilización de código", "Mantenimiento más sencillo", "Escalabilidad", "Facilita el modelado del mundo real"],
-          "ejemplo": "class Persona {\n  String nombre;\n  void saludar() {\n    System.out.println(\"Hola, soy \" + nombre);\n  }\n}\n\nPersona p = new Persona();\np.nombre = \"Ana\";\np.saludar();"
+          "definición": "La Programación Orientada a Objetos (POO) organiza el software en torno a objetos que combinan atributos y métodos.",
+          "ventajas": ["Reutilización de código", "Mantenimiento más sencillo", "Escalabilidad", "Modela el mundo real"],
+          "ejemplo": "class Persona {\n  String nombre;\n  void saludar() { System.out.println(\"Hola, soy \" + nombre); }\n}\n\nPersona p = new Persona();\np.nombre = \"Ana\";\np.saludar();"
         },
         {
           "nombre": "Clases y Objetos",
-          "definición": "Las clases son plantillas que definen atributos y métodos. Los objetos son instancias de esas clases.",
+          "definición": "Las clases son moldes para definir atributos y métodos; los objetos son sus instancias.",
           "ejemplo": "class Coche {\n  String marca;\n  int velocidad;\n}\n\nCoche c = new Coche();\nc.marca = \"Toyota\";\nc.velocidad = 120;"
         },
         {
           "nombre": "Encapsulamiento",
-          "definición": "Oculta los detalles internos de un objeto, permitiendo el acceso solo a través de métodos públicos.",
-          "ejemplo": "class Persona {\n  private int edad;\n\n  public void setEdad(int e) { this.edad = e; }\n  public int getEdad() { return edad; }\n}"
+          "definición": "Oculta los detalles internos de un objeto, permitiendo acceso controlado mediante getters y setters.",
+          "ejemplo": "class Persona {\n  private int edad;\n  public void setEdad(int e) { this.edad = e; }\n  public int getEdad() { return edad; }\n}"
         }
       ]
     },
@@ -26,23 +26,23 @@
       "temas": [
         {
           "nombre": "Herencia",
-          "definición": "Permite crear nuevas clases a partir de otras existentes, reutilizando atributos y métodos.",
-          "ejemplo": "class Persona {\n  String nombre;\n}\n\nclass Estudiante extends Persona {\n  String carrera;\n}"
+          "definición": "Permite que una clase herede atributos y métodos de otra, reutilizando código.",
+          "ejemplo": "class Persona { String nombre; }\nclass Estudiante extends Persona { String carrera; }"
         },
         {
           "nombre": "Polimorfismo",
-          "definición": "Capacidad de un método o clase de comportarse de diferentes formas (sobrecarga y sobreescritura).",
+          "definición": "Capacidad de un método o clase de comportarse de diferentes formas (sobrecarga o sobreescritura).",
           "ejemplo": "class Calculadora {\n  int sumar(int a, int b) { return a + b; }\n  double sumar(double a, double b) { return a + b; }\n}"
         },
         {
           "nombre": "Clases Abstractas e Interfaces",
-          "definición": "Las clases abstractas son plantillas incompletas que deben ser heredadas. Las interfaces definen un contrato que las clases implementan.",
-          "ejemplo": "abstract class Figura {\n  abstract double area();\n}\n\nclass Circulo extends Figura {\n  double radio;\n  Circulo(double r) { this.radio = r; }\n  double area() { return Math.PI * radio * radio; }\n}\n\ninterface Animal {\n  void sonido();\n}\n\nclass Perro implements Animal {\n  public void sonido() { System.out.println(\"Guau\"); }\n}"
+          "definición": "Las clases abstractas definen métodos incompletos; las interfaces son contratos que las clases deben implementar.",
+          "ejemplo": "abstract class Figura { abstract double area(); }\nclass Circulo extends Figura { double radio; Circulo(double r) { radio = r; } double area() { return Math.PI * radio * radio; } }\ninterface Animal { void sonido(); }\nclass Perro implements Animal { public void sonido() { System.out.println(\"Guau\"); } }"
         },
         {
           "nombre": "Lenguaje de Modelado Unificado (UML)",
-          "definición": "Es un lenguaje estándar de modelado para visualizar, especificar, construir y documentar sistemas de software.",
-          "ejemplo": "Diagramas comunes:\n- Diagrama de Clases: representa clases y relaciones.\n- Diagrama de Casos de Uso: muestra la interacción entre actores y el sistema.\n- Diagrama de Secuencia: describe la interacción entre objetos a lo largo del tiempo."
+          "definición": "Lenguaje estándar para visualizar, especificar y documentar sistemas de software.",
+          "ejemplo": "- Diagrama de Clases: relaciones entre clases.\n- Casos de Uso: interacción entre actores y sistema.\n- Diagrama de Secuencia: intercambio de mensajes en el tiempo."
         }
       ]
     },
@@ -51,18 +51,18 @@
       "temas": [
         {
           "nombre": "Diagramas UML",
-          "definición": "Los diagramas UML permiten representar gráficamente la estructura y comportamiento de un sistema.",
-          "ejemplo": "- Diagrama de Clases: muestra clases, atributos, métodos y relaciones.\n- Diagrama de Casos de Uso: actores y funcionalidades.\n- Diagrama de Secuencia: interacción temporal de objetos.\n- Diagrama de Actividad: flujo de procesos."
+          "definición": "Representan gráficamente la estructura y el comportamiento de un sistema.",
+          "ejemplo": "- Clases: atributos, métodos, relaciones.\n- Secuencia: flujo de mensajes.\n- Actividad: procesos y decisiones."
         },
         {
           "nombre": "Patrones de Diseño en POO",
-          "definición": "Son soluciones reutilizables a problemas comunes en el diseño de software.",
-          "ejemplo": "Patrón Singleton: asegura que solo exista una instancia de una clase.\nclass Singleton {\n  private static Singleton instancia;\n  private Singleton() {}\n  public static Singleton getInstancia() {\n    if (instancia == null) instancia = new Singleton();\n    return instancia;\n  }\n}"
+          "definición": "Soluciones probadas a problemas comunes en el diseño de software.",
+          "ejemplo": "Patrón Singleton:\nclass Singleton {\n  private static Singleton instancia;\n  private Singleton() {}\n  public static Singleton getInstancia() {\n    if (instancia == null) instancia = new Singleton();\n    return instancia;\n  }\n}"
         },
         {
           "nombre": "Patrón MVC",
-          "definición": "Divide una aplicación en tres componentes: Modelo (datos), Vista (interfaz), Controlador (lógica).",
-          "ejemplo": "// Modelo\nclass Usuario {\n  String nombre;\n}\n\n// Vista\nclass VistaUsuario {\n  void mostrar(String nombre) { System.out.println(\"Usuario: \" + nombre); }\n}\n\n// Controlador\nclass ControladorUsuario {\n  private Usuario modelo;\n  private VistaUsuario vista;\n  ControladorUsuario(Usuario m, VistaUsuario v) { this.modelo = m; this.vista = v; }\n  void actualizarVista() { vista.mostrar(modelo.nombre); }\n}"
+          "definición": "Separa la aplicación en Modelo (datos), Vista (interfaz) y Controlador (lógica).",
+          "ejemplo": "// Modelo\nclass Usuario { String nombre; }\n// Vista\nclass VistaUsuario { void mostrar(String n) { System.out.println(\"Usuario: \" + n); } }\n// Controlador\nclass ControladorUsuario { Usuario modelo; VistaUsuario vista; ControladorUsuario(Usuario m, VistaUsuario v){ modelo=m; vista=v; } void actualizarVista(){ vista.mostrar(modelo.nombre); } }"
         }
       ]
     },
@@ -71,29 +71,85 @@
       "temas": [
         {
           "nombre": "Acceso a Archivos",
-          "definición": "Permite leer y escribir información persistente desde archivos en el sistema.",
-          "ejemplo": "import java.io.*;\nclass LeerArchivo {\n  public static void main(String[] args) throws IOException {\n    BufferedReader br = new BufferedReader(new FileReader(\"archivo.txt\"));\n    String linea;\n    while ((linea = br.readLine()) != null) {\n      System.out.println(linea);\n    }\n    br.close();\n  }\n}"
+          "definición": "Permite leer y escribir datos persistentes desde archivos.",
+          "ejemplo": "BufferedReader br = new BufferedReader(new FileReader(\"archivo.txt\"));\nString linea;\nwhile ((linea = br.readLine()) != null) {\n  System.out.println(linea);\n}\nbr.close();"
         },
         {
           "nombre": "Bases de Datos y ORM",
-          "definición": "El acceso a bases de datos en Java se hace con JDBC o frameworks ORM como Hibernate.",
-          "ejemplo": "import java.sql.*;\nclass ConexionBD {\n  public static void main(String[] args) throws Exception {\n    Connection con = DriverManager.getConnection(\"jdbc:mysql://localhost:3306/miBD\", \"root\", \"\");\n    Statement stmt = con.createStatement();\n    ResultSet rs = stmt.executeQuery(\"SELECT * FROM usuarios\");\n    while (rs.next()) {\n      System.out.println(rs.getString(\"nombre\"));\n    }\n    con.close();\n  }\n}"
+          "definición": "Se accede a bases de datos en Java con JDBC o frameworks ORM como Hibernate.",
+          "ejemplo": "Connection con = DriverManager.getConnection(\"jdbc:mysql://localhost:3306/miBD\", \"root\", \"\");\nStatement stmt = con.createStatement();\nResultSet rs = stmt.executeQuery(\"SELECT * FROM usuarios\");\nwhile (rs.next()) System.out.println(rs.getString(\"nombre\"));\ncon.close();"
         },
         {
           "nombre": "Integración POO + MVC + BD",
-          "definición": "Permite combinar la lógica orientada a objetos con la arquitectura MVC y el acceso a datos.",
-          "ejemplo": "MVC con base de datos: el Modelo representa la entidad y conexión, el Controlador gestiona las operaciones CRUD, la Vista muestra resultados."
+          "definición": "Combina la orientación a objetos, MVC y persistencia de datos para sistemas completos."
         },
         {
           "nombre": "Pruebas y Buenas Prácticas",
-          "definición": "Se recomienda aplicar pruebas unitarias, integración continua y patrones de diseño para garantizar calidad del software.",
-          "ejemplo": "Uso de JUnit:\nimport org.junit.*;\nclass TestSuma {\n  @Test\n  public void testSumar() {\n    Calculadora c = new Calculadora();\n    assertEquals(5, c.sumar(2, 3));\n  }\n}"
+          "definición": "Incluye pruebas unitarias, integración continua y patrones para calidad.",
+          "ejemplo": "import org.junit.*;\nclass TestSuma {\n  @Test public void testSumar() { assertEquals(5, new Calculadora().sumar(2,3)); }\n}"
         },
         {
           "nombre": "Programación Concurrente y Distribuida",
-          "definición": "La programación concurrente permite ejecutar múltiples tareas simultáneamente usando hilos. La distribuida involucra procesos en múltiples máquinas.",
-          "ventajas": ["Mejor rendimiento en sistemas multi-core", "Eficiencia en tareas paralelas", "Escalabilidad en redes"],
-          "ejemplo": "class HiloEjemplo implements Runnable {\n  public void run() {\n    System.out.println(\"Hilo concurrente ejecutándose\");\n  }\n}\n\nThread hilo = new Thread(new HiloEjemplo());\nhilo.start();"
+          "definición": "Concurrente = múltiples hilos; distribuida = múltiples máquinas.",
+          "ejemplo": "class HiloEjemplo implements Runnable {\n  public void run() { System.out.println(\"Hilo ejecutándose\"); }\n}\nThread hilo = new Thread(new HiloEjemplo());\nhilo.start();"
+        }
+      ]
+    },
+    {
+      "nombre": "Unidad 5: Patrones de Diseño Avanzados",
+      "temas": [
+        {
+          "nombre": "Patrón Observer",
+          "definición": "Notifica a múltiples objetos cuando el estado de otro cambia.",
+          "ejemplo": "interface Observador { void actualizar(String msg); }\nclass Sujeto { List<Observador> obs = new ArrayList<>(); void agregar(Observador o){ obs.add(o);} void notificar(String m){ for(Observador o: obs) o.actualizar(m);} }"
+        },
+        {
+          "nombre": "Patrón Strategy",
+          "definición": "Permite cambiar dinámicamente el algoritmo usado en un contexto.",
+          "ejemplo": "interface Estrategia { void ejecutar(); }\nclass EstrategiaA implements Estrategia { public void ejecutar(){ System.out.println(\"A\"); } }\nclass Contexto { Estrategia e; Contexto(Estrategia e){ this.e = e; } void operar(){ e.ejecutar(); } }"
+        },
+        {
+          "nombre": "Patrón Factory",
+          "definición": "Centraliza la creación de objetos, evitando usar 'new' directamente.",
+          "ejemplo": "class Fabrica {\n  static Figura crear(String tipo){ if(tipo.equals(\"circulo\")) return new Circulo(); else return new Cuadrado(); }\n}"
+        }
+      ]
+    },
+    {
+      "nombre": "Unidad 6: Arquitecturas Modernas y Buenas Prácticas",
+      "temas": [
+        {
+          "nombre": "Principios SOLID",
+          "definición": "Conjunto de principios que promueven diseño limpio, mantenible y extensible."
+        },
+        {
+          "nombre": "MVC vs MVP vs MVVM",
+          "definición": "Comparación de arquitecturas: MVC separa en 3 capas, MVP delega la lógica en el Presentador, MVVM introduce ViewModel para desacoplar la UI."
+        },
+        {
+          "nombre": "Clean Architecture",
+          "definición": "Arquitectura en capas concéntricas que desacopla dominio, aplicación e infraestructura."
+        }
+      ]
+    },
+    {
+      "nombre": "Unidad 7: Android y Desarrollo Móvil",
+      "temas": [
+        {
+          "nombre": "Ciclo de Vida de una Activity",
+          "definición": "Describe los estados por los que pasa una pantalla en Android (onCreate, onStart, onResume, etc.)."
+        },
+        {
+          "nombre": "Fragments y ViewModel",
+          "definición": "Los Fragments permiten interfaces modulares; los ViewModels manejan datos de forma persistente al ciclo de vida."
+        },
+        {
+          "nombre": "Room ORM",
+          "definición": "Biblioteca de persistencia de Android que abstrae SQLite con anotaciones."
+        },
+        {
+          "nombre": "Consumo de APIs REST con Retrofit",
+          "definición": "Retrofit facilita llamadas HTTP en Android usando interfaces y anotaciones."
         }
       ]
     }

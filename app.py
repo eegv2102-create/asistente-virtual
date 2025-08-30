@@ -601,7 +601,6 @@ def logout():
 @limiter.limit("50 per hour")
 def buscar_respuesta():
     """Busca respuesta usando Groq API basada en la pregunta del usuario."""
-    # --- Manejo de userId persistente ---
     data_json = request.get_json(silent=True) or {}
     usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
     session['usuario'] = usuario
@@ -621,7 +620,7 @@ def buscar_respuesta():
         elif conv_id != session.get('current_conv_id'):
             session['current_conv_id'] = conv_id
 
-        # Normalizar pregunta para identificar tema
+        # Normalizar pregunta
         pregunta_norm = pregunta.lower().strip()
 
         # Construir contexto a partir del historial
@@ -631,7 +630,7 @@ def buscar_respuesta():
                 [f"- Pregunta: {h['pregunta']}\n  Respuesta: {h['respuesta']}" for h in historial[-5:]]
             )
 
-        # Identificar tema basado en TEMAS_DISPONIBLES
+        # Identificar tema
         tema_identificado = None
         for tema in TEMAS_DISPONIBLES:
             if tema.lower() in pregunta_norm:
@@ -640,7 +639,23 @@ def buscar_respuesta():
         if not tema_identificado:
             tema_identificado = TEMAS_DISPONIBLES[0] if TEMAS_DISPONIBLES else 'General'
 
-        # Verificar si el último mensaje es el saludo inicial
+        # Extraer definición y ejemplo del tema de temas.json
+        tema_detalle = None
+        for unidad in TEMAS_COMPLETOS:  # asegúrate que cargaste temas.json completo en TEMAS_COMPLETOS
+            for t in unidad.get("temas", []):
+                if t["nombre"].lower() == tema_identificado.lower():
+                    tema_detalle = t
+                    break
+            if tema_detalle:
+                break
+
+        contexto_extra = ""
+        if tema_detalle:
+            definicion = tema_detalle.get("definición", "")
+            ejemplo = tema_detalle.get("ejemplo", "")
+            contexto_extra = f"\nDefinición del tema '{tema_identificado}': {definicion}\nEjemplo: {ejemplo}"
+
+        # Evitar duplicar saludo
         saludo_inicial = "Hola, soy YELIA 👋. ¿En qué tema de Programación Avanzada quieres que te ayude hoy?"
         es_saludo_duplicado = False
         with get_db_connection() as conn:
@@ -650,7 +665,7 @@ def buscar_respuesta():
                 if ultimo_mensaje and ultimo_mensaje[0] == saludo_inicial:
                     es_saludo_duplicado = True
 
-        # Respuestas simples para preguntas comunes
+        # Respuestas simples
         respuestas_simples = {
             r"^(hola|¡hola!|buenos días|buenas tardes|buenas noches|hey|hi)$": (
                 "Hola, ¿cómo puedo ayudarte con Programación Avanzada hoy?"
@@ -666,31 +681,29 @@ def buscar_respuesta():
             )
         }
 
-        # Verificar si la pregunta coincide con una respuesta simple
         for patron, respuesta in respuestas_simples.items():
             if re.match(patron, pregunta_norm, re.IGNORECASE) and respuesta:
                 guardar_mensaje(usuario, conv_id, 'user', pregunta, tema=tema_identificado)
                 guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
-                logger.info("Respuesta simple enviada", pregunta=pregunta, usuario=usuario, conv_id=conv_id)
                 return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
 
-        # Construir prompt completo para Groq API
+        # Prompt completo
         prompt = (
-            f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática. "
+            f"Eres YELIA, un tutor especializado en Programación Avanzada para Ingeniería en Telemática.\n"
             f"Sigue estas instrucciones estrictamente:\n"
-            f"1. Responde solo sobre los temas: {', '.join(TEMAS_DISPONIBLES)}.\n"
+            f"1. Responde con prioridad sobre los temas: {', '.join(TEMAS_DISPONIBLES)}.\n"
             f"2. Nivel de explicación: '{nivel_explicacion}'.\n"
-            f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano, sin Markdown, negritas, listas, ejemplos, ventajas, comparaciones o bloques de código.\n"
-            f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Prohibido incluir ventajas o comparaciones. Usa título '## Ejemplo en Java'.\n"
-            f"   - 'avanzada': Definición (máximo 80 palabras) + lista de 2-3 ventajas (máximo 50 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas, con formato Markdown). Puede incluir UNA comparación breve con otro concepto (máximo 20 palabras). Usa títulos '## Ventajas', '## Ejemplo en Java', y '## Comparación' si aplica.\n"
-            f"3. Si la pregunta es ambigua (e.g., solo 'Herencia'), asume que se refiere al tema correspondiente de la lista.\n"
-            f"4. Usa Markdown para estructurar la respuesta SOLO en 'ejemplos' y 'avanzada' (títulos con ##, lista con -).\n"
-            f"5. Mantén el hilo de la conversación basado en el contexto previo, respondiendo naturalmente como un chat continuo (ej. si piden ejemplo en vida real, extiende el ejemplo anterior).\n"
-            f"6. Si la pregunta menciona 'curiosidad' o 'dato curioso', proporciona un hecho interesante breve (máximo 50 palabras) relacionado con el tema, motivando al aprendizaje.\n"
-            f"7. No hagas preguntas al usuario ni digas 'por favor' ni 'espero haberte ayudado'.\n"
-            f"8. No uses emoticones ni emojis.\n"
-            f"9. Si no se puede responder, sugiere un tema de la lista.\n"
-            f"Contexto: {contexto}\n"
+            f"   - 'basica': SOLO una definición clara y concisa (máximo 70 palabras) en texto plano.\n"
+            f"   - 'ejemplos': Definición breve (máximo 80 palabras) + UN SOLO ejemplo en Java (máximo 10 líneas).\n"
+            f"   - 'avanzada': Definición (máximo 80 palabras) + 2-3 ventajas + UN SOLO ejemplo en Java (máximo 10 líneas) + una breve comparación.\n"
+            f"3. Si la pregunta es ambigua, asume que se refiere al tema más cercano de la lista.\n"
+            f"4. Usa Markdown solo en 'ejemplos' y 'avanzada'.\n"
+            f"5. Mantén coherencia con el contexto previo.\n"
+            f"6. Si el usuario pide una curiosidad, da un dato breve relacionado (máx 50 palabras).\n"
+            f"7. No hagas preguntas al usuario ni uses emojis.\n"
+            f"8. Si no puedes responder, sugiere otro tema de la lista.\n"
+            f"9. Si el usuario pega un código o ejercicio, explícalo paso a paso aunque no esté en la lista.\n"
+            f"Contexto: {contexto}{contexto_extra}\n"
             f"Timestamp: {int(time.time())}"
         )
 
@@ -704,31 +717,29 @@ def buscar_respuesta():
                 max_tokens=300,
                 temperature=0.2
             )
-            # Validar la respuesta de Groq
-            if not completion.choices or not hasattr(completion.choices[0], 'message') or not completion.choices[0].message.content:
+
+            # Validar respuesta
+            respuesta = getattr(completion.choices[0].message, "content", None) or ""
+            if not respuesta.strip():
                 raise ValueError("Respuesta de Groq vacía o inválida")
-            respuesta = completion.choices[0].message.content.strip()
-            if not respuesta:
-                respuesta = f"Lo siento, no pude generar una respuesta. Intenta con una pregunta sobre {tema_identificado}."
+
             guardar_mensaje(usuario, conv_id, 'user', pregunta, tema=tema_identificado)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
-            logger.info("Respuesta generada", pregunta=pregunta, usuario=usuario, conv_id=conv_id, tema=tema_identificado)
-            return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
+            return jsonify({'respuesta': respuesta.strip(), 'conv_id': conv_id})
+
         except Exception as e:
             logger.error("Error al procesar respuesta de Groq", error=str(e), pregunta=pregunta, usuario=usuario, conv_id=conv_id)
-            respuesta = (
-                f"Lo siento, no pude procesar tu pregunta. "
-                f"Intenta con una pregunta sobre Programación Avanzada, como {tema_identificado}."
-            )
+            respuesta = f"No encontré respuesta directa, pero podemos revisar el tema '{tema_identificado}' o resolver un ejercicio juntos."
             guardar_mensaje(usuario, conv_id, 'user', pregunta, tema=tema_identificado)
             guardar_mensaje(usuario, conv_id, 'bot', respuesta, tema=tema_identificado)
             return jsonify({'respuesta': respuesta, 'conv_id': conv_id})
+
     except ValidationError as e:
-        logger.error("Validación fallida en /buscar_respuesta", error=str(e), usuario=usuario)
         return jsonify({"error": f"Datos inválidos: {str(e)}", "status": 400}), 400
     except Exception as e:
         logger.error("Error en /buscar_respuesta", error=str(e), usuario=usuario)
         return jsonify({"error": f"Error al procesar la solicitud: {str(e)}", "status": 500}), 500
+
 
 # Blueprint para rutas relacionadas con quiz
 quiz_bp = Blueprint('quiz', __name__)
@@ -1170,6 +1181,12 @@ except Exception as e:
 
 # Carga inicial de temas
 temas = {}
+try:
+    with open('temas.json', 'r', encoding='utf-8') as f:
+        temas_json = json.load(f)
+        TEMAS_COMPLETOS = temas_json.get("Unidades", [])
+except Exception:
+    TEMAS_COMPLETOS = []
 TEMAS_DISPONIBLES = cargar_temas()
 
 if __name__ == "__main__":
