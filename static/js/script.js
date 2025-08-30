@@ -600,9 +600,8 @@ const cargarMensajes = async (convId) => {
     localStorage.setItem('lastConvId', convId);
     try {
         const res = await fetch(`${config.MESSAGES_URL}/${convId}`, {
-            method: 'POST', // Cambiado a POST para alinearse con app.py, que espera body con usuario
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
+            method: 'GET', // Usar GET para obtener mensajes
+            headers: { 'Content-Type': 'application/json' }
         });
         if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
