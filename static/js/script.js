@@ -26,7 +26,7 @@ const config = {
     TEMAS_URL: '/temas',
     LOGOUT_URL: '/logout',
     TEMAS_DISPONIBLES: [],
-    userId: null  // Añadido para userId persistente
+    userId: null  // Identificador único del usuario persistente
 };
 
 // --- Utilidades Generales ---
@@ -167,7 +167,7 @@ const speakText = async (text) => {
         const res = await fetch(config.TTS_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: textoParaVoz })
+            body: JSON.stringify({ text: textoParaVoz, usuario: config.userId })  // Incluir userId persistente
         });
         if (!res.ok) {
             const err = await res.json();
@@ -545,9 +545,9 @@ const cargarAvatares = async () => {
 const cargarConversaciones = async () => {
     try {
         const res = await fetch(config.CONVERSATIONS_URL, {
-            method: 'GET',
+            method: 'POST', // Cambiado a POST para alinearse con app.py, que espera body con usuario
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente (aunque GET no usa body, se ajusta para consistencia; en práctica, usar query params si es necesario)
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
         });
         if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
@@ -600,9 +600,9 @@ const cargarMensajes = async (convId) => {
     localStorage.setItem('lastConvId', convId);
     try {
         const res = await fetch(`${config.MESSAGES_URL}/${convId}`, {
-            method: 'GET',
+            method: 'POST', // Cambiado a POST para alinearse con app.py, que espera body con usuario
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente (aunque GET no usa body)
+            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
         });
         if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
@@ -721,7 +721,7 @@ const obtenerQuiz = async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                usuario: config.userId,  // Usar userId persistente
+                usuario: config.userId,  // Incluir userId persistente
                 nivel: config.nivelExplicacion,
                 tema: config.temaSeleccionado,
                 historial: getHistorial()
@@ -857,7 +857,7 @@ const obtenerRecomendacion = async () => {
         const res = await fetch(config.RECOMMEND_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: config.userId, historial: getHistorial() })  // Usar userId persistente
+            body: JSON.stringify({ usuario: config.userId, historial: getHistorial() })  // Incluir userId persistente
         });
         if (!res.ok) throw new Error(`Error al obtener recomendación: ${res.status} - ${await res.text()}`);
         const data = await res.json();
@@ -1062,6 +1062,7 @@ const init = () => {
     } else {
         config.userId = localStorage.getItem('userId');
     }
+    console.log('User ID:', config.userId); // Debugging
     // ---
 
     const modoOscuro = localStorage.getItem('modoOscuro') === 'true';
@@ -1203,7 +1204,7 @@ const init = () => {
 
     if ('speechSynthesis' in window) {
         speechSynthesis.onvoiceschanged = () => {
-            speechSynthesis.getVoices();
+            speechSynthesis.getVoes();
         };
         speechSynthesis.getVoices();
     }
