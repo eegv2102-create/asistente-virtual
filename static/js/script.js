@@ -545,21 +545,22 @@ const cargarAvatares = async () => {
 const cargarConversaciones = async () => {
     try {
         const res = await fetch(config.CONVERSATIONS_URL, {
-            method: 'POST', // Cambiado a POST para alinearse con app.py, que espera body con usuario
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usuario: config.userId })  // Incluir userId persistente
+            method: 'GET', // Cambiado a GET para alinearse con app.py
+            headers: { 'Content-Type': 'application/json' }
         });
         if (!res.ok) throw new Error(`Error HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
         const chatList = getElement('#chat-list');
         if (!chatList) return;
-        chatList.innerHTML = '';
 
-        data.conversations.forEach(conv => {
+        chatList.innerHTML = '';
+        // Verificar si data.conversations existe y es un arreglo
+        const conversations = Array.isArray(data.conversations) ? data.conversations : [];
+        conversations.forEach(conv => {
             const li = document.createElement('li');
             li.dataset.id = conv.id;
             li.innerHTML = `
-                <span class="chat-name">${conv.nombre}</span>
+                <span class="chat-name">${conv.nombre || 'Nuevo Chat'}</span>
                 <div class="chat-actions">
                     <button class="rename-btn" data-tooltip="Renombrar"><i class="fas fa-edit"></i></button>
                     <button class="delete-btn" data-tooltip="Eliminar"><i class="fas fa-trash"></i></button>
@@ -582,11 +583,11 @@ const cargarConversaciones = async () => {
             });
         });
 
-        if (data.conversations.length > 0 && !config.currentConvId) {
-            config.currentConvId = data.conversations[0].id;
+        if (conversations.length > 0 && !config.currentConvId) {
+            config.currentConvId = conversations[0].id;
             localStorage.setItem('lastConvId', config.currentConvId);
             cargarMensajes(config.currentConvId);
-        } else if (data.conversations.length === 0) {
+        } else if (conversations.length === 0) {
             mostrarMensajeBienvenida();
         }
     } catch (error) {
