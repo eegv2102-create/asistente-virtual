@@ -1,5 +1,4 @@
 # app.py - Refactorizado con correcciones para error en /buscar_respuesta y robustez mejorada
-
 import time
 import json
 import os
@@ -79,6 +78,7 @@ class BuscarRespuestaInput(BaseModel):
     historial: List = []
     nivel_explicacion: Annotated[str, StringConstraints(max_length=20)] = 'basica'
     conv_id: Optional[int] = None
+    usuario: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
 
 class QuizInput(BaseModel):
     usuario: Annotated[str, StringConstraints(max_length=50)] = 'anonimo'
@@ -91,9 +91,11 @@ class ResponderQuizInput(BaseModel):
     respuesta: Annotated[str, StringConstraints(max_length=100)]
     respuesta_correcta: Annotated[str, StringConstraints(max_length=100)]
     tema: Annotated[str, StringConstraints(max_length=50)] = 'General'
+    usuario: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
 
 class TTSInput(BaseModel):
     text: Annotated[str, StringConstraints(max_length=1000)]
+    usuario: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
 
 class RecommendInput(BaseModel):
     usuario: Annotated[str, StringConstraints(max_length=50)] = 'anonimo'
@@ -101,11 +103,13 @@ class RecommendInput(BaseModel):
 
 class ConversationInput(BaseModel):
     nombre: Annotated[str, StringConstraints(max_length=100)] = 'Nuevo Chat'
+    usuario: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
 
 class MessageInput(BaseModel):
     role: str
     content: str
     tema: Optional[str] = None
+    usuario: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
 
 # --- Funciones de Lógica de Base de Datos ---
 @retrying.retry(wait_fixed=GROQ_RETRY_WAIT, stop_max_attempt_number=GROQ_RETRY_ATTEMPTS)
@@ -397,9 +401,9 @@ chat_bp = Blueprint('chat', __name__)
 @limiter.limit("50 per hour")
 def handle_messages(conv_id):
     """Maneja obtención y guardado de mensajes en una conversación."""
-    if 'usuario' not in session:
-        session['usuario'] = uuid.uuid4().hex
-    usuario = session['usuario']
+    data_json = request.get_json(silent=True) or {}
+    usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+    session['usuario'] = usuario
 
     if not validar_conversacion(usuario, conv_id):
         logger.warning("Conversación no válida, creando una nueva", conv_id=conv_id, usuario=usuario)
@@ -469,9 +473,10 @@ def handle_messages(conv_id):
 @limiter.limit("50 per hour")
 def list_conversations():
     """Lista todas las conversaciones de un usuario."""
-    if 'usuario' not in session:
-        session['usuario'] = uuid.uuid4().hex
-    usuario = session['usuario']
+    data_json = request.get_json(silent=True) or {}
+    usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+    session['usuario'] = usuario
+
     try:
         conn = get_db_connection()
         c = conn.cursor()
@@ -501,9 +506,10 @@ def list_conversations():
 @limiter.limit("50 per hour")
 def manage_conversation(conv_id):
     """Maneja eliminación y renombrado de conversaciones."""
-    if 'usuario' not in session:
-        session['usuario'] = uuid.uuid4().hex
-    usuario = session['usuario']
+    data_json = request.get_json(silent=True) or {}
+    usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+    session['usuario'] = usuario
+
     if request.method == 'DELETE':
         try:
             conn = get_db_connection()
@@ -548,9 +554,10 @@ def manage_conversation(conv_id):
 @limiter.limit("50 per hour")
 def create_conversation():
     """Crea una nueva conversación con un mensaje de saludo inicial."""
-    if 'usuario' not in session:
-        session['usuario'] = uuid.uuid4().hex
-    usuario = session['usuario']
+    data_json = request.get_json(silent=True) or {}
+    usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+    session['usuario'] = usuario
+
     try:
         data = ConversationInput(**request.get_json(silent=True) or {})
         nombre = data.nombre
@@ -574,6 +581,10 @@ def create_conversation():
 @limiter.limit("10 per hour")
 def logout():
     """Limpia la sesión del usuario para forzar un nuevo chat al volver a entrar."""
+    data_json = request.get_json(silent=True) or {}
+    usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+    session['usuario'] = usuario
+
     if 'usuario' in session:
         usuario = session['usuario']
         session.clear()
@@ -586,9 +597,9 @@ def logout():
 def buscar_respuesta():
     """Busca respuesta usando Groq API basada en la pregunta del usuario."""
     try:
-        if 'usuario' not in session:
-            session['usuario'] = uuid.uuid4().hex
-        usuario = session['usuario']
+        data_json = request.get_json(silent=True) or {}
+        usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+        session['usuario'] = usuario
 
         # Validar JSON recibido
         data = BuscarRespuestaInput(**request.get_json())
@@ -721,9 +732,9 @@ quiz_bp = Blueprint('quiz', __name__)
 def quiz():
     """Genera una pregunta de quiz usando Groq API."""
     try:
-        if 'usuario' not in session:
-            session['usuario'] = uuid.uuid4().hex
-        usuario = session['usuario']
+        data_json = request.get_json(silent=True) or {}
+        usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+        session['usuario'] = usuario
 
         data = QuizInput(**request.get_json())
         historial = data.historial
@@ -810,9 +821,9 @@ def quiz():
 def responder_quiz():
     """Procesa la respuesta del usuario a un quiz."""
     try:
-        if 'usuario' not in session:
-            session['usuario'] = uuid.uuid4().hex
-        usuario = session['usuario']
+        data_json = request.get_json(silent=True) or {}
+        usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+        session['usuario'] = usuario
 
         data = ResponderQuizInput(**request.get_json())
         respuesta = data.respuesta
@@ -898,9 +909,9 @@ tts_bp = Blueprint('tts', __name__)
 def tts():
     """Genera audio TTS a partir de texto."""
     try:
-        if 'usuario' not in session:
-            session['usuario'] = uuid.uuid4().hex
-        usuario = session['usuario']
+        data_json = request.get_json(silent=True) or {}
+        usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+        session['usuario'] = usuario
 
         data = TTSInput(**request.get_json())
         text = data.text
@@ -961,9 +972,9 @@ recommend_bp = Blueprint('recommend', __name__)
 def recommend():
     """Genera una recomendación de tema usando Groq API."""
     try:
-        if 'usuario' not in session:
-            session['usuario'] = uuid.uuid4().hex
-        usuario = session['usuario']
+        data_json = request.get_json(silent=True) or {}
+        usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+        session['usuario'] = usuario
 
         data = RecommendInput(**request.get_json())
         historial = data.historial
@@ -1116,9 +1127,10 @@ def get_avatars():
 def index():
     """Ruta principal que renderiza la interfaz."""
     try:
-        if 'usuario' not in session:
-            session['usuario'] = uuid.uuid4().hex
-        usuario = session['usuario']
+        data_json = request.get_json(silent=True) or {}
+        usuario = data_json.get("usuario") or session.get("usuario") or uuid.uuid4().hex
+        session['usuario'] = usuario
+
         # Verificar si hay un chat activo
         conv_id = session.get('current_conv_id')
         if conv_id and not validar_conversacion(usuario, conv_id):
